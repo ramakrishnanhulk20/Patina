@@ -1,6 +1,6 @@
 import { controllerFor, isSourceId } from "@/lib/vana";
 import { ensureSessionId, readSessionId } from "@/lib/session";
-import { linkedWallet, rememberRequest, resolveProfileId } from "@/lib/store";
+import { rememberRequest, resolveProfileId } from "@/lib/store";
 import { checkConnectRate } from "@/lib/ratelimit";
 
 export async function POST(request: Request) {
@@ -26,18 +26,16 @@ export async function POST(request: Request) {
   // signed in, not against this browser. Otherwise connecting on a phone and a
   // laptop produces two half-finished profiles for the same human.
   const browserSession = await ensureSessionId();
-  const wallet = await linkedWallet(browserSession);
 
-  // Enforced here as well as in the UI. A disabled button is a hint; this is
-  // the rule. Without it, a request that skipped the button would spend escrow
-  // to build a profile that can never be merged or paid out correctly.
-  if (!wallet) {
-    return Response.json(
-      { error: "Sign in first so your score follows you rather than this browser." },
-      { status: 401 },
-    );
-  }
-
+  // No sign-in requirement.
+  //
+  // There was one, gating this route behind a Vana wallet address. It had to go:
+  // that address is only obtainable through the Context Gateway, ODL's separate
+  // commercial layer, which needs a client_id we do not have. account.vana.org
+  // answers the SDK's own auth URL with "This app is not registered with Vana".
+  //
+  // So the gate blocked every connection on the site while offering a sign-in
+  // that could never complete. Identity is solved with a device link instead.
   const profileId = await resolveProfileId(browserSession);
 
   // Vana sends the user straight back to the connect page, where the pending

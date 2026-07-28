@@ -22,12 +22,16 @@ export function ShareCard({
   score,
   referralCode,
   referralCount,
+  deviceToken,
 }: {
   score: ScoreView;
   referralCode: string;
   referralCount: number;
+  /** Private. Only ever rendered into the owner's own device link. */
+  deviceToken: string | null;
 }) {
   const [copied, setCopied] = useState(false);
+  const [copiedDevice, setCopiedDevice] = useState(false);
 
   // window does not exist during the server render, so the origin is read as an
   // external value with an empty server snapshot rather than being pushed into
@@ -44,6 +48,17 @@ export function ShareCard({
   const tweetUrl = link
     ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`
     : "";
+
+  async function copyDevice() {
+    if (!origin || !deviceToken) return;
+    try {
+      await navigator.clipboard.writeText(`${origin}/d?k=${deviceToken}`);
+      setCopiedDevice(true);
+      setTimeout(() => setCopiedDevice(false), 2200);
+    } catch {
+      // Blocked outside a secure context. The field above is selectable.
+    }
+  }
 
   async function copy() {
     if (!link) return;
@@ -107,6 +122,51 @@ export function ShareCard({
           </a>
         )}
       </div>
+
+      {/*
+        Continuing on another device.
+
+        A profile lives in this browser, so a phone and a laptop would otherwise
+        be two different people with two half-finished scores. This link is how
+        one person stays one person. It is a secret, so it is kept apart from the
+        invite link above and labelled as private, since the two sitting next to
+        each other is exactly how somebody posts the wrong one.
+      */}
+      {deviceToken && origin && (
+        <div className="mt-6 border-t border-line pt-5">
+          <p className="t-label text-text-3">Using another device?</p>
+          <p className="mt-2 text-sm leading-relaxed text-text-2">
+            Open this on your phone or laptop to carry the same score across. Some sources are
+            easier to connect on one than the other.
+          </p>
+
+          <label className="mt-3 block">
+            <span className="sr-only">Your private device link</span>
+            <input
+              readOnly
+              value={`${origin}/d?k=${deviceToken}`}
+              onFocus={(event) => event.currentTarget.select()}
+              className="t-mono w-full border border-line bg-bg px-3 py-2.5 text-xs text-text-2"
+            />
+          </label>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={copyDevice}
+              className="btn btn-ghost px-4 py-2.5 text-sm"
+            >
+              {copiedDevice ? "Copied" : "Copy device link"}
+            </button>
+            <span className="t-label text-warn">Keep private</span>
+          </div>
+
+          <p className="mt-2.5 text-xs leading-relaxed text-text-4">
+            Anyone with this link gets your score, so do not post it. The invite link above is the
+            one to share.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

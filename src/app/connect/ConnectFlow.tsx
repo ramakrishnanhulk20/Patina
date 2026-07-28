@@ -5,7 +5,6 @@ import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
 import type { SourceSpec } from "@/lib/sources";
 import { ShareCard } from "./ShareCard";
-import { SignIn } from "./SignIn";
 import { useConnect } from "./useConnect";
 
 export function ConnectFlow({
@@ -14,16 +13,12 @@ export function ConnectFlow({
   initialReadAt,
   referralCode,
   referralCount,
-  initialSignedIn,
-  initialWallet,
 }: {
   sources: SourceSpec[];
   initialScore: ScoreView;
   initialReadAt: Record<string, string>;
   referralCode: string;
   referralCount: number;
-  initialSignedIn: boolean;
-  initialWallet: string | null;
 }) {
   const [score, setScore] = useState(initialScore);
   const [readAt, setReadAt] = useState(initialReadAt);
@@ -32,8 +27,7 @@ export function ConnectFlow({
   // minted mid-session and has to be picked up on refresh rather than only
   // arriving with the server render.
   const [code, setCode] = useState(referralCode);
-  const [signedIn, setSignedIn] = useState(initialSignedIn);
-  const [wallet, setWallet] = useState(initialWallet);
+  const [deviceToken, setDeviceToken] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -42,8 +36,7 @@ export function ConnectFlow({
       setReadAt(next.readAt ?? {});
       if (typeof next.referralCount === "number") setInvites(next.referralCount);
       if (typeof next.referralCode === "string") setCode(next.referralCode);
-      setSignedIn(Boolean(next.signedIn));
-      setWallet(next.wallet ?? null);
+      setDeviceToken(typeof next.deviceToken === "string" ? next.deviceToken : null);
     } catch {
       // A failed refresh is cosmetic. The read already succeeded and is stored,
       // so a slightly stale number beats an error thrown at someone who just
@@ -60,36 +53,28 @@ export function ConnectFlow({
     <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-14">
       <div>
         <h1 className="t-section text-text">
-          {!signedIn
-            ? "Sign in, then pick a source."
-            : connectedCount === 0
-              ? "Start with one."
-              : "Add another. It counts for more than you think."}
+          {connectedCount === 0
+            ? "Start with one."
+            : "Add another. It counts for more than you think."}
         </h1>
 
         <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
-          {!signedIn
-            ? "One tap, so your score belongs to you rather than to whichever device you happen to be holding. Nothing is read and nothing is charged."
-            : connectedCount === 0
-              ? "Pick whichever you have had the longest. Age is what matters here, not how active you are."
-              : `Each account you add is independent proof, and the score weights that heavily. ${
-                  remaining > 0
-                    ? `${remaining} left to go.`
-                    : "That is all of them. Nothing more to prove."
-                }`}
+          {connectedCount === 0
+            ? "Pick whichever you have had the longest. Age is what matters here, not how active you are."
+            : `Each account you add is independent proof, and the score weights that heavily. ${
+                remaining > 0
+                  ? `${remaining} left to go.`
+                  : "That is all of them. Nothing more to prove."
+              }`}
         </p>
 
-        <div className="mt-8">
-          <SignIn signedIn={signedIn} wallet={wallet} onSignedIn={refresh} />
-        </div>
-
-        <div className="mt-4 space-y-3">
+        <div className="mt-8 space-y-3">
           {sources.map((source) => (
             <SourceCard
               key={source.id}
               source={source}
               connected={Boolean(readAt[source.id])}
-              locked={!signedIn}
+              locked={false}
               phase={phase}
               onStart={start}
               onDismissError={dismissError}
@@ -114,7 +99,14 @@ export function ConnectFlow({
               This is a snapshot taken when you connected, not a live reading, because Vana gives an
               app one look at each source.
             </p>
-            {code && <ShareCard score={score} referralCode={code} referralCount={invites} />}
+            {code && (
+              <ShareCard
+                score={score}
+                referralCode={code}
+                referralCount={invites}
+                deviceToken={deviceToken}
+              />
+            )}
           </>
         )}
       </div>

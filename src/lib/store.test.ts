@@ -6,7 +6,7 @@ import {
   evidenceOf,
   getProfile,
   isPersistent,
-  linkSessionToWallet,
+  adoptProfile,
   newProfileId,
   resolveProfileId,
   profileIdForCode,
@@ -198,90 +198,90 @@ test("a rescored profile moves in the ranking rather than duplicating", async ()
 });
 
 /**
- * The bug this whole layer exists to kill: one person connecting on a phone and
- * a laptop used to become two profiles with two partial scores, two rows in the
- * ranking, and two claims on one reward share.
+ * The bug this layer exists to kill: one person connecting on a phone and a
+ * laptop became two profiles with two partial scores, two rows in the standings,
+ * and two claims on a single reward share.
  */
 test("one person on two devices ends up as one profile", async () => {
-  const wallet = "0xAbC0000000000000000000000000000000000001";
   const phone = newProfileId();
   const laptop = newProfileId();
 
-  // Phone: connects YouTube, then signs in.
   await recordSource(phone, "youtube", {
     scope: "youtube.profile",
     readAt: "2026-07-01T00:00:00Z",
     externalId: "chan",
     evidence: { youtube: { joinedDate: "2012-04-01T00:00:00Z", videoCount: 9 } },
   }, 40);
-  await linkSessionToWallet(phone, wallet, () => 40);
 
-  // Laptop: different browser, same human, signs in and connects GitHub.
-  await linkSessionToWallet(laptop, wallet, () => 40);
-  const laptopProfileId = await resolveProfileId(laptop);
-  await recordSource(laptopProfileId, "github", record("dev", "2013-01-01T00:00:00Z"), 66);
+  // The laptop connects something of its own before the two are joined up.
+  await recordSource(laptop, "github", record("dev", "2013-01-01T00:00:00Z"), 30);
 
-  // Both browsers must now resolve to the same profile.
-  assert.equal(await resolveProfileId(phone), await resolveProfileId(laptop));
+  const phoneProfile = await getProfile(phone);
+  const adopted = await adoptProfile(laptop, phoneProfile!.deviceToken, () => 66);
 
-  const merged = await getProfile(await resolveProfileId(phone));
-  assert.ok(merged, "the merged profile must exist");
-  assert.ok(merged!.sources.youtube, "the phone's source survived the merge");
-  assert.ok(merged!.sources.github, "the laptop's source is there too");
+  assert.ok(adopted, "a valid token must adopt the profile");
+  assert.equal(await resolveProfileId(laptop), phone, "both devices now point at one profile");
+
+  const merged = await getProfile(phone);
+  assert.ok(merged!.sources.youtube, "the phone's source survived");
+  assert.ok(merged!.sources.github, "the laptop's source came across");
 
   const evidence = evidenceOf(merged!);
   assert.equal(evidence.youtube?.joinedDate, "2012-04-01T00:00:00Z");
   assert.equal(evidence.github?.username, "dev");
 });
 
-test("merging leaves exactly one row in the standings, not two", async () => {
-  const wallet = "0xAbC0000000000000000000000000000000000002";
-  const phone = newProfileId();
-
-  await recordSource(phone, "github", record("solo", "2014-01-01T00:00:00Z"), 35);
-  const before = await topProfiles(1000);
-  assert.ok(before.some((r) => r.id === phone), "the anonymous profile is ranked first time round");
-
-  await linkSessionToWallet(phone, wallet, () => 35);
-
-  const after = await topProfiles(1000);
-  assert.ok(
-    !after.some((r) => r.id === phone),
-    "the orphaned cookie profile must leave the standings",
-  );
-  assert.ok(
-    after.some((r) => r.id === wallet.toLowerCase()),
-    "the wallet profile takes its place",
-  );
-});
-
-test("a referral link shared before signing in keeps working afterwards", async () => {
-  const wallet = "0xAbC0000000000000000000000000000000000003";
-  const session = newProfileId();
-
-  const anon = await ensureProfile(session);
-  const sharedCode = anon.referralCode;
-
-  await linkSessionToWallet(session, wallet, () => 0);
-
-  const owner = await profileIdForCode(sharedCode);
-  assert.equal(owner, wallet.toLowerCase(), "the code someone already shared must still resolve");
-});
-
-test("signing in on a device that never connected anything loses nothing", async () => {
-  const wallet = "0xAbC0000000000000000000000000000000000004";
+test("adopting leaves exactly one row in the standings, not two", async () => {
   const first = newProfileId();
-  const fresh = newProfileId();
+  const second = newProfileId();
 
   await recordSource(first, "github", record("keeper", "2011-01-01T00:00:00Z"), 70);
-  await linkSessionToWallet(first, wallet, () => 70);
+  await recordSource(second, "youtube", {
+    scope: "youtube.profile",
+    readAt: "2026-07-02T00:00:00Z",
+    externalId: "c2",
+    evidence: { youtube: { joinedDate: "2015-01-01T00:00:00Z" } },
+  }, 25);
 
-  // A brand new browser signs in to the same wallet and must not wipe anything.
-  await linkSessionToWallet(fresh, wallet, () => 70);
+  const target = await getProfile(first);
+  await adoptProfile(second, target!.deviceToken, () => 75);
 
-  const profile = await getProfile(wallet.toLowerCase());
-  assert.equal(profile?.sources.github?.externalId, "keeper");
-  assert.equal(Object.keys(profile!.sources).length, 1);
+  const board = await topProfiles(1000);
+  assert.ok(board.some((r) => r.id === first), "the adopted profile stays ranked");
+  assert.ok(
+    !board.some((r) => r.id === second),
+    "the absorbed profile must leave the standings entirely",
+  );
+});
+
+test("a referral link shared from the absorbed device keeps working", async () => {
+  const keep = newProfileId();
+  const absorbed = newProfileId();
+
+  await recordSource(keep, "github", record("a", "2012-01-01T00:00:00Z"), 50);
+  const shared = (await ensureProfile(absorbed)).referralCode;
+
+  const target = await getProfile(keep);
+  await adoptProfile(absorbed, target!.deviceToken, () => 50);
+
+  assert.equal(await profileIdForCode(shared), keep, "an already-shared code must still resolve");
+});
+
+test("a wrong or stale device token does nothing at all", async () => {
+  const session = newProfileId();
+  await recordSource(session, "github", record("mine", "2012-01-01T00:00:00Z"), 44);
+
+  const result = await adoptProfile(session, "0".repeat(48), () => 44);
+
+  assert.equal(result, null, "an unknown token must not adopt or create anything");
+  assert.equal(await resolveProfileId(session), session, "the session keeps its own profile");
+  const still = await getProfile(session);
+  assert.equal(still?.sources.github?.externalId, "mine");
+});
+
+test("a device token is long enough not to be guessed", async () => {
+  const profile = await ensureProfile(newProfileId());
+  assert.match(profile.deviceToken, /^[0-9a-f]{48}$/);
 });
 
 test("evidence from every source is merged for scoring", async () => {

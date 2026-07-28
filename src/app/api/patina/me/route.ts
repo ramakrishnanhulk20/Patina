@@ -2,7 +2,6 @@ import { readSessionId } from "@/lib/session";
 import {
   evidenceOf,
   getProfile,
-  linkedWallet,
   referralTally,
   resolveProfileId,
   standingOf,
@@ -22,8 +21,6 @@ const EMPTY = () => {
     referralCode: null,
     referralCount: 0,
     referralInvited: 0,
-    signedIn: false,
-    wallet: null as string | null,
     rank: null as number | null,
     totalScored: 0,
   };
@@ -37,14 +34,10 @@ export async function GET() {
   // Resolved, so a signed-in person sees one profile no matter which device
   // they happen to be holding.
   const profileId = await resolveProfileId(sessionId);
-  const [profile, wallet] = await Promise.all([getProfile(profileId), linkedWallet(sessionId)]);
+  const profile = await getProfile(profileId);
 
   if (!profile) {
-    return Response.json({
-      ...EMPTY(),
-      signedIn: Boolean(wallet),
-      wallet: wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : null,
-    });
+    return Response.json(EMPTY());
   }
 
   const score = scorePatina(evidenceOf(profile));
@@ -63,10 +56,9 @@ export async function GET() {
       Object.entries(profile.sources).map(([source, record]) => [source, record.readAt]),
     ),
     referralCode: profile.referralCode,
+    deviceToken: profile.deviceToken,
     referralCount: tally.qualified,
     referralInvited: tally.invited,
-    signedIn: Boolean(wallet),
-    wallet: wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : null,
     rank: standing.rank,
     totalScored: standing.total,
   });

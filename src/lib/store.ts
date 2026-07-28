@@ -38,6 +38,12 @@ export type Profile = {
   sources: Partial<Record<SourceId, SourceRecord>>;
   /** Short public code this person shares to invite others. */
   referralCode: string;
+  /**
+   * Private. Whoever holds this can adopt the profile on another device, so it
+   * is never rendered anywhere except in the owner's own "use on another
+   * device" link, and never returned by a public endpoint.
+   */
+  deviceToken: string;
   /** The code that brought them here, if any. Set once and never changed. */
   referredBy?: string;
   /** Cached so counting a referrer's qualified invites does not rescore everyone. */
@@ -77,20 +83,31 @@ const RANK_KEY = `${PREFIX}:ranking`;
 /**
  * Which profile a browser session belongs to.
  *
- * Identity used to be the session cookie itself, which meant one person on a
- * phone and a laptop was two people: two profiles, two partial scores, two rows
- * on any leaderboard, and two shares of a reward that should have been one.
- *
- * Once somebody signs in to Vana we key their profile by their WALLET ADDRESS
- * instead. The same Google login produces the same address on every device, so
- * the split cannot happen. This map remembers which wallet a given browser
- * belongs to; unauthenticated sessions still fall back to the cookie id so
- * nothing breaks for someone who has not signed in yet.
+ * Identity is the session cookie by default, which makes one person on a phone
+ * and a laptop into two people: two profiles, two partial scores, two rows in
+ * the standings, and two claims on a single reward share. This map is how that
+ * gets undone, by pointing a second browser at a profile it did not create.
  */
 const linkKey = (sessionId: string) => `${PREFIX}:link:${sessionId}`;
 
-/** Profile ids for wallets are the lowercased address, so they never collide with cookie ids. */
-export const walletProfileId = (address: string) => address.toLowerCase();
+/**
+ * A secret that lets one person pick their own profile up on another device.
+ *
+ * The wallet address would have been a better key, but it is not reachable on
+ * the path we are on: the Direct SDK never reveals it, grants made through it
+ * do not appear on-chain under our grantee id, and the SDK's own auth mode
+ * routes through ODL's separate commercial gateway, which needs a client_id we
+ * do not have and answers "This app is not registered with Vana" without one.
+ *
+ * So the person carries their own identity: a long random token in a link only
+ * they have. Opening it on a second device adopts the profile there.
+ *
+ * Deliberately NOT keyed on the connected account (the YouTube channel, the
+ * GitHub username). Server-side collection reads a PUBLIC profile from a URL the
+ * user types, so it proves nothing about ownership. Merging on it would let
+ * anyone absorb a stranger's profile by pasting their channel URL.
+ */
+const tokenKey = (token: string) => `${PREFIX}:token:${token}`;
 
 /** The profile this browser session should read and write. */
 export async function resolveProfileId(sessionId: string): Promise<string> {
@@ -98,10 +115,6 @@ export async function resolveProfileId(sessionId: string): Promise<string> {
   return typeof linked === "string" ? linked : sessionId;
 }
 
-export async function linkedWallet(sessionId: string): Promise<string | null> {
-  const linked = await db().get(linkKey(sessionId));
-  return typeof linked === "string" && linked.startsWith("0x") ? linked : null;
-}
 const invitedKey = (code: string) => `${PREFIX}:invited:${code.toLowerCase()}`;
 const qualifiedKey = (code: string) => `${PREFIX}:qualified:${code.toLowerCase()}`;
 
@@ -335,6 +348,15 @@ function newReferralCode(): string {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }
 
+/**
+ * Long and unguessable, unlike the referral code, because holding this one
+ * grants control of a profile rather than credit for an invite.
+ */
+function newDeviceToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function getProfile(id: string): Promise<Profile | null> {
   const raw = await db().get(profileKey(id));
   if (!raw) return null;
@@ -358,6 +380,7 @@ export async function ensureProfile(profileId: string, referredBy?: string): Pro
     updatedAt: now,
     sources: {},
     referralCode: newReferralCode(),
+    deviceToken: newDeviceToken(),
     score: 0,
     // A referral is recorded at creation and never rewritten, so someone cannot
     // be reassigned to a different referrer later.
@@ -366,9 +389,62 @@ export async function ensureProfile(profileId: string, referredBy?: string): Pro
 
   await saveProfile(profile);
   await db().set(codeKey(profile.referralCode), profile.id);
+  await db().set(tokenKey(profile.deviceToken), profile.id);
   if (referredBy) await db().addToSet(invitedKey(referredBy), profile.id);
 
   return profile;
+}
+
+/**
+ * Adopt a profile on this device using its private token.
+ *
+ * Anything this browser had collected on its own is folded in rather than
+ * discarded, and then dropped from the standings so one person cannot hold two
+ * places. Returns null for an unknown token rather than creating anything, so a
+ * guessed or stale link is simply inert.
+ */
+export async function adoptProfile(
+  sessionId: string,
+  token: string,
+  rescore: (evidence: Evidence) => number,
+): Promise<Profile | null> {
+  const targetId = await db().get(tokenKey(token));
+  if (typeof targetId !== "string") return null;
+
+  const target = await getProfile(targetId);
+  if (!target) return null;
+
+  const currentId = await resolveProfileId(sessionId);
+
+  if (currentId !== targetId) {
+    const current = await getProfile(currentId);
+
+    if (current) {
+      for (const [source, record] of Object.entries(current.sources)) {
+        // The profile being adopted wins on conflict: it is the one the person
+        // deliberately reached for.
+        if (!target.sources[source as SourceId]) {
+          target.sources[source as SourceId] = record;
+        }
+      }
+      if (!target.referredBy && current.referredBy) target.referredBy = current.referredBy;
+      if (current.createdAt < target.createdAt) target.createdAt = current.createdAt;
+
+      // Any invite link already shared from the absorbed profile keeps working.
+      if (current.referralCode !== target.referralCode) {
+        await db().set(codeKey(current.referralCode), target.id);
+      }
+      await db().unrank(RANK_KEY, current.id);
+    }
+
+    target.score = rescore(evidenceOf(target));
+    target.updatedAt = new Date().toISOString();
+    await saveProfile(target);
+    await db().rank(RANK_KEY, target.id, target.score);
+  }
+
+  await db().set(linkKey(sessionId), target.id);
+  return target;
 }
 
 export async function profileIdForCode(code: string): Promise<string | null> {
@@ -426,73 +502,6 @@ export async function recordSource(
  */
 export async function profilesClaiming(source: SourceId, externalId: string): Promise<string[]> {
   return db().setMembers(identityKey(source, externalId));
-}
-
-/**
- * Point a browser session at its wallet profile, absorbing whatever it had
- * already collected under the cookie.
- *
- * Nobody should lose a score they earned before signing in, so the old
- * profile's sources are folded in rather than discarded, and any referral code
- * that was already shared keeps resolving to the merged profile.
- *
- * Returns the profile that now owns this session.
- */
-export async function linkSessionToWallet(
-  sessionId: string,
-  address: string,
-  rescore: (evidence: Evidence) => number,
-): Promise<Profile> {
-  const walletId = walletProfileId(address);
-  const [existingWallet, previous] = await Promise.all([
-    getProfile(walletId),
-    sessionId === walletId ? Promise.resolve(null) : getProfile(sessionId),
-  ]);
-
-  const now = new Date().toISOString();
-  const profile: Profile = existingWallet ?? {
-    id: walletId,
-    createdAt: previous?.createdAt ?? now,
-    updatedAt: now,
-    sources: {},
-    referralCode: previous?.referralCode ?? newReferralCode(),
-    score: 0,
-    ...(previous?.referredBy ? { referredBy: previous.referredBy } : {}),
-  };
-
-  if (previous) {
-    for (const [source, record] of Object.entries(previous.sources)) {
-      // An existing wallet-side read wins: it is the one this person has been
-      // shown, and overwriting it would move their score for no reason.
-      if (!profile.sources[source as SourceId]) {
-        profile.sources[source as SourceId] = record;
-      }
-    }
-    // A referrer is only inherited if the wallet profile never had one.
-    if (!profile.referredBy && previous.referredBy) profile.referredBy = previous.referredBy;
-    if (previous.createdAt < profile.createdAt) profile.createdAt = previous.createdAt;
-  }
-
-  profile.score = rescore(evidenceOf(profile));
-  profile.updatedAt = now;
-
-  await saveProfile(profile);
-  await db().set(linkKey(sessionId), walletId);
-  await db().set(codeKey(profile.referralCode), profile.id);
-  await db().rank(RANK_KEY, profile.id, profile.score);
-
-  if (previous) {
-    // The old code may already be out there on someone's shared link, so it has
-    // to keep working. Both codes now resolve to the same profile.
-    if (previous.referralCode !== profile.referralCode) {
-      await db().set(codeKey(previous.referralCode), profile.id);
-    }
-    // Drop the orphaned cookie profile out of the standings entirely, so one
-    // person cannot occupy two places or be counted twice in the total.
-    await db().unrank(RANK_KEY, previous.id);
-  }
-
-  return profile;
 }
 
 /**
