@@ -37,10 +37,10 @@ export function SourceCard({
 
   const mine = phase.type !== "idle" && phase.source === source.id;
   const busy =
-    mine && (phase.type === "starting" || phase.type === "resuming" || phase.type === "reading");
+    mine && (phase.type === "starting" || phase.type === "awaiting" || phase.type === "reading");
   const errored = mine && phase.type === "error";
   const otherBusy =
-    !mine && (phase.type === "starting" || phase.type === "resuming" || phase.type === "reading");
+    !mine && (phase.type === "starting" || phase.type === "awaiting" || phase.type === "reading");
 
   return (
     <div
@@ -86,8 +86,8 @@ export function SourceCard({
               aria-hidden="true"
             />
             <p className="text-sm text-text-2" role="status">
-              {phase.type === "starting" && "Taking you to Vana to approve"}
-              {phase.type === "resuming" && "Checking your approval"}
+              {phase.type === "starting" && "Opening the Vana approval tab"}
+              {phase.type === "awaiting" && "Waiting for you to approve in the Vana tab"}
               {phase.type === "reading" && readingMessage(phase.seconds)}
             </p>
             {phase.type === "reading" && (
@@ -95,9 +95,49 @@ export function SourceCard({
             )}
           </div>
 
+          {/*
+            Both tabs have to stay open. Vana's tab is what holds the data and
+            serves it to us; this tab is what asks for it. Closing either one
+            stalls the whole thing, and neither page can tell you that on its
+            own, so we say it here.
+          */}
+          {phase.type === "awaiting" && (
+            <div className="mt-4">
+              {phase.popupBlocked ? (
+                <>
+                  <p className="text-sm text-warn">
+                    Your browser blocked the Vana tab from opening.
+                  </p>
+                  <a
+                    href={phase.approvalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-primary mt-3 inline-block px-5 py-2.5 text-sm"
+                  >
+                    Open the approval page
+                  </a>
+                </>
+              ) : (
+                <a
+                  href={phase.approvalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="tap text-sm text-accent underline underline-offset-4"
+                >
+                  Approval tab did not open? Open it here
+                </a>
+              )}
+
+              <p className="mt-3 text-xs leading-relaxed text-text-4">
+                Paste your link there and approve, then come back to this tab. Keep both open:
+                Vana&apos;s tab hands over the data and this one collects it.
+              </p>
+            </div>
+          )}
+
           {phase.type === "reading" && (
             <p className="mt-3 text-xs leading-relaxed text-text-4">
-              Leave this page open. Nothing is charged to you.
+              Keep both tabs open a moment longer. Vana&apos;s tab closes itself once we confirm.
             </p>
           )}
         </div>

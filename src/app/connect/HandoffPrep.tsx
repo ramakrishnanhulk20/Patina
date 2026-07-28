@@ -136,8 +136,8 @@ export function HandoffPrep({
       </div>
 
       <p className="mt-4 text-xs leading-relaxed text-text-4">
-        On the next screen Vana asks for this link so it can read your public profile. Paste it in
-        and approve. Nothing here is sent to us until you do.
+        This opens Vana in a new tab. Paste the link there, approve, then come back here. Leave both
+        tabs open until it says connected.
       </p>
     </div>
   );

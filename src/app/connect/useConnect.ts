@@ -1,63 +1,43 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDirectVanaConnect } from "@opendatalabs/vana-sdk/react";
 
 /**
- * The connect flow, done as a same-tab redirect rather than a popup.
+ * The connect flow. TWO TABS, and it has to be.
  *
- * The SDK ships a two-tab helper: it opens the approval page in a popup and
- * polls for the result from the original tab. That is fine on a desktop and
- * bad on a phone, which is where most of our users will be:
+ * This was briefly rewritten as a same-tab redirect on the theory that popups
+ * are unreliable on phones. That broke it completely, and the reason is worth
+ * writing down so nobody tries it again:
  *
- *   - mobile browsers block window.open aggressively, and a blocked popup
- *     leaves the flow hanging with nothing visibly wrong
- *   - mobile browsers suspend background tabs, so the polling loop in the
- *     original tab can freeze while the user is approving in the other one
- *   - two tabs is simply not a pattern non-technical people recognise
+ *   The Vana approval tab IS the user's Personal Server. It holds the data and
+ *   serves it to our backend. Our tab has to stay alive, keep polling, and fire
+ *   the read; only then does Vana mark the request complete and release its tab.
  *
- * So we do what every "Sign in with Google" button does instead: keep a note of
- * what is in flight, navigate the current tab to the approval page, and pick up
- * where we left off when the user is sent back. sessionStorage survives the
- * round trip because it is scoped to the tab, not the page.
+ *   From the builder guide: "Vana redirects the approval tab to this page after
+ *   approval. The original app tab continues polling status and reads the
+ *   approved data."
+ *
+ * Navigate our own tab away and nothing is left polling, so the read never
+ * happens, so Vana's tab sits on "Delivering your data" forever. The user sees
+ * a hang with no error, on a page we do not control.
+ *
+ * The popup concern was real but the SDK already answers it: the tab is opened
+ * synchronously inside the click's transient activation, which is what gets past
+ * blockers, and `popupBlocked` is reported so we can show a real link instead.
+ *
+ * What we add here is the mobile part. Switching tabs on a phone throttles
+ * timers in the backgrounded one, so polling can crawl while the user is
+ * approving. Coming back re-polls immediately instead of waiting out the
+ * interval.
  */
-
-const PENDING_KEY = "patina:pending-connect";
-const POLL_MS = 2000;
-const TIMEOUT_MS = 5 * 60 * 1000;
-
-type Pending = { requestId: string; source: string; startedAt: number };
 
 export type ConnectPhase =
   | { type: "idle" }
   | { type: "starting"; source: string }
-  | { type: "resuming"; source: string; seconds: number }
+  | { type: "awaiting"; source: string; approvalUrl: string; popupBlocked: boolean }
   | { type: "reading"; source: string; seconds: number }
   | { type: "error"; source: string; message: string };
-
-function readPending(): Pending | null {
-  try {
-    const raw = sessionStorage.getItem(PENDING_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Pending;
-    if (!parsed?.requestId || !parsed?.source) return null;
-    if (Date.now() - parsed.startedAt > TIMEOUT_MS) {
-      sessionStorage.removeItem(PENDING_KEY);
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function clearPending() {
-  try {
-    sessionStorage.removeItem(PENDING_KEY);
-  } catch {
-    // Private-mode Safari can throw on storage access. Nothing to do here:
-    // worst case the user reconnects, which is safe and costs nothing extra.
-  }
-}
 
 async function jsonFetch(path: string, init?: RequestInit) {
   const res = await fetch(path, init);
@@ -67,148 +47,128 @@ async function jsonFetch(path: string, init?: RequestInit) {
 }
 
 export function useConnect(onConnected: () => void | Promise<void>) {
-  const [phase, setPhase] = useState<ConnectPhase>({ type: "idle" });
-  const cancelled = useRef(false);
+  const [source, setSource] = useState<string | null>(null);
+  const [seconds, setSeconds] = useState(0);
+  const readingSince = useRef<number | null>(null);
+  // Kept in a ref so the completion effect does not re-run every time the
+  // parent hands down a new callback identity. Assigned in an effect rather
+  // than during render, which React treats as a side effect.
   const onConnectedRef = useRef(onConnected);
-  onConnectedRef.current = onConnected;
-
-  /** Poll until the grant is ready, then read it. */
-  const finish = useCallback(async (pending: Pending) => {
-    const began = Date.now();
-    const tick = () => Math.floor((Date.now() - began) / 1000);
-
-    try {
-      // Phase one: wait for the approval to register.
-      for (;;) {
-        if (cancelled.current) return;
-
-        const status = await jsonFetch(
-          `/api/vana/status?requestId=${encodeURIComponent(pending.requestId)}`,
-        );
-
-        if (status.status === "approved" || status.status === "ready_for_read") break;
-
-        if (status.status === "denied" || status.status === "expired") {
-          clearPending();
-          setPhase({
-            type: "error",
-            source: pending.source,
-            message:
-              status.status === "denied"
-                ? "That approval was declined. Nothing was read."
-                : "That request expired before it was approved.",
-          });
-          return;
-        }
-
-        if (status.status === "completed") {
-          // Already read on a previous visit. Nothing left to pay for.
-          break;
-        }
-
-        if (Date.now() - began > TIMEOUT_MS) {
-          clearPending();
-          setPhase({
-            type: "error",
-            source: pending.source,
-            message: "We waited five minutes and did not hear back. Try connecting again.",
-          });
-          return;
-        }
-
-        setPhase({ type: "resuming", source: pending.source, seconds: tick() });
-        await new Promise((r) => setTimeout(r, POLL_MS));
-      }
-
-      // Phase two: the slow one. First reads collect the source from scratch.
-      if (cancelled.current) return;
-      setPhase({ type: "reading", source: pending.source, seconds: tick() });
-
-      const ticker = setInterval(() => {
-        if (!cancelled.current) {
-          setPhase({ type: "reading", source: pending.source, seconds: tick() });
-        }
-      }, 1000);
-
-      try {
-        await jsonFetch(`/api/vana/data?requestId=${encodeURIComponent(pending.requestId)}`);
-      } finally {
-        clearInterval(ticker);
-      }
-
-      clearPending();
-      if (cancelled.current) return;
-      setPhase({ type: "idle" });
-      await onConnectedRef.current();
-    } catch (error) {
-      clearPending();
-      if (cancelled.current) return;
-      setPhase({
-        type: "error",
-        source: pending.source,
-        message: error instanceof Error ? error.message : "Something went wrong.",
-      });
-    }
-  }, []);
-
-  // Pick up an approval we were sent back from.
-  //
-  // Kicked off from a timer rather than straight from the effect body: the
-  // first thing `finish` does is set state, and doing that synchronously during
-  // an effect makes React re-render before the browser has painted the page the
-  // user just landed on.
   useEffect(() => {
-    cancelled.current = false;
-    const pending = readPending();
-    if (!pending) return;
+    onConnectedRef.current = onConnected;
+  }, [onConnected]);
 
-    const kickoff = setTimeout(() => void finish(pending), 0);
+  /**
+   * The source has to be readable SYNCHRONOUSLY.
+   *
+   * `start()` runs inside the click (it must, or the approval tab gets blocked)
+   * and immediately calls `createRequest`. A state setter has not applied by
+   * then, so reading state here would send the previously selected source, or
+   * an empty one on the first attempt. The ref is written before start() and is
+   * correct the instant it is read.
+   */
+  const sourceRef = useRef<string | null>(null);
 
-    return () => {
-      cancelled.current = true;
-      clearTimeout(kickoff);
-    };
-  }, [finish]);
-
-  const start = useCallback(async (source: string) => {
-    setPhase({ type: "starting", source });
-
-    try {
-      const request = await jsonFetch(`/api/vana/request?source=${encodeURIComponent(source)}`, {
+  const connect = useDirectVanaConnect({
+    createRequest: () =>
+      jsonFetch(`/api/vana/request?source=${encodeURIComponent(sourceRef.current ?? "")}`, {
         method: "POST",
-      });
+      }),
+    getStatus: (requestId: string) =>
+      jsonFetch(`/api/vana/status?requestId=${encodeURIComponent(requestId)}`),
+    readResult: (requestId: string) =>
+      jsonFetch(`/api/vana/data?requestId=${encodeURIComponent(requestId)}`),
+    // A first read collects the source from scratch and can take a minute, so
+    // the flow is given room rather than erroring out under a real success.
+    pollIntervalMs: 1500,
+    timeoutMs: 6 * 60 * 1000,
+  });
 
-      const pending: Pending = {
-        requestId: request.requestId,
-        source,
-        startedAt: Date.now(),
-      };
+  const state = connect.state;
+  const isReading = state.type === "reading";
+  const isDone = state.type === "done";
 
-      try {
-        sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-      } catch {
-        // If we cannot remember it we must not navigate away, or the user will
-        // approve and come back to a page that has no idea what happened.
-        setPhase({
-          type: "error",
-          source,
-          message:
-            "Your browser is blocking site storage, which this needs to bring you back. Turn off private browsing, or allow storage for this site.",
-        });
-        return;
-      }
-
-      window.location.href = request.approvalUrl;
-    } catch (error) {
-      setPhase({
-        type: "error",
-        source,
-        message: error instanceof Error ? error.message : "Could not start. Try again.",
-      });
+  // Tick the "this is taking a while" counter, started when reading begins.
+  useEffect(() => {
+    if (!isReading) {
+      readingSince.current = null;
+      return;
     }
+    readingSince.current = Date.now();
+
+    const timer = setInterval(() => {
+      if (readingSince.current !== null) {
+        setSeconds(Math.floor((Date.now() - readingSince.current) / 1000));
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isReading]);
+
+  // Coming back from the Vana tab should feel instant. Mobile browsers throttle
+  // timers in a backgrounded tab, so without this the user returns to a page
+  // that looks stuck for another second or two at the worst possible moment.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible" && readingSince.current !== null) {
+        setSeconds(Math.floor((Date.now() - readingSince.current) / 1000));
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  const dismissError = useCallback(() => setPhase({ type: "idle" }), []);
+  useEffect(() => {
+    if (!isDone) return;
+    void (async () => {
+      await onConnectedRef.current();
+      connect.reset();
+      sourceRef.current = null;
+      setSource(null);
+    })();
+    // connect.reset is stable across renders; re-running on it would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDone]);
+
+  const start = useCallback(
+    (next: string) => {
+      sourceRef.current = next;
+      setSource(next);
+      setSeconds(0);
+      // start() must run inside the click so the SDK can open the approval tab
+      // under the browser's transient activation. Deferring it here is what
+      // gets the popup blocked.
+      connect.start();
+    },
+    [connect],
+  );
+
+  const dismissError = useCallback(() => {
+    connect.reset();
+    sourceRef.current = null;
+    setSource(null);
+  }, [connect]);
+
+  const phase: ConnectPhase = (() => {
+    const forSource = source ?? "";
+    switch (state.type) {
+      case "creating":
+        return { type: "starting", source: forSource };
+      case "awaiting_approval":
+        return {
+          type: "awaiting",
+          source: forSource,
+          approvalUrl: state.request.approvalUrl,
+          popupBlocked: state.popupBlocked,
+        };
+      case "reading":
+        return { type: "reading", source: forSource, seconds };
+      case "error":
+        return { type: "error", source: forSource, message: state.error.message };
+      default:
+        return { type: "idle" };
+    }
+  })();
 
   return { phase, start, dismissError };
 }

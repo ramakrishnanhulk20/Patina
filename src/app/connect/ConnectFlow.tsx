@@ -80,9 +80,10 @@ export function ConnectFlow({
         </div>
 
         <p className="mt-8 max-w-xl text-sm leading-relaxed text-text-3">
-          Each source is approved separately because Vana asks for one at a time. You will be taken
-          to Vana and brought straight back. We never see a password, and you can revoke access from
-          your Vana account whenever you want.
+          Each source is approved separately, because Vana asks for one at a time. Approving opens a
+          Vana tab: keep it and this one open together until the source says connected, since that
+          tab is what hands the data over and this one is what collects it. We never see a password,
+          and you can revoke access from your Vana account whenever you want.
         </p>
       </div>
 
