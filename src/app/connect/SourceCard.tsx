@@ -23,12 +23,15 @@ function readingMessage(seconds: number): string {
 export function SourceCard({
   source,
   connected,
+  locked,
   phase,
   onStart,
   onDismissError,
 }: {
   source: SourceSpec;
   connected: boolean;
+  /** Signed out. Connecting now would tie the score to this browser alone. */
+  locked: boolean;
   phase: ConnectPhase;
   onStart: (source: string) => void;
   onDismissError: () => void;
@@ -45,7 +48,11 @@ export function SourceCard({
   return (
     <div
       className={`border p-6 transition-colors ${
-        connected ? "border-accent/40 bg-accent-wash" : "border-line bg-panel"
+        connected
+          ? "border-accent/40 bg-accent-wash"
+          : locked
+            ? "border-line bg-panel opacity-55"
+            : "border-line bg-panel"
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -60,8 +67,9 @@ export function SourceCard({
         {!connected && !preparing && (
           <button
             type="button"
-            disabled={busy || otherBusy}
+            disabled={busy || otherBusy || locked}
             onClick={() => setPreparing(true)}
+            title={locked ? "Sign in first so your score follows you, not this browser" : undefined}
             className="btn btn-primary shrink-0 px-5 py-2.5 text-sm"
           >
             {busy ? "Connecting..." : "Connect"}
@@ -69,7 +77,7 @@ export function SourceCard({
         )}
       </div>
 
-      {preparing && !connected && (
+      {preparing && !connected && !locked && (
         <HandoffPrep
           source={source}
           busy={busy}

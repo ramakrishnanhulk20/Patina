@@ -1,6 +1,6 @@
 import { controllerFor, isSourceId } from "@/lib/vana";
 import { ensureSessionId, readSessionId } from "@/lib/session";
-import { rememberRequest, resolveProfileId } from "@/lib/store";
+import { linkedWallet, rememberRequest, resolveProfileId } from "@/lib/store";
 import { checkConnectRate } from "@/lib/ratelimit";
 
 export async function POST(request: Request) {
@@ -26,6 +26,18 @@ export async function POST(request: Request) {
   // signed in, not against this browser. Otherwise connecting on a phone and a
   // laptop produces two half-finished profiles for the same human.
   const browserSession = await ensureSessionId();
+  const wallet = await linkedWallet(browserSession);
+
+  // Enforced here as well as in the UI. A disabled button is a hint; this is
+  // the rule. Without it, a request that skipped the button would spend escrow
+  // to build a profile that can never be merged or paid out correctly.
+  if (!wallet) {
+    return Response.json(
+      { error: "Sign in first so your score follows you rather than this browser." },
+      { status: 401 },
+    );
+  }
+
   const profileId = await resolveProfileId(browserSession);
 
   // Vana sends the user straight back to the connect page, where the pending

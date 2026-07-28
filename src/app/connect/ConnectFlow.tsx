@@ -60,19 +60,23 @@ export function ConnectFlow({
     <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-14">
       <div>
         <h1 className="t-section text-text">
-          {connectedCount === 0
-            ? "Start with one."
-            : "Add another. It counts for more than you think."}
+          {!signedIn
+            ? "Sign in, then pick a source."
+            : connectedCount === 0
+              ? "Start with one."
+              : "Add another. It counts for more than you think."}
         </h1>
 
         <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
-          {connectedCount === 0
-            ? "Pick whichever you have had the longest. Age is what matters here, not how active you are."
-            : `Each account you add is independent proof, and the score weights that heavily. ${
-                remaining > 0
-                  ? `${remaining} left to go.`
-                  : "That is all of them. Nothing more to prove."
-              }`}
+          {!signedIn
+            ? "One tap, so your score belongs to you rather than to whichever device you happen to be holding. Nothing is read and nothing is charged."
+            : connectedCount === 0
+              ? "Pick whichever you have had the longest. Age is what matters here, not how active you are."
+              : `Each account you add is independent proof, and the score weights that heavily. ${
+                  remaining > 0
+                    ? `${remaining} left to go.`
+                    : "That is all of them. Nothing more to prove."
+                }`}
         </p>
 
         <div className="mt-8">
@@ -85,6 +89,7 @@ export function ConnectFlow({
               key={source.id}
               source={source}
               connected={Boolean(readAt[source.id])}
+              locked={!signedIn}
               phase={phase}
               onStart={start}
               onDismissError={dismissError}
