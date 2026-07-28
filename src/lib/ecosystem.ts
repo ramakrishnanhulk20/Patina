@@ -30,7 +30,11 @@ const SELF = "0x620ddbecead28bbf1b979bfab8e3a7b893aa54a1";
  *
  * Addresses rather than names, because names can be edited after listing.
  */
-const EXCLUDED = new Set<string>([]);
+const EXCLUDED = new Set<string>([
+  "0x2e33eb51c66bdb08af8c0f6add45a85270695a5b", // HOE-KEMON
+  "0x8e2a73b478600f529aaa2f697f210f360cfba23c", // Ministry of Gay
+  "0xc1d34c9c20820000542eec182dde7cbc5d01ac83", // My Little Psychosis
+]);
 
 export type EcosystemApp = {
   name: string;
