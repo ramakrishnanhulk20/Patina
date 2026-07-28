@@ -1,0 +1,35 @@
+{
+  "name": "patina",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
+    "verify": "npm run typecheck && npm run test && cross-env NEXT_DIST_DIR=.next-verify next build",
+    "register:moksha": "node scripts/register-app.mjs moksha",
+    "register:mainnet": "node scripts/register-app.mjs mainnet"
+  },
+  "dependencies": {
+    "@opendatalabs/vana-sdk": "^3.13.4",
+    "@upstash/redis": "^1.38.0",
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "viem": "^2.55.10"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

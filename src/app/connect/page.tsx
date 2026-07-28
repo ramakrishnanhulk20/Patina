@@ -1,0 +1,62 @@
+import Link from "next/link";
+import { ConnectFlow } from "./ConnectFlow";
+import { SOURCES } from "@/lib/vana";
+import { readSessionId } from "@/lib/session";
+import { evidenceOf, getProfile, referralTally } from "@/lib/store";
+import { scorePatina, verdict } from "@/lib/score";
+
+export const metadata = { title: "Connect" };
+export const dynamic = "force-dynamic";
+
+/** Ordered by how likely someone is to have one, and how much age it proves. */
+const ORDER = ["youtube", "instagram", "github", "spotify"] as const;
+
+export default async function ConnectPage() {
+  const sessionId = await readSessionId();
+  const profile = sessionId ? await getProfile(sessionId) : null;
+  const score = scorePatina(profile ? evidenceOf(profile) : {});
+
+  const readAt = Object.fromEntries(
+    Object.entries(profile?.sources ?? {}).map(([source, record]) => [source, record.readAt]),
+  );
+
+  // A profile only exists once something has been connected, so a first-time
+  // visitor legitimately has no referral code yet. The share panel appears with
+  // the first source.
+  const tally = profile ? await referralTally(profile.referralCode) : { qualified: 0 };
+
+  const sources = ORDER.map((id) => ({
+    id,
+    label: SOURCES[id].label,
+    proves: SOURCES[id].blurb,
+    scopes: [...SOURCES[id].scopes],
+  }));
+
+  return (
+    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-14">
+      <nav className="mb-12 flex items-center justify-between">
+        <Link href="/" className="tap t-label flex items-center gap-2.5 text-text">
+          <span className="rings" aria-hidden="true" />
+          Patina
+        </Link>
+        <Link href="/#reward" className="tap t-label text-text-3 transition hover:text-text">
+          The reward
+        </Link>
+      </nav>
+
+      <ConnectFlow
+        sources={sources}
+        initialScore={{
+          total: score.total,
+          verdict: verdict(score),
+          components: score.components,
+          oldestSignal: score.oldestSignal,
+          sourcesConnected: score.sourcesConnected,
+        }}
+        initialReadAt={readAt}
+        referralCode={profile?.referralCode ?? ""}
+        referralCount={tally.qualified}
+      />
+    </main>
+  );
+}

@@ -1,0 +1,261 @@
+@import "tailwindcss";
+
+/*
+  PATINA DESIGN SYSTEM
+  ====================
+
+  Measured off quicknode.com rather than invented, then pushed somewhere of its
+  own. What was taken: near-black ground, PURE NEUTRAL greys with no colour cast
+  (this is the thing that makes a dark UI read as technical rather than as a
+  generic dark theme), one saturated accent doing all the decorative work, and a
+  mono face used only for small labels.
+
+  What was changed: QuickNode's accent is an acid lime (#3EE148). Patina's is
+  verdigris, the blue-green that copper actually turns after years outdoors. The
+  product is about age leaving a visible mark, so the accent should be the mark.
+  Swapping back is one value: --accent below.
+
+  ONE accent only. A second warm colour next to it reads as a mistake rather
+  than as emphasis, so status uses a cold slate instead.
+*/
+
+:root {
+  /* Ground. Neutral with a whisper of warmth so it does not go blue on OLED. */
+  --ink: #070807;
+  --bg: #0b0c0b;
+  --panel: #121412;
+  --panel-2: #191c19;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.18);
+
+  /* Text. Pure neutral, four steps, no more. */
+  --text: #f3f4f3;
+  --text-2: #a8ada8;
+  --text-3: #6c716c;
+  --text-4: #444844;
+
+  /* The mark. Verdigris. */
+  --accent: #35e0a1;
+  --accent-bright: #6affc0;
+  --accent-deep: #128f65;
+  --accent-wash: rgba(53, 224, 161, 0.08);
+
+  /* Cold, for status only. Never decorative. */
+  --status: #7e8ea8;
+  --warn: #d8a657;
+  --bad: #d9615a;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-text-4: var(--text-4);
+
+  --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-wash: var(--accent-wash);
+
+  --color-status: var(--status);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  background: var(--bg);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  /* The scaffold hardcodes Arial here, which silently defeats next/font. */
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+  TYPE
+
+  The drama is in the ratio, not in any single size: a 132px hero against 16px
+  body. Display sizes get line-height near 1 because a bold grotesk left at a
+  serif's 1.2 stops reading as one object and starts reading as separate lines.
+*/
+/*
+  The hero has to survive being the only thing on screen. Sizing it purely off
+  viewport WIDTH made it five lines tall on a wide monitor and pushed the
+  buttons below the fold, so the cap is tied to viewport HEIGHT too: on a short
+  window the type gives way rather than the layout breaking.
+*/
+.t-hero {
+  font-size: clamp(2.75rem, min(7.6vw, 11.5vh), 6.5rem);
+  line-height: 0.94;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+
+.t-section {
+  font-size: clamp(2.25rem, 5.5vw, 4.75rem);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.t-display {
+  font-size: clamp(3rem, 9vw, 7rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.t-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  THE MOTIF
+
+  Concentric rings, like the growth rings in a cut trunk: a mark that only forms
+  by lasting. It repeats before every section label, in the favicon, and in the
+  social card. Repetition is what makes a page feel designed rather than
+  assembled.
+*/
+.rings {
+  display: inline-block;
+  width: 0.6875rem;
+  height: 0.6875rem;
+  flex: none;
+  border-radius: 9999px;
+  border: 1px solid var(--accent);
+  position: relative;
+}
+
+.rings::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+
+/*
+  TOUCH
+
+  Roughly nine in ten of these visitors are on a phone, so a control that is
+  hard to hit is a lost user, not a cosmetic problem. Apple's floor is 44px and
+  Android's is 48dp; 44 is the number used throughout.
+*/
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    color 160ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/*
+  Small standalone links (nav, footer) are visually tiny by design. This grows
+  the HIT AREA to 44px without moving anything on screen, so the layout keeps
+  its proportions and the thumb still lands.
+*/
+.tap {
+  position: relative;
+}
+
+.tap::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+}
+
+/*
+  iOS zooms the whole page when a focused input's text is under 16px, which
+  throws the layout sideways mid-form. Never let a field drop below it.
+*/
+input,
+textarea,
+select {
+  font-size: max(1rem, 16px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-bright);
+}
+
+.btn-primary:disabled {
+  background: var(--panel-2);
+  color: var(--text-4);
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+}
+
+.btn-ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Focus that is visible on a dark ground without being ugly. */
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Wide content scrolls inside its own box. The page body never scrolls sideways. */
+.scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

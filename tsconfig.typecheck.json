@@ -1,0 +1,19 @@
+{
+  // `next build` REWRITES tsconfig.json on every run to point at whichever dist
+  // directory it just used, and the generated Route unions from two different
+  // dist dirs conflict the moment you add a page. The error then points at
+  // generated code and tells you nothing.
+  //
+  // So typechecking gets its own config that never looks at generated types.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // The node:test files import with an explicit .ts extension, which is what
+    // Node's native type stripping requires.
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "incremental": false,
+    "types": ["node", "react", "react-dom"]
+  },
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", "scripts/**/*.mjs"],
+  "exclude": ["node_modules", ".next", ".next-verify"]
+}
