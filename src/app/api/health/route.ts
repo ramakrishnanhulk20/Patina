@@ -29,19 +29,27 @@ export async function GET() {
     // because a health endpoint that 500s tells you less than one that answers.
   }
 
-  const storeWritable = await storeSelfTest();
+  const store = await storeSelfTest();
   const persistent = isPersistent();
 
   return Response.json(
     {
-      ok: Boolean(address) && storeWritable && persistent,
+      ok: Boolean(address) && store.ok && persistent,
       network,
       scoresCupPoints: network === "mainnet",
       appAddress: address,
       storage: {
         configured: persistent,
-        writable: storeWritable,
-        // Named so the problem is obvious at a glance rather than needing a doc.
+        writable: store.ok,
+        // Which call broke, and what it said. A bare false tells you writes are
+        // failing and nothing about where, which is no use in production.
+        failedAt: store.failedAt,
+        error: store.error,
+        credentialSource: process.env.UPSTASH_REDIS_REST_URL
+          ? "UPSTASH_REDIS_REST_*"
+          : process.env.KV_REST_API_URL
+            ? "KV_REST_API_*"
+            : "none",
         warning: persistent
           ? undefined
           : "No Redis credentials found. Running on in-memory storage: every profile is lost when the instance recycles.",

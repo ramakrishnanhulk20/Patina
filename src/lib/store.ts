@@ -237,18 +237,52 @@ export function isPersistent(): boolean {
   return credentials() !== null;
 }
 
-/** A round trip against the real store, so a health check cannot be fooled by config alone. */
-export async function storeSelfTest(): Promise<boolean> {
+/**
+ * A round trip against the real store, so a health check cannot be fooled by
+ * config alone. Reports WHY it failed: a bare false told us writes were broken
+ * in production and nothing about which call threw, which is useless at exactly
+ * the moment it matters.
+ */
+export async function storeSelfTest(): Promise<{ ok: boolean; failedAt?: string; error?: string }> {
+  const key = `${PREFIX}:healthcheck`;
+  const stamp = Date.now().toString();
+
   try {
-    const key = `${PREFIX}:healthcheck`;
-    const stamp = Date.now().toString();
     await db().set(key, { stamp });
-    const back = await db().get(key);
-    const parsed = typeof back === "string" ? JSON.parse(back) : back;
-    return (parsed as { stamp?: string } | null)?.stamp === stamp;
-  } catch {
-    return false;
+  } catch (error) {
+    return { ok: false, failedAt: "set", error: describe(error) };
   }
+
+  let back: unknown;
+  try {
+    back = await db().get(key);
+  } catch (error) {
+    return { ok: false, failedAt: "get", error: describe(error) };
+  }
+
+  try {
+    const parsed = typeof back === "string" ? JSON.parse(back) : back;
+    const seen = (parsed as { stamp?: string } | null)?.stamp;
+    if (seen !== stamp) {
+      return { ok: false, failedAt: "compare", error: `wrote "${stamp}", read back ${JSON.stringify(back)}` };
+    }
+  } catch (error) {
+    return { ok: false, failedAt: "parse", error: describe(error) };
+  }
+
+  try {
+    await db().rank(`${PREFIX}:healthcheck:rank`, "probe", 1);
+  } catch (error) {
+    // Ranking uses sorted sets rather than plain keys, so it can fail on its own.
+    return { ok: false, failedAt: "rank", error: describe(error) };
+  }
+
+  return { ok: true };
+}
+
+function describe(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  return String(error);
 }
 
 export function newProfileId(): string {
