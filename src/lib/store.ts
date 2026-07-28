@@ -152,21 +152,54 @@ function redisBackend(redis: Redis): Backend {
   };
 }
 
+/**
+ * Redis credentials, under whichever name they arrived.
+ *
+ * Two conventions exist for the same Upstash database and they do not agree:
+ *
+ *   - Upstash's own SDK expects UPSTASH_REDIS_REST_URL / _TOKEN
+ *   - Vercel's Upstash integration injects KV_REST_API_URL / KV_REST_API_TOKEN
+ *
+ * Reading only one of them is a silent, expensive failure: the app boots
+ * happily, falls back to memory, and quietly forgets every score whenever the
+ * serverless instance recycles. Nobody notices until a user says their result
+ * disappeared. So accept both.
+ *
+ * KV_REST_API_READ_ONLY_TOKEN is deliberately ignored. Writes must work.
+ */
+function credentials(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  return url && token ? { url, token } : null;
+}
+
 let backend: Backend | null = null;
 
 function db(): Backend {
   if (backend) return backend;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  backend = url && token ? redisBackend(new Redis({ url, token })) : memoryBackend();
+  const creds = credentials();
+  backend = creds ? redisBackend(new Redis(creds)) : memoryBackend();
   return backend;
 }
 
 /** True when profiles are actually being persisted. Surfaced on the health route. */
 export function isPersistent(): boolean {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return credentials() !== null;
+}
+
+/** A round trip against the real store, so a health check cannot be fooled by config alone. */
+export async function storeSelfTest(): Promise<boolean> {
+  try {
+    const key = `${PREFIX}:healthcheck`;
+    const stamp = Date.now().toString();
+    await db().set(key, { stamp });
+    const back = await db().get(key);
+    const parsed = typeof back === "string" ? JSON.parse(back) : back;
+    return (parsed as { stamp?: string } | null)?.stamp === stamp;
+  } catch {
+    return false;
+  }
 }
 
 export function newProfileId(): string {

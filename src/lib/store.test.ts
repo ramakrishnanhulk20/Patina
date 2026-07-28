@@ -5,12 +5,60 @@ import {
   ensureProfile,
   evidenceOf,
   getProfile,
+  isPersistent,
   newProfileId,
   profileIdForCode,
   profilesClaiming,
   recordSource,
   referralTally,
 } from "./store.ts";
+
+/**
+ * Vercel's Upstash integration and Upstash's own SDK name the SAME credentials
+ * differently. Reading only one pair means the app boots fine, silently falls
+ * back to memory, and loses every profile on the next cold start. This is the
+ * regression test for that, because the failure is invisible without one.
+ */
+test("Redis credentials are recognised under either naming convention", () => {
+  const saved = {
+    u: process.env.UPSTASH_REDIS_REST_URL,
+    t: process.env.UPSTASH_REDIS_REST_TOKEN,
+    ku: process.env.KV_REST_API_URL,
+    kt: process.env.KV_REST_API_TOKEN,
+  };
+
+  const clear = () => {
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
+  };
+
+  try {
+    clear();
+    assert.equal(isPersistent(), false, "no credentials means no persistence");
+
+    clear();
+    process.env.UPSTASH_REDIS_REST_URL = "https://example.upstash.io";
+    process.env.UPSTASH_REDIS_REST_TOKEN = "token";
+    assert.equal(isPersistent(), true, "Upstash's own variable names must work");
+
+    clear();
+    process.env.KV_REST_API_URL = "https://example.upstash.io";
+    process.env.KV_REST_API_TOKEN = "token";
+    assert.equal(isPersistent(), true, "Vercel integration's KV_ names must work");
+
+    clear();
+    process.env.KV_REST_API_URL = "https://example.upstash.io";
+    assert.equal(isPersistent(), false, "a URL with no token is not usable");
+  } finally {
+    clear();
+    if (saved.u) process.env.UPSTASH_REDIS_REST_URL = saved.u;
+    if (saved.t) process.env.UPSTASH_REDIS_REST_TOKEN = saved.t;
+    if (saved.ku) process.env.KV_REST_API_URL = saved.ku;
+    if (saved.kt) process.env.KV_REST_API_TOKEN = saved.kt;
+  }
+});
 
 /**
  * These run against the in-memory backend (no Redis env vars in test), which is
