@@ -1,13 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { ConnectPhase } from "./useConnect";
-
-export type SourceView = {
-  id: string;
-  label: string;
-  proves: string;
-  scopes: string[];
-};
+import { HandoffPrep } from "./HandoffPrep";
+import type { SourceSpec } from "@/lib/sources";
 
 /**
  * Honest waiting copy.
@@ -31,16 +27,20 @@ export function SourceCard({
   onStart,
   onDismissError,
 }: {
-  source: SourceView;
+  source: SourceSpec;
   connected: boolean;
   phase: ConnectPhase;
   onStart: (source: string) => void;
   onDismissError: () => void;
 }) {
+  const [preparing, setPreparing] = useState(false);
+
   const mine = phase.type !== "idle" && phase.source === source.id;
-  const busy = mine && (phase.type === "starting" || phase.type === "resuming" || phase.type === "reading");
+  const busy =
+    mine && (phase.type === "starting" || phase.type === "resuming" || phase.type === "reading");
   const errored = mine && phase.type === "error";
-  const otherBusy = !mine && (phase.type === "starting" || phase.type === "resuming" || phase.type === "reading");
+  const otherBusy =
+    !mine && (phase.type === "starting" || phase.type === "resuming" || phase.type === "reading");
 
   return (
     <div
@@ -54,20 +54,29 @@ export function SourceCard({
             <h3 className="text-lg font-semibold text-text">{source.label}</h3>
             {connected && <span className="t-label text-accent">Connected</span>}
           </div>
-          <p className="mt-1 text-sm leading-relaxed text-text-2">{source.proves}</p>
+          <p className="mt-1 text-sm leading-relaxed text-text-2">{source.blurb}</p>
         </div>
 
-        {!connected && (
+        {!connected && !preparing && (
           <button
             type="button"
             disabled={busy || otherBusy}
-            onClick={() => onStart(source.id)}
+            onClick={() => setPreparing(true)}
             className="btn btn-primary shrink-0 px-5 py-2.5 text-sm"
           >
             {busy ? "Connecting..." : "Connect"}
           </button>
         )}
       </div>
+
+      {preparing && !connected && (
+        <HandoffPrep
+          source={source}
+          busy={busy}
+          onContinue={() => onStart(source.id)}
+          onCancel={() => setPreparing(false)}
+        />
+      )}
 
       {busy && (
         <div className="mt-5 border-t border-line pt-4">
@@ -99,8 +108,11 @@ export function SourceCard({
           <p className="text-sm text-bad">{phase.message}</p>
           <button
             type="button"
-            onClick={onDismissError}
-            className="t-label mt-2 text-text-3 underline-offset-4 hover:text-text hover:underline"
+            onClick={() => {
+              onDismissError();
+              setPreparing(true);
+            }}
+            className="tap t-label mt-2 text-text-3 underline-offset-4 hover:text-text hover:underline"
           >
             Try again
           </button>

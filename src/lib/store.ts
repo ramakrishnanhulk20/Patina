@@ -63,6 +63,16 @@ const requestKey = (requestId: string) => `${PREFIX}:request:${requestId}`;
 const identityKey = (source: SourceId, externalId: string) =>
   `${PREFIX}:identity:${source}:${externalId.toLowerCase()}`;
 const codeKey = (code: string) => `${PREFIX}:code:${code.toLowerCase()}`;
+
+/**
+ * Ranked index of every scoring profile.
+ *
+ * Without this there is no way to answer "who is in the top 50", because
+ * profiles are stored under opaque per-session keys with nothing tying them
+ * together. That would have been discovered at payout time, which is the single
+ * worst moment to find out a public promise cannot be computed.
+ */
+const RANK_KEY = `${PREFIX}:ranking`;
 const invitedKey = (code: string) => `${PREFIX}:invited:${code.toLowerCase()}`;
 const qualifiedKey = (code: string) => `${PREFIX}:qualified:${code.toLowerCase()}`;
 
@@ -101,6 +111,10 @@ interface Backend {
   set(key: string, value: unknown): Promise<void>;
   addToSet(key: string, member: string): Promise<void>;
   setMembers(key: string): Promise<string[]>;
+  /** Ranked index. Needed to answer "who is in the top 50" at all. */
+  rank(key: string, member: string, score: number): Promise<void>;
+  topRanked(key: string, count: number): Promise<{ member: string; score: number }[]>;
+  rankedCount(key: string): Promise<number>;
 }
 
 let warned = false;
@@ -117,6 +131,8 @@ function memoryBackend(): Backend {
     );
   }
 
+  const ranks = new Map<string, Map<string, number>>();
+
   return {
     async get(key) {
       return map.get(key) ?? null;
@@ -131,6 +147,20 @@ function memoryBackend(): Backend {
     },
     async setMembers(key) {
       return [...(sets.get(key) ?? [])];
+    },
+    async rank(key, member, score) {
+      const table = ranks.get(key) ?? new Map<string, number>();
+      table.set(member, score);
+      ranks.set(key, table);
+    },
+    async topRanked(key, count) {
+      return [...(ranks.get(key) ?? new Map())]
+        .map(([member, score]) => ({ member, score: Number(score) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, count);
+    },
+    async rankedCount(key) {
+      return ranks.get(key)?.size ?? 0;
     },
   };
 }
@@ -148,6 +178,25 @@ function redisBackend(redis: Redis): Backend {
     },
     async setMembers(key) {
       return redis.smembers(key);
+    },
+    async rank(key, member, score) {
+      await redis.zadd(key, { score, member });
+    },
+    async topRanked(key, count) {
+      const flat = (await redis.zrange(key, 0, Math.max(count - 1, 0), {
+        rev: true,
+        withScores: true,
+      })) as unknown[];
+
+      // zrange withScores returns a flat [member, score, member, score, ...].
+      const out: { member: string; score: number }[] = [];
+      for (let i = 0; i < flat.length; i += 2) {
+        out.push({ member: String(flat[i]), score: Number(flat[i + 1]) });
+      }
+      return out;
+    },
+    async rankedCount(key) {
+      return redis.zcard(key);
     },
   };
 }
@@ -284,6 +333,7 @@ export async function recordSource(
   profile.score = scoreAfter;
 
   await saveProfile(profile);
+  await db().rank(RANK_KEY, profile.id, scoreAfter);
 
   // Index the underlying account so the same person cannot be counted twice.
   if (record.externalId) {
@@ -306,6 +356,43 @@ export async function recordSource(
  */
 export async function profilesClaiming(source: SourceId, externalId: string): Promise<string[]> {
   return db().setMembers(identityKey(source, externalId));
+}
+
+/**
+ * The standings the reward is actually paid against.
+ *
+ * Returns the ranked profile ids with their scores, highest first. Sources of
+ * truth for the eventual payout, so it reads from the index rather than
+ * recomputing scores, which keeps it consistent with what people were shown.
+ */
+export async function topProfiles(count: number): Promise<{ id: string; score: number }[]> {
+  const rows = await db().topRanked(RANK_KEY, count);
+  return rows.map((row) => ({ id: row.member, score: row.score }));
+}
+
+/** How many people have a score at all. Shown publicly as "N people so far". */
+export async function scoredProfileCount(): Promise<number> {
+  return db().rankedCount(RANK_KEY);
+}
+
+/**
+ * Where one profile sits, and whether that is currently inside the paying
+ * places. Recomputed from the index rather than stored, so it cannot go stale.
+ */
+export async function standingOf(
+  profileId: string,
+  places: number,
+): Promise<{ rank: number | null; inTheMoney: boolean; total: number }> {
+  const [total, top] = await Promise.all([
+    scoredProfileCount(),
+    // Fetch a little past the cut so a profile just outside still gets a number.
+    db().topRanked(RANK_KEY, Math.max(places * 4, 200)),
+  ]);
+
+  const index = top.findIndex((row) => row.member === profileId);
+  const rank = index === -1 ? null : index + 1;
+
+  return { rank, inTheMoney: rank !== null && rank <= places, total };
 }
 
 /** Merge every stored source into the single evidence object the scorer wants. */

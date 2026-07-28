@@ -7,6 +7,7 @@ import {
   profileIdForCode,
   recordSource,
   rememberRequest,
+  type PendingRequest,
 } from "@/lib/store";
 import { foldRead, identityOf } from "@/lib/normalize";
 import { scorePatina, verdict } from "@/lib/score";
@@ -30,42 +31,57 @@ export async function GET(request: Request) {
     return Response.json({ error: "Not your request" }, { status: 403 });
   }
 
-  // Every readApprovedData call settles a fee. Serve the cached copy so a
-  // replayed request id cannot drain escrow a cent at a time.
-  if (pending.result !== undefined) {
-    return Response.json(await withScore(pending.profileId, pending.result, true));
+  // Every readApprovedData call settles a real fee, so a result is only ever
+  // fetched from the Personal Server once. A replayed request id is served from
+  // the cache and cannot drain escrow a cent at a time.
+  const result =
+    pending.result ?? (await controllerFor(pending.source).readApprovedData({ requestId }));
+
+  if (pending.result === undefined) {
+    await rememberRequest(requestId, { ...pending, result });
   }
 
-  const result = await controllerFor(pending.source).readApprovedData({ requestId });
+  // Recording is idempotent and happens on BOTH paths, including the cached one.
+  //
+  // This is the important part. Caching used to happen before recording, so if
+  // the write failed (a Redis blip, a cold instance timing out) the retry would
+  // hit the cache, skip recording, and return early. The user had paid, the read
+  // had succeeded, and their source was silently lost with no way to recover it.
+  await ensureRecorded(pending, result);
 
-  await rememberRequest(requestId, { ...pending, result });
+  return Response.json(await withScore(pending.profileId, result, pending.result !== undefined));
+}
 
-  const scope = (result as { scope?: string }).scope ?? pending.source;
-
-  // Score across everything this person has connected, not just this read: a
-  // Vana grant only ever covers the most recent source, so earlier ones live in
-  // storage and have to be merged back in.
+/**
+ * Fold a read into the profile, unless that already happened.
+ *
+ * Safe to call repeatedly with the same read: it overwrites the same source
+ * slot with the same data and re-ranks to the same score.
+ */
+async function ensureRecorded(pending: PendingRequest, result: unknown): Promise<void> {
   const existing = await getProfile(pending.profileId);
-  const evidence = {
-    ...(existing ? evidenceOf(existing) : {}),
-    ...foldRead({}, scope, result),
-  };
-  const score = scorePatina(evidence);
+  const scope = (result as { scope?: string }).scope ?? pending.source;
+  const evidence = foldRead({}, scope, result);
+
+  // Nothing usable came back. Recording an empty source would claim a slot and
+  // stop a later, better read from filling it.
+  if (Object.keys(evidence).length === 0) return;
+
+  const merged = { ...(existing ? evidenceOf(existing) : {}), ...evidence };
+  const score = scorePatina(merged);
 
   await recordSource(
     pending.profileId,
     pending.source,
     {
       scope,
-      readAt: new Date().toISOString(),
+      readAt: existing?.sources[pending.source]?.readAt ?? new Date().toISOString(),
       externalId: identityOf(scope, result),
-      evidence: foldRead({}, scope, result),
+      evidence,
     },
     score.total,
     await referrerFor(pending.profileId),
   );
-
-  return Response.json(await withScore(pending.profileId, result, false));
 }
 
 /**

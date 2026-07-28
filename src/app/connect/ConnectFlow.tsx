@@ -2,7 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { ScorePanel, type ScoreView } from "./ScorePanel";
-import { SourceCard, type SourceView } from "./SourceCard";
+import { SourceCard } from "./SourceCard";
+import type { SourceSpec } from "@/lib/sources";
 import { ShareCard } from "./ShareCard";
 import { useConnect } from "./useConnect";
 
@@ -13,7 +14,7 @@ export function ConnectFlow({
   referralCode,
   referralCount,
 }: {
-  sources: SourceView[];
+  sources: SourceSpec[];
   initialScore: ScoreView;
   initialReadAt: Record<string, string>;
   referralCode: string;

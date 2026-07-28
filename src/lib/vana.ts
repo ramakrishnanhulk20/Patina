@@ -8,6 +8,21 @@ const network = process.env.VANA_NETWORK === "mainnet" ? "mainnet" : "moksha";
  * previous scope set instead of adding to it. Each source therefore gets
  * its own controller and its own approval.
  */
+/**
+ * ONE scope per source, deliberately.
+ *
+ * A grant can cover several scopes, but `readApprovedData` reads exactly one:
+ * whichever the access request reports back as `status.scope`. Asking for
+ * `["instagram.profile", "instagram.posts"]` therefore paid for a grant over
+ * both and returned only one of them, with no way to tell which until it
+ * arrived. Left as it was, Continuity (26 points, and the single hardest signal
+ * for a farm to fake) would have read zero for everyone whose posts never came
+ * back.
+ *
+ * Where a source offers a choice, the scope carrying DATES wins. Timestamps
+ * feed Age and Continuity, which are 60 of the 100 points; follower counts feed
+ * Standing, which is 10 and buyable anyway.
+ */
 export const SOURCES = {
   youtube: {
     id: "youtube",
@@ -18,7 +33,7 @@ export const SOURCES = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    scopes: ["instagram.profile", "instagram.posts"],
+    scopes: ["instagram.posts"],
     blurb: "Years of posts, with their real dates.",
   },
   github: {
@@ -39,6 +54,25 @@ export type SourceId = keyof typeof SOURCES;
 
 export function isSourceId(value: string | null): value is SourceId {
   return value !== null && value in SOURCES;
+}
+
+/**
+ * The scopes here and in sources.ts describe the same requests, so they must
+ * not drift. sources.ts is client-safe and cannot import this file (it would
+ * drag the SDK's server build into the browser bundle), hence the check rather
+ * than a shared constant.
+ */
+if (process.env.NODE_ENV !== "production") {
+  void import("./sources").then(({ SOURCE_SPECS }) => {
+    for (const [id, spec] of Object.entries(SOURCES)) {
+      const other = SOURCE_SPECS[id as keyof typeof SOURCE_SPECS];
+      if (other && other.scopes.join() !== spec.scopes.join()) {
+        console.warn(
+          `[patina] scope mismatch for "${id}": vana.ts has ${spec.scopes.join()}, sources.ts has ${other.scopes.join()}`,
+        );
+      }
+    }
+  });
 }
 
 const controllers = new Map<SourceId, ReturnType<typeof createDirectDataController>>();

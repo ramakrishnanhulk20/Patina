@@ -208,13 +208,19 @@ function continuityComponent(evidence: Evidence): Component {
  * earns real but limited weight.
  */
 function depthComponent(evidence: Evidence, connected: number): Component {
+  // Only one scope per source comes back, and for Instagram we ask for posts
+  // rather than the profile, because timestamps are worth far more than a
+  // follower count. So the post count is counted from the posts themselves.
+  const instagramPosts =
+    evidence.instagram?.media_count ?? evidence.instagramPosts?.posts?.length ?? 0;
+
   const made =
-    (evidence.instagram?.media_count ?? 0) +
+    instagramPosts +
     (evidence.youtube?.videoCount ?? 0) +
     (evidence.github?.repositoryCount ?? 0);
 
   const parts: string[] = [];
-  if (evidence.instagram?.media_count) parts.push(`${evidence.instagram.media_count} posts`);
+  if (instagramPosts) parts.push(`${instagramPosts} posts`);
   if (evidence.youtube?.videoCount) parts.push(`${evidence.youtube.videoCount} videos`);
   if (evidence.github?.repositoryCount) parts.push(`${evidence.github.repositoryCount} repos`);
 

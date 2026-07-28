@@ -11,6 +11,9 @@ import {
   profilesClaiming,
   recordSource,
   referralTally,
+  scoredProfileCount,
+  standingOf,
+  topProfiles,
 } from "./store.ts";
 
 /**
@@ -147,6 +150,49 @@ test("the same underlying account is traceable across separate sessions", async 
   const claimants = await profilesClaiming("github", "samehuman");
   assert.equal(claimants.length, 2, "clearing cookies does not create a second person");
   assert.ok(claimants.includes(a) && claimants.includes(b));
+});
+
+test("scored profiles are rankable, which the reward promise depends on", async () => {
+  const before = await scoredProfileCount();
+
+  const low = newProfileId();
+  const mid = newProfileId();
+  const high = newProfileId();
+
+  await recordSource(low, "github", record("low", "2025-01-01T00:00:00Z"), 11);
+  await recordSource(high, "github", record("high", "2011-01-01T00:00:00Z"), 81);
+  await recordSource(mid, "github", record("mid", "2018-01-01T00:00:00Z"), 44);
+
+  assert.equal(await scoredProfileCount(), before + 3);
+
+  const top = await topProfiles(500);
+  const positions = [low, mid, high].map((id) => top.findIndex((row) => row.id === id));
+  assert.ok(positions.every((p) => p !== -1), "every scoring profile must appear in the ranking");
+
+  const [pLow, pMid, pHigh] = positions;
+  assert.ok(pHigh < pMid && pMid < pLow, "ranking must be highest score first");
+
+  const standing = await standingOf(high, 50);
+  assert.ok(standing.rank !== null && standing.rank >= 1);
+  assert.equal(standing.inTheMoney, true);
+});
+
+test("a rescored profile moves in the ranking rather than duplicating", async () => {
+  const id = newProfileId();
+
+  await recordSource(id, "github", record("climber", "2012-01-01T00:00:00Z"), 30);
+  await recordSource(id, "youtube", {
+    scope: "youtube.profile",
+    readAt: new Date().toISOString(),
+    externalId: "climber",
+    evidence: { youtube: { joinedDate: "2010-01-01T00:00:00Z" } },
+  }, 72);
+
+  const top = await topProfiles(500);
+  const mine = top.filter((row) => row.id === id);
+
+  assert.equal(mine.length, 1, "one profile must occupy exactly one place");
+  assert.equal(mine[0].score, 72, "the ranking must hold the latest score");
 });
 
 test("evidence from every source is merged for scoring", async () => {

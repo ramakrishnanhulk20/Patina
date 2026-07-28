@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ConnectFlow } from "./ConnectFlow";
 import { NextApps } from "./NextApps";
 import { ecosystemApps } from "@/lib/ecosystem";
-import { SOURCES } from "@/lib/vana";
+import { SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
 import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, referralTally } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
@@ -11,7 +11,6 @@ export const metadata = { title: "Connect" };
 export const dynamic = "force-dynamic";
 
 /** Ordered by how likely someone is to have one, and how much age it proves. */
-const ORDER = ["youtube", "instagram", "github", "spotify"] as const;
 
 export default async function ConnectPage() {
   const sessionId = await readSessionId();
@@ -32,12 +31,7 @@ export default async function ConnectPage() {
   const connected = Object.keys(profile?.sources ?? {}).length > 0;
   const nextApps = connected ? await ecosystemApps(4) : [];
 
-  const sources = ORDER.map((id) => ({
-    id,
-    label: SOURCES[id].label,
-    proves: SOURCES[id].blurb,
-    scopes: [...SOURCES[id].scopes],
-  }));
+  const sources = SOURCE_ORDER.map((id) => SOURCE_SPECS[id]);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-14">

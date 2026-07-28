@@ -1,12 +1,25 @@
 import { controllerFor, isSourceId } from "@/lib/vana";
-import { ensureSessionId } from "@/lib/session";
+import { ensureSessionId, readSessionId } from "@/lib/session";
 import { rememberRequest } from "@/lib/store";
+import { checkConnectRate } from "@/lib/ratelimit";
 
 export async function POST(request: Request) {
   const source = new URL(request.url).searchParams.get("source");
 
   if (!isSourceId(source)) {
     return Response.json({ error: "Unknown source" }, { status: 400 });
+  }
+
+  // Rate limit before minting a session, so hammering this route cannot spin up
+  // unlimited sessions to escape the per-session bucket.
+  const existingSession = await readSessionId();
+  const rate = await checkConnectRate(request, existingSession);
+
+  if (!rate.allowed) {
+    return Response.json(
+      { error: "That is a lot of connections in a short time. Try again a little later." },
+      { status: 429, headers: { "retry-after": String(rate.retryAfterSeconds) } },
+    );
   }
 
   const profileId = await ensureSessionId();
