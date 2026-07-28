@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ConnectFlow } from "./ConnectFlow";
+import { NextApps } from "./NextApps";
+import { ecosystemApps } from "@/lib/ecosystem";
 import { SOURCES } from "@/lib/vana";
 import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, referralTally } from "@/lib/store";
@@ -24,6 +26,11 @@ export default async function ConnectPage() {
   // visitor legitimately has no referral code yet. The share panel appears with
   // the first source.
   const tally = profile ? await referralTally(profile.referralCode) : { qualified: 0 };
+
+  // Only worth fetching once they have something to spend. Before that it is an
+  // advert; after, it is the payoff for having done the setup.
+  const connected = Object.keys(profile?.sources ?? {}).length > 0;
+  const nextApps = connected ? await ecosystemApps(4) : [];
 
   const sources = ORDER.map((id) => ({
     id,
@@ -57,6 +64,8 @@ export default async function ConnectPage() {
         referralCode={profile?.referralCode ?? ""}
         referralCount={tally.qualified}
       />
+
+      <NextApps apps={nextApps} />
     </main>
   );
 }
