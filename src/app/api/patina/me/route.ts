@@ -1,29 +1,57 @@
 import { readSessionId } from "@/lib/session";
-import { evidenceOf, getProfile, referralTally } from "@/lib/store";
+import {
+  evidenceOf,
+  getProfile,
+  linkedWallet,
+  referralTally,
+  resolveProfileId,
+  standingOf,
+} from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
+import { REWARD } from "@/lib/rewards";
+
+const EMPTY = () => {
+  const empty = scorePatina({});
+  return {
+    total: empty.total,
+    verdict: verdict(empty),
+    components: empty.components,
+    oldestSignal: null,
+    sourcesConnected: [],
+    readAt: {},
+    referralCode: null,
+    referralCount: 0,
+    referralInvited: 0,
+    signedIn: false,
+    wallet: null as string | null,
+    rank: null as number | null,
+    totalScored: 0,
+  };
+};
 
 /** The caller's own score. Empty, not an error, when they have connected nothing. */
 export async function GET() {
   const sessionId = await readSessionId();
-  const profile = sessionId ? await getProfile(sessionId) : null;
+  if (!sessionId) return Response.json(EMPTY());
+
+  // Resolved, so a signed-in person sees one profile no matter which device
+  // they happen to be holding.
+  const profileId = await resolveProfileId(sessionId);
+  const [profile, wallet] = await Promise.all([getProfile(profileId), linkedWallet(sessionId)]);
 
   if (!profile) {
-    const empty = scorePatina({});
     return Response.json({
-      total: empty.total,
-      verdict: verdict(empty),
-      components: empty.components,
-      oldestSignal: null,
-      sourcesConnected: [],
-      readAt: {},
-      referralCode: null,
-      referralCount: 0,
-      referralInvited: 0,
+      ...EMPTY(),
+      signedIn: Boolean(wallet),
+      wallet: wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : null,
     });
   }
 
   const score = scorePatina(evidenceOf(profile));
-  const tally = await referralTally(profile.referralCode);
+  const [tally, standing] = await Promise.all([
+    referralTally(profile.referralCode),
+    standingOf(profile.id, REWARD.places),
+  ]);
 
   return Response.json({
     total: score.total,
@@ -37,5 +65,9 @@ export async function GET() {
     referralCode: profile.referralCode,
     referralCount: tally.qualified,
     referralInvited: tally.invited,
+    signedIn: Boolean(wallet),
+    wallet: wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : null,
+    rank: standing.rank,
+    totalScored: standing.total,
   });
 }

@@ -14,6 +14,7 @@
     "register:mainnet": "node scripts/register-app.mjs mainnet"
   },
   "dependencies": {
+    "@opendatalabs/connect": "^0.14.0",
     "@opendatalabs/vana-sdk": "^3.13.4",
     "@upstash/redis": "^1.38.0",
     "next": "16.2.12",

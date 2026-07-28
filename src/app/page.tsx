@@ -316,6 +316,9 @@ export default function Home() {
             Patina
           </span>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <Link href="/standings" className="tap t-label text-text-3 transition hover:text-text">
+              Standings
+            </Link>
             <Link href="/rewards" className="tap t-label text-text-3 transition hover:text-text">
               Reward terms
             </Link>

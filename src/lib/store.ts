@@ -73,6 +73,35 @@ const codeKey = (code: string) => `${PREFIX}:code:${code.toLowerCase()}`;
  * worst moment to find out a public promise cannot be computed.
  */
 const RANK_KEY = `${PREFIX}:ranking`;
+
+/**
+ * Which profile a browser session belongs to.
+ *
+ * Identity used to be the session cookie itself, which meant one person on a
+ * phone and a laptop was two people: two profiles, two partial scores, two rows
+ * on any leaderboard, and two shares of a reward that should have been one.
+ *
+ * Once somebody signs in to Vana we key their profile by their WALLET ADDRESS
+ * instead. The same Google login produces the same address on every device, so
+ * the split cannot happen. This map remembers which wallet a given browser
+ * belongs to; unauthenticated sessions still fall back to the cookie id so
+ * nothing breaks for someone who has not signed in yet.
+ */
+const linkKey = (sessionId: string) => `${PREFIX}:link:${sessionId}`;
+
+/** Profile ids for wallets are the lowercased address, so they never collide with cookie ids. */
+export const walletProfileId = (address: string) => address.toLowerCase();
+
+/** The profile this browser session should read and write. */
+export async function resolveProfileId(sessionId: string): Promise<string> {
+  const linked = await db().get(linkKey(sessionId));
+  return typeof linked === "string" ? linked : sessionId;
+}
+
+export async function linkedWallet(sessionId: string): Promise<string | null> {
+  const linked = await db().get(linkKey(sessionId));
+  return typeof linked === "string" && linked.startsWith("0x") ? linked : null;
+}
 const invitedKey = (code: string) => `${PREFIX}:invited:${code.toLowerCase()}`;
 const qualifiedKey = (code: string) => `${PREFIX}:qualified:${code.toLowerCase()}`;
 
@@ -113,6 +142,7 @@ interface Backend {
   setMembers(key: string): Promise<string[]>;
   /** Ranked index. Needed to answer "who is in the top 50" at all. */
   rank(key: string, member: string, score: number): Promise<void>;
+  unrank(key: string, member: string): Promise<void>;
   topRanked(key: string, count: number): Promise<{ member: string; score: number }[]>;
   rankedCount(key: string): Promise<number>;
 }
@@ -153,6 +183,9 @@ function memoryBackend(): Backend {
       table.set(member, score);
       ranks.set(key, table);
     },
+    async unrank(key, member) {
+      ranks.get(key)?.delete(member);
+    },
     async topRanked(key, count) {
       return [...(ranks.get(key) ?? new Map())]
         .map(([member, score]) => ({ member, score: Number(score) }))
@@ -181,6 +214,9 @@ function redisBackend(redis: Redis): Backend {
     },
     async rank(key, member, score) {
       await redis.zadd(key, { score, member });
+    },
+    async unrank(key, member) {
+      await redis.zrem(key, member);
     },
     async topRanked(key, count) {
       const flat = (await redis.zrange(key, 0, Math.max(count - 1, 0), {
@@ -393,6 +429,73 @@ export async function profilesClaiming(source: SourceId, externalId: string): Pr
 }
 
 /**
+ * Point a browser session at its wallet profile, absorbing whatever it had
+ * already collected under the cookie.
+ *
+ * Nobody should lose a score they earned before signing in, so the old
+ * profile's sources are folded in rather than discarded, and any referral code
+ * that was already shared keeps resolving to the merged profile.
+ *
+ * Returns the profile that now owns this session.
+ */
+export async function linkSessionToWallet(
+  sessionId: string,
+  address: string,
+  rescore: (evidence: Evidence) => number,
+): Promise<Profile> {
+  const walletId = walletProfileId(address);
+  const [existingWallet, previous] = await Promise.all([
+    getProfile(walletId),
+    sessionId === walletId ? Promise.resolve(null) : getProfile(sessionId),
+  ]);
+
+  const now = new Date().toISOString();
+  const profile: Profile = existingWallet ?? {
+    id: walletId,
+    createdAt: previous?.createdAt ?? now,
+    updatedAt: now,
+    sources: {},
+    referralCode: previous?.referralCode ?? newReferralCode(),
+    score: 0,
+    ...(previous?.referredBy ? { referredBy: previous.referredBy } : {}),
+  };
+
+  if (previous) {
+    for (const [source, record] of Object.entries(previous.sources)) {
+      // An existing wallet-side read wins: it is the one this person has been
+      // shown, and overwriting it would move their score for no reason.
+      if (!profile.sources[source as SourceId]) {
+        profile.sources[source as SourceId] = record;
+      }
+    }
+    // A referrer is only inherited if the wallet profile never had one.
+    if (!profile.referredBy && previous.referredBy) profile.referredBy = previous.referredBy;
+    if (previous.createdAt < profile.createdAt) profile.createdAt = previous.createdAt;
+  }
+
+  profile.score = rescore(evidenceOf(profile));
+  profile.updatedAt = now;
+
+  await saveProfile(profile);
+  await db().set(linkKey(sessionId), walletId);
+  await db().set(codeKey(profile.referralCode), profile.id);
+  await db().rank(RANK_KEY, profile.id, profile.score);
+
+  if (previous) {
+    // The old code may already be out there on someone's shared link, so it has
+    // to keep working. Both codes now resolve to the same profile.
+    if (previous.referralCode !== profile.referralCode) {
+      await db().set(codeKey(previous.referralCode), profile.id);
+    }
+    // Drop the orphaned cookie profile out of the standings entirely, so one
+    // person cannot occupy two places or be counted twice in the total.
+    await db().unrank(RANK_KEY, previous.id);
+  }
+
+  return profile;
+}
+
+/**
  * The standings the reward is actually paid against.
  *
  * Returns the ranked profile ids with their scores, highest first. Sources of
@@ -402,6 +505,41 @@ export async function profilesClaiming(source: SourceId, externalId: string): Pr
 export async function topProfiles(count: number): Promise<{ id: string; score: number }[]> {
   const rows = await db().topRanked(RANK_KEY, count);
   return rows.map((row) => ({ id: row.member, score: row.score }));
+}
+
+/**
+ * The standings, with just enough on each row to be worth looking at.
+ *
+ * Deliberately anonymous. We hold usernames and channel ids for deduplication,
+ * and publishing them would expose somebody's accounts to anyone who visited a
+ * page, which is the opposite of what this product claims to be for. A rank, a
+ * score and a shape is enough to be competitive.
+ */
+export async function standings(
+  count: number,
+): Promise<{ id: string; score: number; sources: number; oldestYear: number | null }[]> {
+  const top = await topProfiles(count);
+  const profiles = await Promise.all(top.map((row) => getProfile(row.id)));
+
+  return top.map((row, index) => {
+    const profile = profiles[index];
+    const dates = Object.values(profile?.sources ?? {})
+      .flatMap((record) => [
+        record.evidence.youtube?.joinedDate,
+        record.evidence.github?.createdAt,
+        ...(record.evidence.instagramPosts?.posts ?? []).map((post) => post.taken_at),
+      ])
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => new Date(value).getTime())
+      .filter((time) => Number.isFinite(time));
+
+    return {
+      id: row.id,
+      score: row.score,
+      sources: Object.keys(profile?.sources ?? {}).length,
+      oldestYear: dates.length ? new Date(Math.min(...dates)).getUTCFullYear() : null,
+    };
+  });
 }
 
 /** How many people have a score at all. Shown publicly as "N people so far". */

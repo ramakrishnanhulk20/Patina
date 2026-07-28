@@ -7,6 +7,7 @@ import {
   profileIdForCode,
   recordSource,
   rememberRequest,
+  resolveProfileId,
   type PendingRequest,
 } from "@/lib/store";
 import { foldRead, identityOf } from "@/lib/normalize";
@@ -26,8 +27,13 @@ export async function GET(request: Request) {
 
   // Only the session that started this request may read its result. Without
   // this, anyone holding a request id could pull back someone else's data.
-  const sessionId = await readSessionId();
-  if (sessionId !== pending.profileId) {
+  //
+  // Compared against the RESOLVED profile, because a person who signs in
+  // mid-flow has their browser re-pointed at their wallet profile, and their
+  // own in-flight request must not start failing as a result.
+  const browserSession = await readSessionId();
+  const sessionProfile = browserSession ? await resolveProfileId(browserSession) : null;
+  if (sessionProfile !== pending.profileId) {
     return Response.json({ error: "Not your request" }, { status: 403 });
   }
 

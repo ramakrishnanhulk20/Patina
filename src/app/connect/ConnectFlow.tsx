@@ -5,6 +5,7 @@ import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
 import type { SourceSpec } from "@/lib/sources";
 import { ShareCard } from "./ShareCard";
+import { SignIn } from "./SignIn";
 import { useConnect } from "./useConnect";
 
 export function ConnectFlow({
@@ -13,12 +14,16 @@ export function ConnectFlow({
   initialReadAt,
   referralCode,
   referralCount,
+  initialSignedIn,
+  initialWallet,
 }: {
   sources: SourceSpec[];
   initialScore: ScoreView;
   initialReadAt: Record<string, string>;
   referralCode: string;
   referralCount: number;
+  initialSignedIn: boolean;
+  initialWallet: string | null;
 }) {
   const [score, setScore] = useState(initialScore);
   const [readAt, setReadAt] = useState(initialReadAt);
@@ -27,6 +32,8 @@ export function ConnectFlow({
   // minted mid-session and has to be picked up on refresh rather than only
   // arriving with the server render.
   const [code, setCode] = useState(referralCode);
+  const [signedIn, setSignedIn] = useState(initialSignedIn);
+  const [wallet, setWallet] = useState(initialWallet);
 
   const refresh = useCallback(async () => {
     try {
@@ -35,6 +42,8 @@ export function ConnectFlow({
       setReadAt(next.readAt ?? {});
       if (typeof next.referralCount === "number") setInvites(next.referralCount);
       if (typeof next.referralCode === "string") setCode(next.referralCode);
+      setSignedIn(Boolean(next.signedIn));
+      setWallet(next.wallet ?? null);
     } catch {
       // A failed refresh is cosmetic. The read already succeeded and is stored,
       // so a slightly stale number beats an error thrown at someone who just
@@ -66,7 +75,11 @@ export function ConnectFlow({
               }`}
         </p>
 
-        <div className="mt-8 space-y-3">
+        <div className="mt-8">
+          <SignIn signedIn={signedIn} wallet={wallet} onSignedIn={refresh} />
+        </div>
+
+        <div className="mt-4 space-y-3">
           {sources.map((source) => (
             <SourceCard
               key={source.id}

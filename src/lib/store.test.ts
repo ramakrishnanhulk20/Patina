@@ -6,7 +6,9 @@ import {
   evidenceOf,
   getProfile,
   isPersistent,
+  linkSessionToWallet,
   newProfileId,
+  resolveProfileId,
   profileIdForCode,
   profilesClaiming,
   recordSource,
@@ -193,6 +195,93 @@ test("a rescored profile moves in the ranking rather than duplicating", async ()
 
   assert.equal(mine.length, 1, "one profile must occupy exactly one place");
   assert.equal(mine[0].score, 72, "the ranking must hold the latest score");
+});
+
+/**
+ * The bug this whole layer exists to kill: one person connecting on a phone and
+ * a laptop used to become two profiles with two partial scores, two rows in the
+ * ranking, and two claims on one reward share.
+ */
+test("one person on two devices ends up as one profile", async () => {
+  const wallet = "0xAbC0000000000000000000000000000000000001";
+  const phone = newProfileId();
+  const laptop = newProfileId();
+
+  // Phone: connects YouTube, then signs in.
+  await recordSource(phone, "youtube", {
+    scope: "youtube.profile",
+    readAt: "2026-07-01T00:00:00Z",
+    externalId: "chan",
+    evidence: { youtube: { joinedDate: "2012-04-01T00:00:00Z", videoCount: 9 } },
+  }, 40);
+  await linkSessionToWallet(phone, wallet, () => 40);
+
+  // Laptop: different browser, same human, signs in and connects GitHub.
+  await linkSessionToWallet(laptop, wallet, () => 40);
+  const laptopProfileId = await resolveProfileId(laptop);
+  await recordSource(laptopProfileId, "github", record("dev", "2013-01-01T00:00:00Z"), 66);
+
+  // Both browsers must now resolve to the same profile.
+  assert.equal(await resolveProfileId(phone), await resolveProfileId(laptop));
+
+  const merged = await getProfile(await resolveProfileId(phone));
+  assert.ok(merged, "the merged profile must exist");
+  assert.ok(merged!.sources.youtube, "the phone's source survived the merge");
+  assert.ok(merged!.sources.github, "the laptop's source is there too");
+
+  const evidence = evidenceOf(merged!);
+  assert.equal(evidence.youtube?.joinedDate, "2012-04-01T00:00:00Z");
+  assert.equal(evidence.github?.username, "dev");
+});
+
+test("merging leaves exactly one row in the standings, not two", async () => {
+  const wallet = "0xAbC0000000000000000000000000000000000002";
+  const phone = newProfileId();
+
+  await recordSource(phone, "github", record("solo", "2014-01-01T00:00:00Z"), 35);
+  const before = await topProfiles(1000);
+  assert.ok(before.some((r) => r.id === phone), "the anonymous profile is ranked first time round");
+
+  await linkSessionToWallet(phone, wallet, () => 35);
+
+  const after = await topProfiles(1000);
+  assert.ok(
+    !after.some((r) => r.id === phone),
+    "the orphaned cookie profile must leave the standings",
+  );
+  assert.ok(
+    after.some((r) => r.id === wallet.toLowerCase()),
+    "the wallet profile takes its place",
+  );
+});
+
+test("a referral link shared before signing in keeps working afterwards", async () => {
+  const wallet = "0xAbC0000000000000000000000000000000000003";
+  const session = newProfileId();
+
+  const anon = await ensureProfile(session);
+  const sharedCode = anon.referralCode;
+
+  await linkSessionToWallet(session, wallet, () => 0);
+
+  const owner = await profileIdForCode(sharedCode);
+  assert.equal(owner, wallet.toLowerCase(), "the code someone already shared must still resolve");
+});
+
+test("signing in on a device that never connected anything loses nothing", async () => {
+  const wallet = "0xAbC0000000000000000000000000000000000004";
+  const first = newProfileId();
+  const fresh = newProfileId();
+
+  await recordSource(first, "github", record("keeper", "2011-01-01T00:00:00Z"), 70);
+  await linkSessionToWallet(first, wallet, () => 70);
+
+  // A brand new browser signs in to the same wallet and must not wipe anything.
+  await linkSessionToWallet(fresh, wallet, () => 70);
+
+  const profile = await getProfile(wallet.toLowerCase());
+  assert.equal(profile?.sources.github?.externalId, "keeper");
+  assert.equal(Object.keys(profile!.sources).length, 1);
 });
 
 test("evidence from every source is merged for scoring", async () => {

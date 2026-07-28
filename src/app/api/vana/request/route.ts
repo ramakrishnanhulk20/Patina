@@ -1,6 +1,6 @@
 import { controllerFor, isSourceId } from "@/lib/vana";
 import { ensureSessionId, readSessionId } from "@/lib/session";
-import { rememberRequest } from "@/lib/store";
+import { rememberRequest, resolveProfileId } from "@/lib/store";
 import { checkConnectRate } from "@/lib/ratelimit";
 
 export async function POST(request: Request) {
@@ -22,7 +22,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const profileId = await ensureSessionId();
+  // The read must be recorded against the WALLET profile when the person has
+  // signed in, not against this browser. Otherwise connecting on a phone and a
+  // laptop produces two half-finished profiles for the same human.
+  const browserSession = await ensureSessionId();
+  const profileId = await resolveProfileId(browserSession);
 
   // Vana sends the user straight back to the connect page, where the pending
   // request is picked up from sessionStorage and finished off. A dedicated

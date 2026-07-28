@@ -4,7 +4,7 @@ import { NextApps } from "./NextApps";
 import { ecosystemApps } from "@/lib/ecosystem";
 import { SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
 import { readSessionId } from "@/lib/session";
-import { evidenceOf, getProfile, referralTally } from "@/lib/store";
+import { evidenceOf, getProfile, linkedWallet, referralTally, resolveProfileId } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 
 export const metadata = { title: "Connect" };
@@ -14,7 +14,13 @@ export const dynamic = "force-dynamic";
 
 export default async function ConnectPage() {
   const sessionId = await readSessionId();
-  const profile = sessionId ? await getProfile(sessionId) : null;
+  // Resolved to the wallet profile when signed in, so the page shows one score
+  // across every device rather than whatever this browser happens to hold.
+  const profileId = sessionId ? await resolveProfileId(sessionId) : null;
+  const [profile, wallet] = await Promise.all([
+    profileId ? getProfile(profileId) : Promise.resolve(null),
+    sessionId ? linkedWallet(sessionId) : Promise.resolve(null),
+  ]);
   const score = scorePatina(profile ? evidenceOf(profile) : {});
 
   const readAt = Object.fromEntries(
@@ -57,6 +63,8 @@ export default async function ConnectPage() {
         initialReadAt={readAt}
         referralCode={profile?.referralCode ?? ""}
         referralCount={tally.qualified}
+        initialSignedIn={Boolean(wallet)}
+        initialWallet={wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : null}
       />
 
       <NextApps apps={nextApps} />
