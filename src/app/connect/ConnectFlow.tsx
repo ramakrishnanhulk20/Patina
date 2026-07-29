@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
@@ -132,6 +133,24 @@ export function ConnectFlow({
 
       <div className="space-y-4 lg:sticky lg:top-8">
         <ScorePanel score={score} />
+
+        {/*
+          The story sits right under the score on purpose. It is the payoff for
+          connecting, and buried in a text link almost nobody found it. A big
+          button here means every person who reaches a score is told, plainly,
+          that there is a whole page waiting for them.
+        */}
+        {connectedCount > 0 && username && (
+          <Link
+            href={`/u/${encodeURIComponent(username)}/story`}
+            className="btn btn-primary w-full flex-col gap-0.5 px-6 py-4 text-base"
+          >
+            <span>See your whole story</span>
+            <span className="text-xs font-normal opacity-70">
+              A time machine, built from your history
+            </span>
+          </Link>
+        )}
 
         {connectedCount > 0 && (
           <>

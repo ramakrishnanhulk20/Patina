@@ -91,14 +91,23 @@ export default async function ProfilePage({
         </GlowCard3D>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      {/*
+        Right under the score, full width, primary. Sitting beside Save as a
+        ghost link meant almost nobody noticed a story was waiting. This is the
+        next thing every visitor should want to tap.
+      */}
+      <Link
+        href={`/u/${encodeURIComponent(profile.username ?? "")}/story`}
+        className="btn btn-primary mt-5 flex w-full flex-col gap-0.5 px-6 py-5 text-lg sm:py-6 sm:text-xl"
+      >
+        <span>See the whole story</span>
+        <span className="text-sm font-normal opacity-70 sm:text-base">
+          A time machine, built from their history
+        </span>
+      </Link>
+
+      <div className="mt-3">
         <SaveCard username={profile.username ?? "anonymous"} />
-        <Link
-          href={`/u/${encodeURIComponent(profile.username ?? "")}/story`}
-          className="btn btn-ghost px-6 py-3.5 text-base"
-        >
-          See the whole story
-        </Link>
       </div>
 
       <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border border-line bg-panel p-5 sm:grid-cols-4">
