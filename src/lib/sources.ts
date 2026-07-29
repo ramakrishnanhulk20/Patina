@@ -73,8 +73,14 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    scopes: ["instagram.posts"],
-    blurb: "Years of posts, with their real dates.",
+    // instagram.profile, NOT instagram.posts.
+    //
+    // Posts can only be collected by the Data Connect DESKTOP app. Asking for
+    // them makes Vana tell a phone user to go and install software, which for
+    // this audience means they leave. Requesting the profile keeps it a
+    // web-only flow, which is the whole reason these four sources were chosen.
+    scopes: ["instagram.profile"],
+    blurb: "How long you have been posting, and to how many.",
     handle: {
       prefix: "instagram.com/",
       placeholder: "yourusername",

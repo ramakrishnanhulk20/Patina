@@ -67,25 +67,36 @@ test("age comes from the oldest provable date across every source", () => {
   assert.ok(score.oldestSignal!.years > 10);
 });
 
-test("continuity counts distinct months, not post volume", () => {
-  const burst = scorePatina({
-    instagramPosts: {
-      posts: Array.from({ length: 400 }, () => ({ taken_at: ago(0.01) })),
-    },
-  });
-  const spread = scorePatina({
-    instagramPosts: {
-      posts: Array.from({ length: 40 }, (_, i) => ({ taken_at: ago((i / 40) * 6) })),
-    },
-  });
+test("two sources proving a date beat one, because both must be bought", () => {
+  const of = (e: Evidence) =>
+    scorePatina(e).components.find((c) => c.key === "corroboration")!.points;
 
-  const of = (s: ReturnType<typeof scorePatina>) =>
-    s.components.find((c) => c.key === "continuity")!.points;
+  const one = of({ youtube: { joinedDate: ago(11) } });
+  const two = of({ youtube: { joinedDate: ago(11) }, github: { createdAt: ago(10) } });
 
-  assert.ok(
-    of(spread) > of(burst) * 3,
-    `40 posts over 6 years (${of(spread)}) should beat 400 in one day (${of(burst)})`,
-  );
+  assert.ok(one > 0, "one dated source is worth something");
+  assert.ok(two > one * 1.5, `two independent dates (${two}) must clearly beat one (${one})`);
+});
+
+test("every point is reachable without the desktop app", () => {
+  // The whole reason the score was rebalanced. A phone user connecting all four
+  // web sources must be able to approach 100, or a chunk of the score is a lie.
+  const webOnly: Evidence = {
+    youtube: { joinedDate: ago(13), videoCount: 40, subscriberCount: 900 },
+    instagram: { username: "x", follower_count: 1200, media_count: 300 },
+    github: { username: "x", createdAt: ago(12), repositoryCount: 45, followers: 200 },
+    spotify: { id: "x", display_name: "x", followers: 30 },
+  };
+
+  const score = scorePatina(webOnly);
+  assert.ok(score.total >= 80, `a deep web-only history scored ${score.total}, expected 80+`);
+
+  for (const component of score.components) {
+    assert.ok(
+      component.points > 0,
+      `${component.label} scored 0 for a web-only user, so its ${component.max} points are unreachable`,
+    );
+  }
 });
 
 test("breadth rewards independent corroboration, but only with history behind it", () => {
@@ -93,7 +104,7 @@ test("breadth rewards independent corroboration, but only with history behind it
     s.components.find((c) => c.key === "breadth")!.points;
 
   // Three sources with a decade of history behind them earn nearly full credit.
-  assert.ok(of(scorePatina(realPerson)) > 8, `real person breadth was ${of(scorePatina(realPerson))}`);
+  assert.ok(of(scorePatina(realPerson)) > 6, `real person breadth was ${of(scorePatina(realPerson))}`);
 
   // Three sources opened last week earn almost none, which is the whole point:
   // an attacker can manufacture breadth in an afternoon but not the time under it.

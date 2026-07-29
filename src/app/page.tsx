@@ -5,7 +5,7 @@ import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
 
 const SOURCES = [
   { name: "YouTube", reads: "The day your account was opened", note: "Google sign-in" },
-  { name: "Instagram", reads: "Years of posts, with their real dates", note: "Profile and posts" },
+  { name: "Instagram", reads: "How long you have posted, and to how many", note: "Profile" },
   { name: "GitHub", reads: "When you joined and what you have built", note: "Profile" },
   { name: "Spotify", reads: "A listening life", note: "Profile" },
 ];
@@ -13,17 +13,17 @@ const SOURCES = [
 const SIGNALS = [
   {
     name: "Age",
-    weight: "34",
+    weight: "40",
     body: "The oldest date we can prove across everything you connect. A YouTube account opened in 2013 is thirteen years you cannot go back and manufacture.",
   },
   {
-    name: "Continuity",
-    weight: "26",
-    body: "How many separate months your history actually touches. A real life leaves marks scattered across years. A farmed account is built in one afternoon, and it shows.",
+    name: "Corroboration",
+    weight: "20",
+    body: "Two unrelated platforms both saying you have been here since 2012. One old account can be bought. Two, on different services, is a much more expensive thing to arrange.",
   },
   {
     name: "Depth",
-    weight: "18",
+    weight: "20",
     body: "The things you actually made. Posts, videos, repositories. Tedious to fake at volume, so it counts, but it counts less than time.",
   },
   {
@@ -33,7 +33,7 @@ const SIGNALS = [
   },
   {
     name: "Breadth",
-    weight: "12",
+    weight: "10",
     body: "Independent accounts telling the same story. Faking one is easy. Faking four, each with its own decade behind it, is a different job entirely.",
   },
 ];

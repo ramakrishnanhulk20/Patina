@@ -71,7 +71,7 @@ export type Evidence = {
 };
 
 export type Component = {
-  key: "age" | "continuity" | "depth" | "standing" | "breadth";
+  key: "age" | "corroboration" | "depth" | "standing" | "breadth";
   label: string;
   /** Points awarded, already capped at `max`. */
   points: number;
@@ -107,12 +107,12 @@ function round(n: number): number {
 }
 
 /**
- * AGE (max 34). The load-bearing component.
+ * AGE (max 40). The load-bearing component.
  *
- * We take the single oldest thing we can prove across all sources: the day the
- * YouTube account was opened, or the timestamp on the earliest Instagram post
- * we can see. Twelve years is treated as a full score, which is roughly the age
- * of an account opened by an adult who was online before it was compulsory.
+ * The single oldest thing provable across every connected source: the day a
+ * YouTube account was opened, the day a GitHub account was created, or the
+ * earliest Instagram post if a desktop user brought their post history. Twelve
+ * years scores full.
  */
 function ageComponent(evidence: Evidence): { component: Component; oldest: PatinaScore["oldestSignal"] } {
   const candidates: Array<{ date: Date; source: string }> = [];
@@ -135,7 +135,7 @@ function ageComponent(evidence: Evidence): { component: Component; oldest: Patin
         key: "age",
         label: "Age",
         points: 0,
-        max: 34,
+        max: 40,
         detail: "Nothing connected yet that carries a date.",
       },
       oldest: null,
@@ -145,14 +145,14 @@ function ageComponent(evidence: Evidence): { component: Component; oldest: Patin
   candidates.sort((a, b) => a.date.getTime() - b.date.getTime());
   const winner = candidates[0];
   const years = (Date.now() - winner.date.getTime()) / MS_PER_YEAR;
-  const points = Math.min(34, (Math.max(0, years) / 12) * 34);
+  const points = Math.min(40, (Math.max(0, years) / 12) * 40);
 
   return {
     component: {
       key: "age",
       label: "Age",
       points: round(points),
-      max: 34,
+      max: 40,
       detail: `${years.toFixed(1)} years back, from your ${winner.source}.`,
     },
     oldest: {
@@ -164,53 +164,70 @@ function ageComponent(evidence: Evidence): { component: Component; oldest: Patin
 }
 
 /**
- * CONTINUITY (max 26). The component farmers cannot cheat cheaply.
+ * CORROBORATION (max 20).
  *
- * A real life leaves marks in a lot of separate months. A farmed account is
- * built in an afternoon, so all its activity lands in one or two. We count how
- * many DISTINCT MONTHS the Instagram posts touch, which is the only source here
- * that gives us per-item timestamps.
+ * How many sources INDEPENDENTLY prove a date. One old account could be bought;
+ * two unrelated platforms both saying you have been around since 2012 is a much
+ * more expensive thing to arrange, because the attacker has to buy an aged
+ * account on each.
  *
- * Deliberately not "number of posts": a thousand posts made on one Tuesday
- * should score near zero, and under this rule it does.
+ * This replaced a "continuity" component that counted distinct months of
+ * Instagram post timestamps. That was the better measure and it is unreachable:
+ * per-item timestamps only exist on scopes the DESKTOP app collects, so on the
+ * web it scored zero for everybody and made a quarter of the total unwinnable.
+ * A score with points nobody can earn is not a strict score, it is a broken one.
  */
-function continuityComponent(evidence: Evidence): Component {
-  const dates = (evidence.instagramPosts?.posts ?? [])
+function corroborationComponent(evidence: Evidence): Component {
+  const yearsSince = (date: Date | null) =>
+    date === null ? null : Math.max(0, (Date.now() - date.getTime()) / MS_PER_YEAR);
+
+  const oldestPost = (evidence.instagramPosts?.posts ?? [])
     .map((post) => parseDate(post.taken_at))
-    .filter((d): d is Date => d !== null);
+    .filter((d): d is Date => d !== null)
+    .sort((a, b) => a.getTime() - b.getTime())[0];
 
-  if (dates.length === 0) {
-    return {
-      key: "continuity",
-      label: "Continuity",
-      points: 0,
-      max: 26,
-      detail: "Connect Instagram to show your history is spread over real time.",
-    };
-  }
+  const dated = (
+    [
+      ["YouTube", yearsSince(parseDate(evidence.youtube?.joinedDate))],
+      ["GitHub", yearsSince(parseDate(evidence.github?.createdAt))],
+      ["Instagram", yearsSince(oldestPost ?? null)],
+    ] as [string, number | null][]
+  ).filter((entry): entry is [string, number] => entry[1] !== null);
 
-  const months = new Set(dates.map((d) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`));
-  const points = saturate(months.size, 18, 26);
+  /**
+   * Each source counts for how OLD it is, not merely for existing.
+   *
+   * Counting sources rather than their age was worth 16 points to an account
+   * farm whose every account was a fortnight old: three fresh profiles all
+   * "agreeing" they started last Tuesday corroborate nothing. Eight years is
+   * treated as a full vote, so a decade-old account carries one and a week-old
+   * one carries almost none.
+   */
+  const weight = dated.reduce((sum, [, years]) => sum + Math.min(years / 8, 1), 0);
+  const points = Math.min(20, weight * 10);
 
-  return {
-    key: "continuity",
-    label: "Continuity",
-    points: round(points),
-    max: 26,
-    detail: `Activity in ${months.size} separate ${months.size === 1 ? "month" : "months"}, not one burst.`,
-  };
+  const named = dated.map(([name]) => name);
+  const detail =
+    named.length === 0
+      ? "Connect YouTube or GitHub: both carry the date the account was opened."
+      : points < 4
+        ? "These accounts are too new to back each other up yet."
+        : named.length === 1
+          ? `${named[0]} proves when you started. A second source proving it separately is worth a lot more.`
+          : `${named.join(" and ")} independently agree on how far back you go.`;
+
+  return { key: "corroboration", label: "Corroboration", points: round(points), max: 20, detail };
 }
 
 /**
- * DEPTH (max 18). Volume of things you actually made.
+ * DEPTH (max 20). Volume of things you actually made.
  *
  * Posts, videos, repositories. Buyable in principle, tedious in practice, so it
  * earns real but limited weight.
  */
 function depthComponent(evidence: Evidence, connected: number): Component {
-  // Only one scope per source comes back, and for Instagram we ask for posts
-  // rather than the profile, because timestamps are worth far more than a
-  // follower count. So the post count is counted from the posts themselves.
+  // media_count on the web path; a desktop user who brought their actual posts
+  // gets counted from those instead.
   const instagramPosts =
     evidence.instagram?.media_count ?? evidence.instagramPosts?.posts?.length ?? 0;
 
@@ -233,14 +250,14 @@ function depthComponent(evidence: Evidence, connected: number): Component {
   return {
     key: "depth",
     label: "Depth",
-    points: round(saturate(made, 60, 18)),
-    max: 18,
+    points: round(saturate(made, 60, 20)),
+    max: 20,
     detail,
   };
 }
 
 /**
- * STANDING (max 10). Other people and organisations treating you as real.
+ * STANDING (max 10). Unchanged: still the most purchasable signal here. Other people and organisations treating you as real.
  *
  * Weighted LOW on purpose. Followers are the most purchasable signal on this
  * list, so it contributes flavour rather than substance. GitHub organisations
@@ -277,7 +294,7 @@ function standingComponent(evidence: Evidence, connected: number): Component {
  * because that is where the cost to an attacker rises fastest.
  */
 function breadthComponent(sources: SourceId[]): Component {
-  const table = [0, 3, 7, 10, 12];
+  const table = [0, 3, 6, 8, 10];
   const points = table[Math.min(sources.length, 4)];
 
   const detail =
@@ -287,7 +304,7 @@ function breadthComponent(sources: SourceId[]): Component {
         ? "One source. Add another and this climbs fast."
         : `${sources.length} independent accounts telling the same story.`;
 
-  return { key: "breadth", label: "Breadth", points, max: 12, detail };
+  return { key: "breadth", label: "Breadth", points, max: 10, detail };
 }
 
 /**
@@ -301,8 +318,8 @@ function breadthComponent(sources: SourceId[]): Component {
  * The 0.15 floor is deliberate. A nineteen-year-old with a genuine three-year
  * account is not a fraud, and should not be flattened to zero for being young.
  */
-function timeFactor(age: Component, continuity: Component): number {
-  const raw = 0.6 * (age.points / age.max) + 0.4 * (continuity.points / continuity.max);
+function timeFactor(age: Component, corroboration: Component): number {
+  const raw = 0.6 * (age.points / age.max) + 0.4 * (corroboration.points / corroboration.max);
   return 0.15 + 0.85 * Math.min(1, raw);
 }
 
@@ -314,8 +331,8 @@ export function scorePatina(evidence: Evidence): PatinaScore {
   if (evidence.spotify) sourcesConnected.push("spotify");
 
   const { component: age, oldest } = ageComponent(evidence);
-  const continuity = continuityComponent(evidence);
-  const factor = timeFactor(age, continuity);
+  const corroboration = corroborationComponent(evidence);
+  const factor = timeFactor(age, corroboration);
 
   // Time is earned outright. Everything else is only worth what time backs.
   // The gating note is suppressed before anything is connected, where it would
@@ -333,7 +350,7 @@ export function scorePatina(evidence: Evidence): PatinaScore {
         : component.detail,
   }));
 
-  const components = [age, continuity, ...gated];
+  const components = [age, corroboration, ...gated];
   const total = Math.round(components.reduce((sum, c) => sum + c.points, 0));
 
   return { total, components, oldestSignal: oldest, sourcesConnected };

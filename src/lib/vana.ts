@@ -33,8 +33,9 @@ export const SOURCES = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    scopes: ["instagram.posts"],
-    blurb: "Years of posts, with their real dates.",
+    // Web-collectable. instagram.posts is desktop-only: see sources.ts.
+    scopes: ["instagram.profile"],
+    blurb: "How long you have been posting, and to how many.",
   },
   github: {
     id: "github",
