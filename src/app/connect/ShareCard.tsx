@@ -103,9 +103,13 @@ export function ShareCard({
     : "";
 
   async function copy() {
-    if (!payload) return;
+    if (!link) return;
     try {
-      await navigator.clipboard.writeText(payload);
+      // Just the link. Every button that calls this says "link", and pasting a
+      // paragraph of promo text where someone expected a URL is jarring. The
+      // pitch travels with the native share sheet and the WhatsApp/Telegram/X
+      // buttons, which is where a person actually wants it attached.
+      await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
     } catch {
