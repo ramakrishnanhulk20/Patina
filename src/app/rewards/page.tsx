@@ -35,23 +35,26 @@ const RULES: { heading: string; body: React.ReactNode }[] = [
     heading: "Who is eligible",
     body: (
       <>
-        The <strong className="text-text">top {REWARD.places} people by Patina score</strong> at the
-        moment the competition closes. Your score is built entirely from the history in the accounts
-        you connect, and the full breakdown is shown to you, so nothing about your position is
+        The <strong className="text-text">top {REWARD.places} people by points</strong> at the moment
+        the competition closes. Points are your Patina score plus 10 for every real person you
+        bring. Your Patina score is built only from the history in the accounts you connect; referrals
+        never change it. The full breakdown is shown to you, so nothing about your position is
         hidden.
       </>
     ),
   },
   {
-    heading: "How shares are counted",
+    heading: "How points and shares work",
     body: (
       <>
-        Everyone in the top {REWARD.places} gets <strong className="text-text">one share</strong>.
-        Every person you invite who connects and scores at least{" "}
-        <strong className="text-text">{REWARD.referralQualifiesAt}</strong> gets you{" "}
-        <strong className="text-text">one more share</strong>. The pool is divided by the total
-        number of shares, so somebody who brought five real people receives six times what a
-        passive participant receives.
+        Each qualified invite adds <strong className="text-text">10 points</strong> toward the top{" "}
+        {REWARD.places} — that is the climb. Separately, everyone in the top {REWARD.places} holds{" "}
+        <strong className="text-text">one share</strong> of the pool, and every person you invite who
+        connects and scores at least{" "}
+        <strong className="text-text">{REWARD.referralQualifiesAt}</strong> adds{" "}
+        <strong className="text-text">one more share</strong>, whether or not you are in the money
+        yet. Shares only pay if you finish inside the top {REWARD.places} when the Cup closes. The
+        pool is divided by total shares among those places.
       </>
     ),
   },

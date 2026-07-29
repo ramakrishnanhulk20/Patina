@@ -7,8 +7,6 @@ import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, referralTally, resolveProfileId } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { googleConfigured } from "@/lib/google";
-import { ILLUSTRATION } from "@/lib/rewards";
-
 export const metadata = { title: "Connect" };
 export const dynamic = "force-dynamic";
 
@@ -74,7 +72,6 @@ export default async function ConnectPage({
         referralCode={profile?.referralCode ?? ""}
         referralCount={tally.qualified}
         promptForName={params.name === "1"}
-        perShareIfWin={ILLUSTRATION.championPerShare}
         initialSignedIn={Boolean(profile?.id.startsWith("g:"))}
         initialUsername={profile?.username ?? null}
       />

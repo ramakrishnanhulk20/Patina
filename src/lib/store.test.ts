@@ -502,6 +502,44 @@ test("points are score plus referrals, and the score stays separate", () => {
   assert.equal(leaguePoints(40, 0), 40);
   assert.equal(leaguePoints(40, 3), 40 + 3 * POINTS_PER_REFERRAL);
   assert.equal(leaguePoints(0, 5), 5 * POINTS_PER_REFERRAL, "referrals count even with no score");
+  assert.equal(
+    leaguePoints(78, undefined as unknown as number),
+    78,
+    "missing referrals cannot NaN the rank",
+  );
+});
+
+test("standings points come from the profile, even if the ranked index is stale", async () => {
+  const { standings, reconcileRankings } = await import("./store.ts");
+  const id = newProfileId();
+  await recordSource(
+    id,
+    "youtube",
+    {
+      scope: "youtube.profile",
+      readAt: new Date().toISOString(),
+      externalId: "stale-rank-chan",
+      evidence: { youtube: { joinedDate: "2012-01-01T00:00:00Z" } },
+    },
+    78,
+  );
+
+  // Corrupt the ranked index the way production looked after the points split:
+  // profile.score is 78, but the zset still holds an old value (2).
+  const { forceRankForTests } = await import("./store.ts");
+  await forceRankForTests(id, 2);
+
+  const before = (await topProfiles(2000)).find((r) => r.id === id);
+  assert.equal(before?.score, 2, "ranked index is deliberately wrong");
+
+  const healed = await reconcileRankings();
+  assert.ok(healed >= 1, "reconcile rewrites the stale entry");
+
+  const rows = await standings(50);
+  const mine = rows.find((r) => r.id === id);
+  assert.ok(mine);
+  assert.equal(mine!.score, 78);
+  assert.equal(mine!.points, 78, "points cannot sit below the Patina score");
 });
 
 test("somebody who shares can outrank somebody who only has old accounts", async () => {

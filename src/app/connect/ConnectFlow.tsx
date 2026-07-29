@@ -15,7 +15,6 @@ export function ConnectFlow({
   referralCode,
   referralCount,
   promptForName,
-  perShareIfWin,
   initialSignedIn,
   initialUsername,
 }: {
@@ -25,7 +24,6 @@ export function ConnectFlow({
   referralCode: string;
   referralCount: number;
   promptForName: boolean;
-  perShareIfWin: number;
   initialSignedIn: boolean;
   initialUsername: string | null;
 }) {
@@ -149,7 +147,6 @@ export function ConnectFlow({
                 username={username}
                 points={points}
                 rank={rank}
-                perShareIfWin={perShareIfWin}
               />
             )}
           </>

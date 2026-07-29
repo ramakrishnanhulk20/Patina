@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SectionLabel } from "../../components/SectionLabel";
+import { GlowCard3D } from "./GlowCard3D";
 import { evidenceOf, profileByUsername, standingOf } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { REWARD } from "@/lib/rewards";
@@ -52,77 +53,61 @@ export default async function ProfilePage({
   const score = scorePatina(evidenceOf(profile));
   const standing = await standingOf(profile.id, REWARD.places);
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
+  const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
+  const line = verdict(score);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-5 py-10 sm:px-6 sm:py-14">
       <SectionLabel>Patina card</SectionLabel>
 
-      {/*
-        Layered edges rather than a flat panel, so the card has some physical
-        presence. It is the thing people screenshot, so it earns the extra
-        weight.
-      */}
       <div className="relative mt-6">
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-3 -bottom-2 h-6 rounded-b-2xl border border-line bg-panel-2"
+        <GlowCard3D
+          username={profile.username ?? "anonymous"}
+          score={score.total}
+          verdict={line}
+          year={year}
+          years={years}
         />
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-1.5 -bottom-1 h-6 rounded-b-2xl border border-line bg-panel"
-        />
 
-        <div className="relative overflow-hidden rounded-2xl border border-line-strong bg-panel">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full border border-accent/25"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full border border-accent/40"
-          />
-
-          <div className="relative p-7 sm:p-10">
-            <p className="text-lg text-text-2">{profile.username}</p>
-
-            <div className="mt-2 flex items-end gap-3">
-              <span className="t-display text-accent">{score.total}</span>
-              <span className="pb-3 text-2xl font-semibold text-text-4">/100</span>
-            </div>
-
-            <p className="mt-2 text-2xl font-semibold text-text">{verdict(score)}</p>
-
-            {year !== null && (
-              <p className="mt-3 text-lg leading-relaxed text-text-2">
-                A digital life traced back to <span className="text-text">{year}</span>, which is{" "}
-                <span className="text-text">{Math.floor(score.oldestSignal!.years)} years</span> of
-                history nobody could have manufactured.
-              </p>
-            )}
-
-            <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line pt-6 sm:grid-cols-4">
-              <div>
-                <dt className="t-label text-text-3">Rank</dt>
-                <dd className="t-mono mt-1 text-xl text-text">
-                  {standing.rank !== null ? `#${standing.rank}` : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="t-label text-text-3">Sources</dt>
-                <dd className="t-mono mt-1 text-xl text-text">{score.sourcesConnected.length}</dd>
-              </div>
-              <div>
-                <dt className="t-label text-text-3">Since</dt>
-                <dd className="t-mono mt-1 text-xl text-text">{year ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="t-label text-text-3">Of</dt>
-                <dd className="t-mono mt-1 text-xl text-text">{standing.total}</dd>
-              </div>
-            </dl>
-          </div>
+        {/*
+          Readable fallback under the canvas for screen readers and for anyone
+          whose browser will not start WebGL. Visually hidden when the canvas
+          paints, because the plate already carries the same facts.
+        */}
+        <div className="sr-only">
+          <p>{profile.username}</p>
+          <p>
+            {score.total} out of 100. {line}.
+          </p>
+          {year !== null && (
+            <p>
+              A digital life traced back to {year}
+              {years !== null ? `, ${years} years of history` : ""}.
+            </p>
+          )}
         </div>
       </div>
+
+      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border border-line bg-panel p-5 sm:grid-cols-4">
+        <div>
+          <dt className="t-label text-text-3">Rank</dt>
+          <dd className="t-mono mt-1 text-xl text-text">
+            {standing.rank !== null ? `#${standing.rank}` : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="t-label text-text-3">Sources</dt>
+          <dd className="t-mono mt-1 text-xl text-text">{score.sourcesConnected.length}</dd>
+        </div>
+        <div>
+          <dt className="t-label text-text-3">Since</dt>
+          <dd className="t-mono mt-1 text-xl text-text">{year ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="t-label text-text-3">Of</dt>
+          <dd className="t-mono mt-1 text-xl text-text">{standing.total}</dd>
+        </div>
+      </dl>
 
       <div className="mt-12 space-y-3">
         {score.components.map((component) => {
@@ -137,7 +122,10 @@ export default async function ProfilePage({
                 </span>
               </div>
               <div className="mt-2.5 h-[3px] w-full bg-line" aria-hidden="true">
-                <div className="h-full bg-accent" style={{ width: `${Math.max(pct, pct > 0 ? 1.5 : 0)}%` }} />
+                <div
+                  className="h-full bg-accent"
+                  style={{ width: `${Math.max(pct, pct > 0 ? 1.5 : 0)}%` }}
+                />
               </div>
             </div>
           );

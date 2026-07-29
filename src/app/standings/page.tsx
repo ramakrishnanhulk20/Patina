@@ -2,13 +2,14 @@ import Link from "next/link";
 import { SectionLabel } from "../components/SectionLabel";
 import { readSessionId } from "@/lib/session";
 import { resolveProfileId, scoredProfileCount, standings } from "@/lib/store";
+import { scorePatina } from "@/lib/score";
 import { REWARD } from "@/lib/rewards";
 import { POINTS_PER_REFERRAL, REFERRAL_QUALIFIES_AT } from "@/lib/store";
 
 export const metadata = {
   title: "Standings",
   description:
-    "Who has the most provable digital history on Patina, and who is currently inside the places that share the reward.",
+    "Who has the most points on Patina — Patina score plus what they brought in — and who is currently inside the places that share the reward.",
 };
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,9 @@ export default async function StandingsPage() {
   const mine = sessionId ? await resolveProfileId(sessionId) : null;
 
   const [rows, total] = await Promise.all([
-    standings(REWARD.places),
+    // Re-score from evidence so a formula change (or a stale rank index) cannot
+    // leave someone at "score 78 / points 2" forever.
+    standings(REWARD.places, (evidence) => scorePatina(evidence).total),
     scoredProfileCount(),
   ]);
 

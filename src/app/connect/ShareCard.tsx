@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import type { ScoreView } from "./ScorePanel";
 
+/** Keep in sync with POINTS_PER_REFERRAL in store.ts — cannot import store from a client file. */
+const POINTS_PER_REFERRAL = 10;
+
 /** The origin never changes, so there is nothing to subscribe to. */
 const noSubscribe = () => () => {};
 
@@ -23,7 +26,6 @@ export function ShareCard({
   username,
   points,
   rank,
-  perShareIfWin,
 }: {
   score: ScoreView;
   referralCode: string;
@@ -31,8 +33,6 @@ export function ShareCard({
   /** Leaderboard points: the Patina score plus what they have brought in. */
   points: number;
   rank: number | null;
-  /** VANA a single share is worth if Patina takes the Cup. */
-  perShareIfWin: number;
   /** Needed for the card link. Without a name there is no public page to share. */
   username: string | null;
 }) {
@@ -51,8 +51,9 @@ export function ShareCard({
    * One link, doing both jobs.
    *
    * It opens the person's card, which is the thing worth looking at, and it
-   * carries their referral code, which is the thing that earns them a share. A
-   * separate "invite link" was one link too many: people posted the wrong one.
+   * carries their referral code, which is what earns them 10 leaderboard points
+   * when the invitee clears the bar. A separate "invite link" was one link too
+   * many: people posted the wrong one.
    */
   const link =
     origin && username
@@ -62,31 +63,22 @@ export function ShareCard({
         : "";
 
   const text = useMemo(() => shareText(score), [score]);
+  const payload = link ? `${text}\n\n${link}` : "";
 
   const tweetUrl = link
     ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`
     : "";
-
-  // The OS share sheet on Android and iOS. Far better than a copy button on a
-  // phone: it reaches WhatsApp and Telegram, which is where this audience is.
-  const canShareNatively = useSyncExternalStore(
-    noSubscribe,
-    () => typeof navigator !== "undefined" && typeof navigator.share === "function",
-    () => false,
-  );
-
-  async function shareNatively() {
-    try {
-      await navigator.share({ title: "My Patina score", text, url: link });
-    } catch {
-      // Cancelling the sheet throws. Not an error worth showing.
-    }
-  }
+  const whatsappUrl = payload
+    ? `https://wa.me/?text=${encodeURIComponent(payload)}`
+    : "";
+  const telegramUrl = payload
+    ? `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
+    : "";
 
   async function copy() {
-    if (!link) return;
+    if (!payload) return;
     try {
-      await navigator.clipboard.writeText(`${text}\n\n${link}`);
+      await navigator.clipboard.writeText(payload);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
     } catch {
@@ -99,46 +91,29 @@ export function ShareCard({
       <p className="t-label text-text-3">Share your card</p>
 
       <p className="mt-3 text-sm leading-relaxed text-text-2">
-        Your card shows how far back you go. Every real person who opens it and connects moves you
-        up the leaderboard and adds a share of the reward. If Patina does not place, there is
-        nothing to split, and the board is public so you can watch where it stands.
+        Your card shows how far back you go. Every real person who opens it and connects adds{" "}
+        {POINTS_PER_REFERRAL} points to your standings. Points are what put you in the top 50 that
+        share the reward if Patina places.
       </p>
 
-      {/*
-        The number, and what the number is worth.
-        People act on figures they can watch move, so this shows the share count
-        first and translates it, while keeping the condition attached: it is
-        "if Patina wins", never "you will get".
-      */}
       <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line">
         <div className="bg-bg p-4">
-          <p className="t-label text-text-3">Your shares</p>
-          <p className="t-mono mt-1.5 text-3xl text-accent">{referralCount + 1}</p>
+          <p className="t-label text-text-3">Your points</p>
+          <p className="t-mono mt-1.5 text-3xl text-accent">{points}</p>
           <p className="mt-1 text-xs leading-relaxed text-text-3">
-            {referralCount === 0
-              ? "just yours so far"
-              : `yours plus ${referralCount} ${referralCount === 1 ? "person" : "people"}`}
+            score {score.total}
+            {referralCount > 0
+              ? ` + ${referralCount * POINTS_PER_REFERRAL} from ${referralCount === 1 ? "1 person" : `${referralCount} people`}`
+              : " · bring people to rise"}
           </p>
         </div>
         <div className="bg-bg p-4">
-          <p className="t-label text-text-3">If Patina wins</p>
-          <p className="t-mono mt-1.5 text-3xl text-text">
-            ~{Math.round(perShareIfWin * (referralCount + 1))}
+          <p className="t-label text-text-3">Rank</p>
+          <p className="t-mono mt-1.5 text-3xl text-text">{rank !== null ? `#${rank}` : "—"}</p>
+          <p className="mt-1 text-xs leading-relaxed text-text-3">
+            each real person you bring = +{POINTS_PER_REFERRAL} points
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-text-3">VANA, split at close</p>
         </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-3">
-        <span>
-          Points <span className="t-mono text-text">{points}</span>
-        </span>
-        {rank !== null && (
-          <span>
-            Rank <span className="t-mono text-text">#{rank}</span>
-          </span>
-        )}
-        <span className="text-text-4">Each real person you bring adds 10 points and one share.</span>
       </div>
 
       {!username && (
@@ -147,42 +122,49 @@ export function ShareCard({
         </p>
       )}
 
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        {canShareNatively ? (
-          <button
-            type="button"
-            onClick={shareNatively}
-            disabled={!link}
-            className="btn btn-primary w-full px-5 py-3 text-sm sm:w-auto"
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary px-5 py-3 text-sm"
           >
-            Share
-          </button>
-        ) : (
-          tweetUrl && (
-            <a
-              href={tweetUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-primary w-full px-5 py-3 text-sm sm:w-auto"
-            >
-              Post on X
-            </a>
-          )
+            WhatsApp
+          </a>
         )}
-
+        {telegramUrl && (
+          <a
+            href={telegramUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary px-5 py-3 text-sm"
+          >
+            Telegram
+          </a>
+        )}
+        {tweetUrl && (
+          <a
+            href={tweetUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost px-5 py-3 text-sm"
+          >
+            Post on X
+          </a>
+        )}
         <button
           type="button"
           onClick={copy}
           disabled={!link}
-          className="btn btn-ghost w-full px-5 py-3 text-sm sm:w-auto"
+          className="btn btn-ghost px-5 py-3 text-sm"
         >
           {copied ? "Copied" : "Copy link"}
         </button>
-
         {username && (
           <Link
             href={`/u/${encodeURIComponent(username)}`}
-            className="btn btn-ghost w-full px-5 py-3 text-sm sm:w-auto"
+            className="btn btn-ghost px-5 py-3 text-sm"
           >
             View card
           </Link>

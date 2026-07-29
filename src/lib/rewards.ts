@@ -17,7 +17,7 @@ export const REWARD = {
   /** Share of anything Patina wins that goes back to the people who connected. */
   shareOfWinnings: 0.5,
 
-  /** How many people are eligible, ranked by Patina score. */
+  /** How many people are eligible, ranked by leaderboard points. */
   places: 50,
 
   /** Prize for finishing first, from the Vana Cup terms. Grows with network activity. */

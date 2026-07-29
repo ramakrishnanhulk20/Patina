@@ -88,7 +88,11 @@ export const POINTS_PER_REFERRAL = 10;
 
 /** The number the leaderboard ranks on. */
 export function leaguePoints(score: number, qualifiedReferrals: number): number {
-  return Math.round(score + POINTS_PER_REFERRAL * Math.max(0, qualifiedReferrals));
+  // Coerce hard. Older profiles may lack `referrals`, and Math.max(0, undefined)
+  // is NaN — which would write a broken rank and show as "2 points / 78 score".
+  const safeScore = Number.isFinite(score) ? score : 0;
+  const safeRefs = Number.isFinite(qualifiedReferrals) ? Math.max(0, qualifiedReferrals) : 0;
+  return Math.round(safeScore + POINTS_PER_REFERRAL * safeRefs);
 }
 
 const PREFIX = "patina:v1";
@@ -502,6 +506,7 @@ export async function adoptProfile(
     }
 
     target.score = rescore(evidenceOf(target));
+    if (typeof target.referrals !== "number") target.referrals = 0;
     target.updatedAt = new Date().toISOString();
     await saveProfile(target);
     await db().rank(RANK_KEY, target.id, leaguePoints(target.score, target.referrals));
@@ -542,6 +547,9 @@ export async function recordSource(
   profile.updatedAt = new Date().toISOString();
   profile.score = scoreAfter;
 
+  // Older profiles minted before referrals were cached may lack the field.
+  if (typeof profile.referrals !== "number") profile.referrals = 0;
+
   await saveProfile(profile);
   await db().rank(RANK_KEY, profile.id, leaguePoints(profile.score, profile.referrals));
 
@@ -572,7 +580,11 @@ export async function recordSource(
           referrer.updatedAt = new Date().toISOString();
           await saveProfile(referrer);
           // Their points just went up, so their place has to move with it.
-          await db().rank(RANK_KEY, referrer.id, leaguePoints(referrer.score, referrer.referrals));
+          await db().rank(
+            RANK_KEY,
+            referrer.id,
+            leaguePoints(referrer.score, referrer.referrals ?? 0),
+          );
         }
       }
     }
@@ -660,6 +672,7 @@ export async function claimProfile(
   }
 
   profile.score = rescore(evidenceOf(profile));
+  if (typeof profile.referrals !== "number") profile.referrals = 0;
   profile.updatedAt = now;
 
   await saveProfile(profile);
@@ -734,9 +747,16 @@ export async function setUsername(
  * and publishing them would expose somebody's accounts to anyone who visited a
  * page, which is the opposite of what this product claims to be for. A rank, a
  * score and a shape is enough to be competitive.
+ *
+ * Points are ALWAYS derived from the profile (`score + 10 × referrals`), never
+ * trusted from the ranked index alone. The index can go stale across deploys
+ * that change the ranking formula; the profile cannot lie about its own fields
+ * the same way. Mismatches are rewritten here so the next visitor sees the
+ * truth without an admin script.
  */
 export async function standings(
   count: number,
+  rescore?: (evidence: Evidence) => number,
 ): Promise<
   {
     id: string;
@@ -748,33 +768,97 @@ export async function standings(
     username?: string;
   }[]
 > {
-  const top = await topProfiles(count);
+  await reconcileRankings(rescore);
+
+  const top = await topProfiles(Math.max(count, 200));
   const profiles = await Promise.all(top.map((row) => getProfile(row.id)));
 
-  return top.map((row, index) => {
-    const profile = profiles[index];
-    const dates = Object.values(profile?.sources ?? {})
-      .flatMap((record) => [
-        record.evidence.youtube?.joinedDate,
-        record.evidence.github?.createdAt,
-        ...(record.evidence.instagramPosts?.posts ?? []).map((post) => post.taken_at),
-      ])
-      .filter((value): value is string => typeof value === "string")
-      .map((value) => new Date(value).getTime())
-      .filter((time) => Number.isFinite(time));
+  const rows = top
+    .map((row, index) => {
+      const profile = profiles[index];
+      if (!profile) return null;
 
-    return {
-      id: row.id,
-      // row.score is the RANKED value, which is points. The Patina score is the
-      // separate, purer number stored on the profile.
-      points: row.score,
-      score: profile?.score ?? 0,
-      referrals: profile?.referrals ?? 0,
-      sources: Object.keys(profile?.sources ?? {}).length,
-      oldestYear: dates.length ? new Date(Math.min(...dates)).getUTCFullYear() : null,
-      username: profile?.username,
-    };
-  });
+      const score = profile.score;
+      const referrals = profile.referrals ?? 0;
+      const points = leaguePoints(score, referrals);
+
+      const dates = Object.values(profile.sources)
+        .flatMap((record) => [
+          record.evidence.youtube?.joinedDate,
+          record.evidence.github?.createdAt,
+          ...(record.evidence.instagramPosts?.posts ?? []).map((post) => post.taken_at),
+        ])
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => new Date(value).getTime())
+        .filter((time) => Number.isFinite(time));
+
+      return {
+        id: row.id,
+        points,
+        score,
+        referrals,
+        sources: Object.keys(profile.sources).length,
+        oldestYear: dates.length ? new Date(Math.min(...dates)).getUTCFullYear() : null,
+        username: profile.username,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+    .sort((a, b) => b.points - a.points || b.score - a.score);
+
+  return rows.slice(0, count);
+}
+
+/**
+ * Rewrite every ranked entry from the profile itself.
+ *
+ * Needed whenever the ranking formula changes (points = score + 10×refs) or a
+ * score formula changes (Continuity → Corroboration): old zset values otherwise
+ * keep people at impossible pairs like "score 78 / points 2".
+ *
+ * Optional `rescore` recomputes the Patina score from stored evidence, so a
+ * formula change heals without asking everyone to reconnect.
+ */
+export async function reconcileRankings(
+  rescore?: (evidence: Evidence) => number,
+): Promise<number> {
+  const total = await db().rankedCount(RANK_KEY);
+  if (total === 0) return 0;
+
+  const rows = await db().topRanked(RANK_KEY, total);
+  let fixed = 0;
+
+  for (const row of rows) {
+    const profile = await getProfile(row.member);
+    if (!profile) {
+      await db().unrank(RANK_KEY, row.member);
+      fixed += 1;
+      continue;
+    }
+
+    const liveScore = rescore ? rescore(evidenceOf(profile)) : profile.score;
+    const referrals = profile.referrals ?? 0;
+    const points = leaguePoints(liveScore, referrals);
+
+    const scoreDrift = liveScore !== profile.score;
+    const refsDrift = profile.referrals !== referrals;
+    const rankDrift = points !== row.score;
+
+    if (scoreDrift || refsDrift || rankDrift) {
+      profile.score = liveScore;
+      profile.referrals = referrals;
+      profile.updatedAt = new Date().toISOString();
+      await saveProfile(profile);
+      await db().rank(RANK_KEY, profile.id, points);
+      fixed += 1;
+    }
+  }
+
+  return fixed;
+}
+
+/** Test-only: write a raw ranked value so reconcile can be proven to heal it. */
+export async function forceRankForTests(profileId: string, points: number): Promise<void> {
+  await db().rank(RANK_KEY, profileId, points);
 }
 
 /** How many people have a score at all. Shown publicly as "N people so far". */
