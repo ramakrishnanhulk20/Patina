@@ -17,12 +17,15 @@ export function Identity({
   username,
   loginAvailable,
   promptForName,
+  loginError,
   onNamed,
 }: {
   signedIn: boolean;
   username: string | null;
   loginAvailable: boolean;
   promptForName: boolean;
+  /** Set when a sign-in attempt came back unsuccessful. */
+  loginError: string | null;
   onNamed: () => void | Promise<void>;
 }) {
   const [name, setName] = useState(username ?? "");
@@ -75,6 +78,15 @@ export function Identity({
             <span className="t-label shrink-0 text-warn">Sign-in not configured</span>
           )}
         </div>
+
+        {/*
+          A failed sign-in used to land back here silently, which is
+          indistinguishable from the button doing nothing at all. Say what
+          happened.
+        */}
+        {loginError && (
+          <p className="mt-4 border-t border-line pt-4 text-sm text-bad">{loginError}</p>
+        )}
 
         <p className="mt-4 text-xs leading-relaxed text-text-4">
           We ask Google for your account id and email, nothing else. You can still connect sources

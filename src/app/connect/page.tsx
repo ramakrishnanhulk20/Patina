@@ -68,6 +68,16 @@ export default async function ConnectPage({
         referralCount={tally.qualified}
         loginAvailable={googleConfigured()}
         promptForName={params.name === "1"}
+        loginError={
+          params.login === "failed"
+            ? "That sign-in did not complete. Try again, and if it keeps failing tell us."
+            : params.login === "unavailable"
+              ? "Sign-in is not switched on yet. You can still connect sources; your score will just stay in this browser."
+              : null
+        }
+        initialSignedIn={Boolean(profile?.id.startsWith("g:"))}
+        initialUsername={profile?.username ?? null}
+        initialDeviceToken={profile?.deviceToken ?? null}
       />
 
       <NextApps apps={nextApps} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
 import type { SourceSpec } from "@/lib/sources";
@@ -16,6 +16,10 @@ export function ConnectFlow({
   referralCount,
   loginAvailable,
   promptForName,
+  loginError,
+  initialSignedIn,
+  initialUsername,
+  initialDeviceToken,
 }: {
   sources: SourceSpec[];
   initialScore: ScoreView;
@@ -24,6 +28,10 @@ export function ConnectFlow({
   referralCount: number;
   loginAvailable: boolean;
   promptForName: boolean;
+  loginError: string | null;
+  initialSignedIn: boolean;
+  initialUsername: string | null;
+  initialDeviceToken: string | null;
 }) {
   const [score, setScore] = useState(initialScore);
   const [readAt, setReadAt] = useState(initialReadAt);
@@ -32,9 +40,15 @@ export function ConnectFlow({
   // minted mid-session and has to be picked up on refresh rather than only
   // arriving with the server render.
   const [code, setCode] = useState(referralCode);
-  const [deviceToken, setDeviceToken] = useState<string | null>(null);
-  const [signedIn, setSignedIn] = useState(false);
-  const [username, setUsername] = useState<string | null>(null);
+  // Seeded from the server, NOT defaulted to false.
+  //
+  // These used to start as `false`/`null` and were only ever corrected inside
+  // refresh(), which nothing called on page load. So after signing in and being
+  // redirected back, the server knew who you were and the page still showed
+  // "Sign in" forever, because the client never asked.
+  const [deviceToken, setDeviceToken] = useState<string | null>(initialDeviceToken);
+  const [signedIn, setSignedIn] = useState(initialSignedIn);
+  const [username, setUsername] = useState<string | null>(initialUsername);
 
   const refresh = useCallback(async () => {
     try {
@@ -52,6 +66,18 @@ export function ConnectFlow({
       // did everything right.
     }
   }, []);
+
+  // And confirm against the server once on mount. Belt and braces: the props
+  // above already render the right thing, and this means any future drift
+  // between server and client heals itself in a second instead of stranding
+  // somebody on a screen that is quietly wrong.
+  //
+  // Deferred by a tick so the state updates land in a normal event rather than
+  // synchronously during the effect, which would re-render before first paint.
+  useEffect(() => {
+    const id = setTimeout(() => void refresh(), 0);
+    return () => clearTimeout(id);
+  }, [refresh]);
 
   const { phase, start, dismissError } = useConnect(refresh);
 
@@ -83,6 +109,7 @@ export function ConnectFlow({
             username={username}
             loginAvailable={loginAvailable}
             promptForName={promptForName}
+            loginError={loginError}
             onNamed={refresh}
           />
         </div>
