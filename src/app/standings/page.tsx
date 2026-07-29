@@ -38,9 +38,9 @@ export default async function StandingsPage() {
       <h1 className="t-section mt-5 text-text">The most worn-in people here.</h1>
 
       <p className="mt-5 max-w-2xl text-lg leading-relaxed text-text-2">
-        The top {REWARD.places} share the reward if Patina places in the Vana Cup. Everyone is
-        anonymous: we hold account names only to stop the same person counting twice, and publishing
-        them would be the opposite of the point.
+        The top {REWARD.places} share the reward if Patina places in the Vana Cup. Names here are
+        chosen by each person. The accounts behind a score are never shown: we hold those only to
+        stop one person counting twice, and publishing them would be the opposite of the point.
       </p>
 
       <dl className="mt-8 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
@@ -68,7 +68,7 @@ export default async function StandingsPage() {
         </div>
       ) : (
         <div className="scroll-x mt-10 rounded-lg border border-line">
-          <table className="w-full min-w-[34rem] border-collapse text-left">
+          <table className="w-full min-w-[40rem] border-collapse text-left">
             <caption className="sr-only">
               Patina standings, highest score first. The top {REWARD.places} share the reward.
             </caption>
@@ -76,6 +76,9 @@ export default async function StandingsPage() {
               <tr className="border-b border-line">
                 <th scope="col" className="t-label p-4 font-medium text-text-3">
                   #
+                </th>
+                <th scope="col" className="t-label p-4 font-medium text-text-3">
+                  Who
                 </th>
                 <th scope="col" className="t-label p-4 font-medium text-text-3">
                   Score
@@ -100,9 +103,12 @@ export default async function StandingsPage() {
                   >
                     <td className="t-mono p-4 text-text-3">{index + 1}</td>
                     <td className="p-4">
-                      <span className="t-mono text-lg text-text">{row.score}</span>
+                      <span className={row.username ? "font-semibold text-text" : "text-text-4"}>
+                        {row.username ?? "anonymous"}
+                      </span>
                       {isMine && <span className="t-label ml-2.5 text-accent">You</span>}
                     </td>
+                    <td className="t-mono p-4 text-lg text-text">{row.score}</td>
                     <td className="t-mono p-4 text-text-2">{row.sources}</td>
                     <td className="t-mono p-4 text-text-2">{row.oldestYear ?? "—"}</td>
                   </tr>

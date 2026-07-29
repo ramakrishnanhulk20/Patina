@@ -7,6 +7,8 @@ import {
   getProfile,
   isPersistent,
   adoptProfile,
+  claimProfile,
+  setUsername,
   newProfileId,
   resolveProfileId,
   profileIdForCode,
@@ -302,4 +304,77 @@ test("evidence from every source is merged for scoring", async () => {
   // survive in storage or the score silently collapses on the second connect.
   assert.equal(evidence.github?.username, "dev");
   assert.equal(evidence.youtube?.joinedDate, "2011-05-02T00:00:00Z");
+});
+
+
+/**
+ * Signing in is what makes one person one row. Google's `sub` is identical on a
+ * phone and a laptop, which is the property nothing else in this stack offered.
+ */
+test("signing in on a second device merges into one profile", async () => {
+  const identity = "g:1234567890";
+  const phone = newProfileId();
+  const laptop = newProfileId();
+
+  await recordSource(phone, "youtube", {
+    scope: "youtube.profile",
+    readAt: "2026-07-01T00:00:00Z",
+    externalId: "chan",
+    evidence: { youtube: { joinedDate: "2012-04-01T00:00:00Z" } },
+  }, 40);
+  await claimProfile(phone, identity, () => 40);
+
+  await recordSource(laptop, "github", record("dev", "2013-01-01T00:00:00Z"), 30);
+  await claimProfile(laptop, identity, () => 70);
+
+  assert.equal(await resolveProfileId(phone), identity);
+  assert.equal(await resolveProfileId(laptop), identity);
+
+  const merged = await getProfile(identity);
+  assert.ok(merged?.sources.youtube, "the phone's source survived");
+  assert.ok(merged?.sources.github, "the laptop's source came across");
+
+  const board = await topProfiles(1000);
+  assert.ok(!board.some((r) => r.id === phone), "the phone's old profile leaves the standings");
+  assert.ok(!board.some((r) => r.id === laptop), "so does the laptop's");
+  assert.equal(board.filter((r) => r.id === identity).length, 1, "exactly one row remains");
+});
+
+test("a username is claimed first come, first served", async () => {
+  const a = newProfileId();
+  const b = newProfileId();
+  await recordSource(a, "github", record("ua", "2012-01-01T00:00:00Z"), 40);
+  await recordSource(b, "github", record("ub", "2012-01-01T00:00:00Z"), 40);
+
+  assert.deepEqual(await setUsername(a, "ramkumar"), { ok: true, username: "ramkumar" });
+
+  const taken = await setUsername(b, "RamKumar");
+  assert.equal(taken.ok, false, "the same name in different case is still taken");
+
+  assert.equal((await getProfile(a))?.username, "ramkumar");
+  assert.equal((await getProfile(b))?.username, undefined);
+});
+
+test("bad usernames are refused with a reason a person can act on", async () => {
+  const id = newProfileId();
+  await recordSource(id, "github", record("uu", "2012-01-01T00:00:00Z"), 40);
+
+  for (const bad of ["ab", "a".repeat(21), "has space", "semi;colon", "sla/sh"]) {
+    const result = await setUsername(id, bad);
+    assert.equal(result.ok, false, `"${bad}" should be refused`);
+    assert.ok("reason" in result && result.reason.length > 0, "and say why");
+  }
+});
+
+test("renaming frees the old name for somebody else", async () => {
+  const a = newProfileId();
+  const b = newProfileId();
+  await recordSource(a, "github", record("ra", "2012-01-01T00:00:00Z"), 40);
+  await recordSource(b, "github", record("rb", "2012-01-01T00:00:00Z"), 40);
+
+  await setUsername(a, "firstpick");
+  await setUsername(a, "secondpick");
+
+  const reused = await setUsername(b, "firstpick");
+  assert.equal(reused.ok, true, "an abandoned name must not be held forever");
 });

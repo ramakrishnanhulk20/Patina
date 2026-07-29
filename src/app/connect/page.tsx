@@ -6,13 +6,19 @@ import { SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
 import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, referralTally, resolveProfileId } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
+import { googleConfigured } from "@/lib/google";
 
 export const metadata = { title: "Connect" };
 export const dynamic = "force-dynamic";
 
 /** Ordered by how likely someone is to have one, and how much age it proves. */
 
-export default async function ConnectPage() {
+export default async function ConnectPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
   const sessionId = await readSessionId();
   // Resolved to the wallet profile when signed in, so the page shows one score
   // across every device rather than whatever this browser happens to hold.
@@ -60,6 +66,8 @@ export default async function ConnectPage() {
         initialReadAt={readAt}
         referralCode={profile?.referralCode ?? ""}
         referralCount={tally.qualified}
+        loginAvailable={googleConfigured()}
+        promptForName={params.name === "1"}
       />
 
       <NextApps apps={nextApps} />

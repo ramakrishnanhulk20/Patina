@@ -5,6 +5,7 @@ import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
 import type { SourceSpec } from "@/lib/sources";
 import { ShareCard } from "./ShareCard";
+import { Identity } from "./Identity";
 import { useConnect } from "./useConnect";
 
 export function ConnectFlow({
@@ -13,12 +14,16 @@ export function ConnectFlow({
   initialReadAt,
   referralCode,
   referralCount,
+  loginAvailable,
+  promptForName,
 }: {
   sources: SourceSpec[];
   initialScore: ScoreView;
   initialReadAt: Record<string, string>;
   referralCode: string;
   referralCount: number;
+  loginAvailable: boolean;
+  promptForName: boolean;
 }) {
   const [score, setScore] = useState(initialScore);
   const [readAt, setReadAt] = useState(initialReadAt);
@@ -28,6 +33,8 @@ export function ConnectFlow({
   // arriving with the server render.
   const [code, setCode] = useState(referralCode);
   const [deviceToken, setDeviceToken] = useState<string | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -37,6 +44,8 @@ export function ConnectFlow({
       if (typeof next.referralCount === "number") setInvites(next.referralCount);
       if (typeof next.referralCode === "string") setCode(next.referralCode);
       setDeviceToken(typeof next.deviceToken === "string" ? next.deviceToken : null);
+      setSignedIn(Boolean(next.signedIn));
+      setUsername(next.username ?? null);
     } catch {
       // A failed refresh is cosmetic. The read already succeeded and is stored,
       // so a slightly stale number beats an error thrown at someone who just
@@ -68,7 +77,17 @@ export function ConnectFlow({
               }`}
         </p>
 
-        <div className="mt-8 space-y-3">
+        <div className="mt-8">
+          <Identity
+            signedIn={signedIn}
+            username={username}
+            loginAvailable={loginAvailable}
+            promptForName={promptForName}
+            onNamed={refresh}
+          />
+        </div>
+
+        <div className="mt-4 space-y-3">
           {sources.map((source) => (
             <SourceCard
               key={source.id}

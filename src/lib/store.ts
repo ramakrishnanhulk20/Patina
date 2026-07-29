@@ -48,6 +48,8 @@ export type Profile = {
   referredBy?: string;
   /** Cached so counting a referrer's qualified invites does not rescore everyone. */
   score: number;
+  /** Chosen by the person, shown on the standings. Absent until they pick one. */
+  username?: string;
   /** Set only when someone claims a reward share. Never asked for up front. */
   payoutAddress?: string;
 };
@@ -108,6 +110,9 @@ const linkKey = (sessionId: string) => `${PREFIX}:link:${sessionId}`;
  * anyone absorb a stranger's profile by pasting their channel URL.
  */
 const tokenKey = (token: string) => `${PREFIX}:token:${token}`;
+
+/** Usernames are claimed first-come and held here so two people cannot share one. */
+const usernameKey = (name: string) => `${PREFIX}:username:${name.toLowerCase()}`;
 
 /** The profile this browser session should read and write. */
 export async function resolveProfileId(sessionId: string): Promise<string> {
@@ -517,6 +522,123 @@ export async function topProfiles(count: number): Promise<{ id: string; score: n
 }
 
 /**
+ * Attach this browser to a stable identity, absorbing what it had collected.
+ *
+ * The identity comes from Google sign-in, whose `sub` is the same on every
+ * device a person owns. That is the whole point: without it, a phone and a
+ * laptop are two profiles with two partial scores and two rows in the
+ * standings.
+ *
+ * Safe to call on every sign-in. The second time through there is usually
+ * nothing to absorb and it simply points the session at the existing profile.
+ */
+export async function claimProfile(
+  sessionId: string,
+  identityId: string,
+  rescore: (evidence: Evidence) => number,
+): Promise<Profile> {
+  const currentId = await resolveProfileId(sessionId);
+  const [existing, current] = await Promise.all([
+    getProfile(identityId),
+    currentId === identityId ? Promise.resolve(null) : getProfile(currentId),
+  ]);
+
+  const now = new Date().toISOString();
+  const profile: Profile = existing ?? {
+    id: identityId,
+    createdAt: current?.createdAt ?? now,
+    updatedAt: now,
+    sources: {},
+    referralCode: current?.referralCode ?? newReferralCode(),
+    deviceToken: current?.deviceToken ?? newDeviceToken(),
+    score: 0,
+    ...(current?.referredBy ? { referredBy: current.referredBy } : {}),
+  };
+
+  if (current) {
+    for (const [source, record] of Object.entries(current.sources)) {
+      // Anything already on the identity wins: it is what this person has been
+      // shown, and overwriting it would move their score for no reason.
+      if (!profile.sources[source as SourceId]) {
+        profile.sources[source as SourceId] = record;
+      }
+    }
+    if (!profile.referredBy && current.referredBy) profile.referredBy = current.referredBy;
+    if (!profile.username && current.username) profile.username = current.username;
+    if (current.createdAt < profile.createdAt) profile.createdAt = current.createdAt;
+
+    // A referral or device link already handed out has to keep working.
+    if (current.referralCode !== profile.referralCode) {
+      await db().set(codeKey(current.referralCode), profile.id);
+    }
+    if (current.deviceToken !== profile.deviceToken) {
+      await db().set(tokenKey(current.deviceToken), profile.id);
+    }
+    await db().unrank(RANK_KEY, current.id);
+  }
+
+  profile.score = rescore(evidenceOf(profile));
+  profile.updatedAt = now;
+
+  await saveProfile(profile);
+  await db().set(codeKey(profile.referralCode), profile.id);
+  await db().set(tokenKey(profile.deviceToken), profile.id);
+  await db().set(linkKey(sessionId), profile.id);
+  if (profile.username) await db().set(usernameKey(profile.username), profile.id);
+  await db().rank(RANK_KEY, profile.id, profile.score);
+
+  return profile;
+}
+
+/** Shape rules kept in one place so the API and the form cannot disagree. */
+export function usernameProblem(name: string): string | null {
+  const trimmed = name.trim();
+  if (trimmed.length < 3) return "At least 3 characters.";
+  if (trimmed.length > 20) return "20 characters at most.";
+  if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) return "Letters, numbers and underscores only.";
+  return null;
+}
+
+/**
+ * Claim a username, first come first served.
+ *
+ * Returns the reason it failed rather than throwing, because every failure here
+ * is something the person can fix by typing something else.
+ */
+export async function setUsername(
+  profileId: string,
+  name: string,
+): Promise<{ ok: true; username: string } | { ok: false; reason: string }> {
+  const problem = usernameProblem(name);
+  if (problem) return { ok: false, reason: problem };
+
+  const username = name.trim();
+  const holder = await db().get(usernameKey(username));
+
+  // An empty value means the name was released by a rename. Anything else that
+  // is not us means somebody currently holds it.
+  if (typeof holder === "string" && holder !== "" && holder !== profileId) {
+    return { ok: false, reason: "Somebody already has that one." };
+  }
+
+  const profile = await getProfile(profileId);
+  if (!profile) return { ok: false, reason: "Connect a source first." };
+
+  // Release the old name so it is not held forever by someone who renamed.
+  if (profile.username && profile.username.toLowerCase() !== username.toLowerCase()) {
+    await db().set(usernameKey(profile.username), "");
+  }
+
+  profile.username = username;
+  profile.updatedAt = new Date().toISOString();
+
+  await saveProfile(profile);
+  await db().set(usernameKey(username), profileId);
+
+  return { ok: true, username };
+}
+
+/**
  * The standings, with just enough on each row to be worth looking at.
  *
  * Deliberately anonymous. We hold usernames and channel ids for deduplication,
@@ -526,7 +648,9 @@ export async function topProfiles(count: number): Promise<{ id: string; score: n
  */
 export async function standings(
   count: number,
-): Promise<{ id: string; score: number; sources: number; oldestYear: number | null }[]> {
+): Promise<
+  { id: string; score: number; sources: number; oldestYear: number | null; username?: string }[]
+> {
   const top = await topProfiles(count);
   const profiles = await Promise.all(top.map((row) => getProfile(row.id)));
 
@@ -547,6 +671,7 @@ export async function standings(
       score: row.score,
       sources: Object.keys(profile?.sources ?? {}).length,
       oldestYear: dates.length ? new Date(Math.min(...dates)).getUTCFullYear() : null,
+      username: profile?.username,
     };
   });
 }

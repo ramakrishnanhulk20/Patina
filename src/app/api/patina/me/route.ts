@@ -23,6 +23,8 @@ const EMPTY = () => {
     referralInvited: 0,
     rank: null as number | null,
     totalScored: 0,
+    signedIn: false,
+    username: null as string | null,
   };
 };
 
@@ -61,5 +63,9 @@ export async function GET() {
     referralInvited: tally.invited,
     rank: standing.rank,
     totalScored: standing.total,
+    // A profile id prefixed g: came from Google sign-in, so it is stable across
+    // devices; anything else is still just this browser.
+    signedIn: profile.id.startsWith("g:"),
+    username: profile.username ?? null,
   });
 }
