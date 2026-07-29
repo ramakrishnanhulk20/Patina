@@ -378,3 +378,81 @@ test("renaming frees the old name for somebody else", async () => {
   const reused = await setUsername(b, "firstpick");
   assert.equal(reused.ok, true, "an abandoned name must not be held forever");
 });
+
+
+/**
+ * Referral abuse, tested as an attacker would actually try it.
+ */
+test("self-referral through a second account earns nothing", async () => {
+  const referrer = newProfileId();
+  await recordSource(referrer, "youtube", {
+    scope: "youtube.profile",
+    readAt: new Date().toISOString(),
+    externalId: "mychannel",
+    evidence: { youtube: { joinedDate: "2012-01-01T00:00:00Z" } },
+  }, 50);
+
+  const code = (await getProfile(referrer))!.referralCode;
+
+  // Same human, second browser, second Google account, but the SAME YouTube
+  // channel connected on both sides. That overlap is the giveaway.
+  const secondAccount = newProfileId();
+  await ensureProfile(secondAccount, code);
+  await recordSource(secondAccount, "youtube", {
+    scope: "youtube.profile",
+    readAt: new Date().toISOString(),
+    externalId: "MyChannel",
+    evidence: { youtube: { joinedDate: "2012-01-01T00:00:00Z" } },
+  }, 50, code);
+
+  const tally = await referralTally(code);
+  assert.equal(tally.qualified, 0, "referring yourself must never pay");
+});
+
+test("a genuine invite still counts, since two people share no accounts", async () => {
+  const referrer = newProfileId();
+  await recordSource(referrer, "youtube", {
+    scope: "youtube.profile",
+    readAt: new Date().toISOString(),
+    externalId: "channel-a",
+    evidence: { youtube: { joinedDate: "2012-01-01T00:00:00Z" } },
+  }, 50);
+  const code = (await getProfile(referrer))!.referralCode;
+
+  const friend = newProfileId();
+  await ensureProfile(friend, code);
+  await recordSource(friend, "youtube", {
+    scope: "youtube.profile",
+    readAt: new Date().toISOString(),
+    externalId: "channel-b",
+    evidence: { youtube: { joinedDate: "2013-01-01T00:00:00Z" } },
+  }, 45, code);
+
+  const tally = await referralTally(code);
+  assert.equal(tally.qualified, 1, "a real invite must still pay");
+});
+
+test("a referral code that belongs to nobody credits nobody", async () => {
+  const id = newProfileId();
+  await ensureProfile(id, "ghostcode");
+  await recordSource(id, "github", record("real", "2012-01-01T00:00:00Z"), 60, "ghostcode");
+
+  const tally = await referralTally("ghostcode");
+  assert.equal(tally.qualified, 0, "an unowned code cannot accrue shares");
+});
+
+test("shares counted are qualified ones, never raw visits", async () => {
+  const referrer = await ensureProfile(newProfileId());
+  const code = referrer.referralCode;
+
+  // Ten visits, all too new to count for anything.
+  for (let i = 0; i < 10; i += 1) {
+    const visitor = newProfileId();
+    await ensureProfile(visitor, code);
+    await recordSource(visitor, "github", record(`empty${i}`, "2026-07-01T00:00:00Z"), 3, code);
+  }
+
+  const tally = await referralTally(code);
+  assert.equal(tally.invited, 10, "the visits are recorded");
+  assert.equal(tally.qualified, 0, "but none of them are worth a share");
+});

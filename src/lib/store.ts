@@ -373,6 +373,38 @@ export async function saveProfile(profile: Profile): Promise<void> {
   await db().set(profileKey(profile.id), profile);
 }
 
+/** Every underlying account a profile has connected, as `source:id` strings. */
+function accountKeys(profile: Profile): string[] {
+  return Object.entries(profile.sources)
+    .map(([source, record]) => (record.externalId ? `${source}:${record.externalId.toLowerCase()}` : null))
+    .filter((key): key is string => key !== null);
+}
+
+/**
+ * Do these two profiles belong to the same human?
+ *
+ * This is what closes self-referral. Blocking it within one browser is easy and
+ * was already done, but somebody with two Google accounts could open their own
+ * link in a second browser, sign in as "someone else", and collect a share off
+ * themselves. Laborious, and at these stakes worth somebody's afternoon.
+ *
+ * The giveaway is the accounts underneath. A person has one YouTube channel and
+ * one GitHub username, and connecting the same one on both sides means both
+ * sides are the same person. Two genuinely different people cannot collide here
+ * because they do not share accounts.
+ *
+ * Worth noting this also catches the case where somebody pastes a public
+ * profile URL they do not own: if two profiles claim the same channel, neither
+ * earns a referral off the other.
+ */
+async function sharesAnAccountWith(profile: Profile, otherId: string): Promise<boolean> {
+  const other = await getProfile(otherId);
+  if (!other) return false;
+
+  const mine = new Set(accountKeys(profile));
+  return accountKeys(other).some((key) => mine.has(key));
+}
+
 /** Fetch or create the profile for a session, minting a referral code once. */
 export async function ensureProfile(profileId: string, referredBy?: string): Promise<Profile> {
   const existing = await getProfile(profileId);
@@ -494,7 +526,15 @@ export async function recordSource(
   // Credit the referrer only once this person clears the bar. Adding to a set is
   // idempotent, so crossing the line twice cannot inflate anyone's tally.
   if (profile.referredBy && scoreAfter >= REFERRAL_QUALIFIES_AT) {
-    await db().addToSet(qualifiedKey(profile.referredBy), profile.id);
+    const referrerId = await profileIdForCode(profile.referredBy);
+    const legitimate =
+      referrerId !== null &&
+      referrerId !== profile.id &&
+      !(await sharesAnAccountWith(profile, referrerId));
+
+    if (legitimate) {
+      await db().addToSet(qualifiedKey(profile.referredBy), profile.id);
+    }
   }
 
   return profile;

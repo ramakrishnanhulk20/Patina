@@ -148,7 +148,7 @@ export default function RewardsPage() {
       </p>
 
       {/* The numbers, before the prose, because this is what people came for. */}
-      <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2">
+      <div className="mt-8 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2">
         <div className="bg-panel p-6">
           <p className="t-label text-text-3">If Patina wins the Cup</p>
           <p className="t-mono mt-3 text-3xl text-accent">
@@ -175,19 +175,27 @@ export default function RewardsPage() {
         only to give you a sense of scale. The share itself is paid in VANA, and its price moves.
       </p>
 
-      <div className="mt-14 space-y-10">
+      <div className="mt-12 divide-y divide-line border-y border-line">
         {RULES.map((rule, index) => (
-          <section key={rule.heading}>
-            <div className="flex items-baseline gap-3">
-              <span className="t-mono text-sm text-accent">
+          <details key={rule.heading} open={index === 0} className="group">
+            <summary className="flex cursor-pointer list-none items-center gap-3 py-5 [&::-webkit-details-marker]:hidden">
+              <span className="t-mono shrink-0 text-sm text-accent">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <h2 className="text-xl font-semibold tracking-tight text-text sm:text-2xl">
+              <span className="flex-1 text-lg font-semibold tracking-tight text-text sm:text-xl">
                 {rule.heading}
-              </h2>
-            </div>
-            <p className="mt-3 leading-relaxed text-text-2 sm:pl-9">{rule.body}</p>
-          </section>
+              </span>
+              <span
+                aria-hidden="true"
+                className="shrink-0 text-text-3 transition-transform group-open:rotate-45"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+            </summary>
+            <p className="pb-6 leading-relaxed text-text-2 sm:pl-9">{rule.body}</p>
+          </details>
         ))}
       </div>
 
