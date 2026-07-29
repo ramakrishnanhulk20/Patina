@@ -14,9 +14,7 @@ export function ConnectFlow({
   initialReadAt,
   referralCode,
   referralCount,
-  loginAvailable,
   promptForName,
-  loginError,
   initialSignedIn,
   initialUsername,
   initialDeviceToken,
@@ -26,9 +24,7 @@ export function ConnectFlow({
   initialReadAt: Record<string, string>;
   referralCode: string;
   referralCount: number;
-  loginAvailable: boolean;
   promptForName: boolean;
-  loginError: string | null;
   initialSignedIn: boolean;
   initialUsername: string | null;
   initialDeviceToken: string | null;
@@ -107,9 +103,7 @@ export function ConnectFlow({
           <Identity
             signedIn={signedIn}
             username={username}
-            loginAvailable={loginAvailable}
             promptForName={promptForName}
-            loginError={loginError}
             onNamed={refresh}
           />
         </div>

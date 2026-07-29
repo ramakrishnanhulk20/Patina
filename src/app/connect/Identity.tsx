@@ -3,33 +3,28 @@
 import { useState } from "react";
 
 /**
- * Who you are, in one small panel.
+ * Your name on the board.
  *
- * Two jobs. Signing in with Google, so a score belongs to a person rather than
- * to whichever browser they happened to open, and picking a name, so the
- * standings read like a leaderboard instead of a list of anonymous rows.
- *
- * Google's `sub` is the same on every device somebody owns, which is exactly
- * the property nothing else in this stack would give us.
+ * Only ever rendered to somebody already signed in: /connect shows a sign-in
+ * screen and nothing else until then, so the signed-out case does not exist
+ * here. That ordering is deliberate. Connecting first would build a score
+ * welded to one browser, which is how a phone and a laptop became two
+ * half-finished people.
  */
 export function Identity({
   signedIn,
   username,
-  loginAvailable,
   promptForName,
-  loginError,
   onNamed,
 }: {
   signedIn: boolean;
   username: string | null;
-  loginAvailable: boolean;
+  /** True right after signing in, so the field opens without a second tap. */
   promptForName: boolean;
-  /** Set when a sign-in attempt came back unsuccessful. */
-  loginError: string | null;
   onNamed: () => void | Promise<void>;
 }) {
   const [name, setName] = useState(username ?? "");
-  const [editing, setEditing] = useState(promptForName && !username);
+  const [editing, setEditing] = useState((promptForName || !username) && signedIn);
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -58,50 +53,14 @@ export function Identity({
     }
   }
 
-  if (!signedIn) {
-    return (
-      <div className="border border-line bg-panel p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="font-semibold text-text">Sign in to keep your score</p>
-            <p className="mt-1 max-w-md text-sm leading-relaxed text-text-2">
-              So it follows you instead of your browser. Connect on your phone, add another source
-              on your laptop, and it stays one score under one name.
-            </p>
-          </div>
-
-          {loginAvailable ? (
-            <a href="/api/login" className="btn btn-primary shrink-0 px-5 py-2.5 text-sm">
-              Continue with Google
-            </a>
-          ) : (
-            <span className="t-label shrink-0 text-warn">Sign-in not configured</span>
-          )}
-        </div>
-
-        {/*
-          A failed sign-in used to land back here silently, which is
-          indistinguishable from the button doing nothing at all. Say what
-          happened.
-        */}
-        {loginError && (
-          <p className="mt-4 border-t border-line pt-4 text-sm text-bad">{loginError}</p>
-        )}
-
-        <p className="mt-4 text-xs leading-relaxed text-text-4">
-          We ask Google for your account id and email, nothing else. You can still connect sources
-          without signing in, but your score will only live in this browser.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="border border-accent/40 bg-accent-wash p-5">
       {editing ? (
         <>
           <label className="block">
-            <span className="font-semibold text-text">Pick a name for the standings</span>
+            <span className="font-semibold text-text">
+              {username ? "Change your name" : "Pick a name for the standings"}
+            </span>
             <span className="mt-1 block text-sm leading-relaxed text-text-2">
               This is the only thing shown publicly next to your score.
             </span>
@@ -159,9 +118,9 @@ export function Identity({
         </>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="rings" aria-hidden="true" />
-            <p className="text-sm text-text">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="rings shrink-0" aria-hidden="true" />
+            <p className="truncate text-sm text-text">
               {username ? (
                 <>
                   Signed in as <span className="font-semibold">{username}</span>
@@ -175,7 +134,7 @@ export function Identity({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="tap t-label text-text-3 underline-offset-4 hover:text-text hover:underline"
+            className="tap t-label shrink-0 text-text-3 underline-offset-4 hover:text-text hover:underline"
           >
             {username ? "Change name" : "Pick a name"}
           </button>

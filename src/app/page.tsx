@@ -90,17 +90,7 @@ export default function Home() {
           is the worst possible opening for a page whose whole job is to earn
           enough trust to hand over an account.
         */}
-        <div className="relative mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-6 pb-10 pt-8 sm:pt-10">
-          <nav className="flex items-center justify-between">
-            <span className="t-label flex items-center gap-2.5 text-text">
-              <span className="rings" aria-hidden="true" />
-              Patina
-            </span>
-            <Link href="#how" className="tap t-label text-text-3 transition hover:text-text">
-              How it works
-            </Link>
-          </nav>
-
+        <div className="relative mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-6xl flex-col px-6 pb-10 pt-6">
           <div className="flex flex-1 flex-col justify-center py-10">
             <h1 className="t-hero max-w-[62rem] text-text">
               Anyone can make a new account.

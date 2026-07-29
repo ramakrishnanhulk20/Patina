@@ -23,16 +23,6 @@ export default async function StandingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-6 sm:py-14">
-      <nav className="mb-10 flex items-center justify-between gap-4">
-        <Link href="/" className="tap t-label flex items-center gap-2.5 text-text">
-          <span className="rings" aria-hidden="true" />
-          Patina
-        </Link>
-        <Link href="/connect" className="tap t-label text-text-3 transition hover:text-text">
-          Get your score
-        </Link>
-      </nav>
-
       <SectionLabel>Standings</SectionLabel>
 
       <h1 className="t-section mt-5 text-text">The most worn-in people here.</h1>

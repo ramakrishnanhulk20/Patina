@@ -136,16 +136,6 @@ export default function RewardsPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-6 sm:py-14">
-      <nav className="mb-10 flex items-center justify-between gap-4">
-        <Link href="/" className="tap t-label flex items-center gap-2.5 text-text">
-          <span className="rings" aria-hidden="true" />
-          Patina
-        </Link>
-        <Link href="/connect" className="tap t-label text-text-3 transition hover:text-text">
-          Get your score
-        </Link>
-      </nav>
-
       <SectionLabel>Reward rules</SectionLabel>
 
       <h1 className="t-section mt-5 text-text">

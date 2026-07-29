@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ConnectFlow } from "./ConnectFlow";
+import { SignInGate } from "./SignInGate";
 import { NextApps } from "./NextApps";
 import { ecosystemApps } from "@/lib/ecosystem";
 import { SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
@@ -42,18 +42,24 @@ export default async function ConnectPage({
 
   const sources = SOURCE_ORDER.map((id) => SOURCE_SPECS[id]);
 
+  const signedIn = Boolean(profile?.id.startsWith("g:"));
+  const loginError =
+    params.login === "failed"
+      ? "That sign-in did not complete. Try again, and if it keeps failing tell us."
+      : params.login === "unavailable"
+        ? "Sign-in is not switched on yet."
+        : null;
+
+  if (!signedIn) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-6 sm:py-20">
+        <SignInGate loginAvailable={googleConfigured()} loginError={loginError} />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-14">
-      <nav className="mb-12 flex items-center justify-between">
-        <Link href="/" className="tap t-label flex items-center gap-2.5 text-text">
-          <span className="rings" aria-hidden="true" />
-          Patina
-        </Link>
-        <Link href="/#reward" className="tap t-label text-text-3 transition hover:text-text">
-          The reward
-        </Link>
-      </nav>
-
       <ConnectFlow
         sources={sources}
         initialScore={{
@@ -66,15 +72,7 @@ export default async function ConnectPage({
         initialReadAt={readAt}
         referralCode={profile?.referralCode ?? ""}
         referralCount={tally.qualified}
-        loginAvailable={googleConfigured()}
         promptForName={params.name === "1"}
-        loginError={
-          params.login === "failed"
-            ? "That sign-in did not complete. Try again, and if it keeps failing tell us."
-            : params.login === "unavailable"
-              ? "Sign-in is not switched on yet. You can still connect sources; your score will just stay in this browser."
-              : null
-        }
         initialSignedIn={Boolean(profile?.id.startsWith("g:"))}
         initialUsername={profile?.username ?? null}
         initialDeviceToken={profile?.deviceToken ?? null}
