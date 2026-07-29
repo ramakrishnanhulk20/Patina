@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SectionLabel } from "../components/SectionLabel";
+import { CupStanding } from "../components/CupStanding";
 import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
 
 export const metadata = {
@@ -177,6 +178,15 @@ export default function RewardsPage() {
         figures use a VANA price of ${REWARD.vanaUsd.toFixed(2)} on {REWARD.priceAsOf} and are shown
         only to give you a sense of scale. The share itself is paid in VANA, and its price moves.
       </p>
+
+      {/*
+        None of the above pays out unless Patina places, and the terms promise
+        people can check that whenever they like. Here is that check, live —
+        the honest "where does it actually stand right now".
+      */}
+      <div className="mt-8">
+        <CupStanding />
+      </div>
 
       <div className="mt-12 divide-y divide-line border-y border-line">
         {RULES.map((rule, index) => (

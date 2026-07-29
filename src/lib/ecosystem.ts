@@ -15,10 +15,12 @@
  * are independent builders competing against us, which is the opposite.
  */
 
+import { PATINA_APP_ADDRESS } from "./cup";
+
 const LEADERBOARD = "https://builders.vana.org/api/leaderboard";
 
-/** Our own app, so we never recommend ourselves. */
-const SELF = "0x620ddbecead28bbf1b979bfab8e3a7b893aa54a1";
+/** Our own app, so we never recommend ourselves. Shared with cup.ts. */
+const SELF = PATINA_APP_ADDRESS;
 
 /**
  * Apps we will not put in front of our own users, by app address.

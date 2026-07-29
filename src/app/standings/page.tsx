@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SectionLabel } from "../components/SectionLabel";
+import { CupStanding } from "../components/CupStanding";
 import { readSessionId } from "@/lib/session";
 import { resolveProfileId, scoredProfileCount, standings } from "@/lib/store";
 import { scorePatina } from "@/lib/score";
@@ -46,6 +47,15 @@ export default async function StandingsPage() {
         score is the separate, smaller number, and nothing but your own history can move it. Names
         are chosen by each person; the accounts behind a score are never shown.
       </p>
+
+      {/*
+        The board that actually decides the money. This page is Patina's own
+        internal standing; the Cup is the one the prize pays against, and it is
+        the reason any of this matters, so it goes up top.
+      */}
+      <div className="mt-8">
+        <CupStanding />
+      </div>
 
       <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
         <div className="bg-panel p-5">
