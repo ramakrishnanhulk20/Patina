@@ -79,12 +79,13 @@ test("two sources proving a date beat one, because both must be bought", () => {
 });
 
 test("every point is reachable without the desktop app", () => {
-  // The whole reason the score was rebalanced. A phone user connecting all four
-  // web sources must be able to approach 100, or a chunk of the score is a lie.
+  // The whole reason the score was rebalanced. A phone user connecting the web
+  // sources must be able to approach 100, or a chunk of the score is a lie.
   const webOnly: Evidence = {
     youtube: { joinedDate: ago(13), videoCount: 40, subscriberCount: 900 },
     instagram: { username: "x", follower_count: 1200, media_count: 300 },
     github: { username: "x", createdAt: ago(12), repositoryCount: 45, followers: 200 },
+    linkedin: { profileUrl: "https://www.linkedin.com/in/x", connections: 500, fullName: "x" },
     spotify: { id: "x", display_name: "x", followers: 30 },
   };
 

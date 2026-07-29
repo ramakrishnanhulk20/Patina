@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { foldRead, normalizeGitHub } from "./normalize.ts";
+import { foldRead, normalizeGitHub, normalizeLinkedIn, identityOf } from "./normalize.ts";
 import { scorePatina } from "./score.ts";
 
 /**
@@ -129,4 +129,34 @@ test("an unknown scope is ignored rather than corrupting evidence", () => {
   const before = { github: { username: "keep" } };
   const after = foldRead(before, "tiktok.something", { data: { data: {} } });
   assert.deepEqual(after, before);
+});
+
+test("LinkedIn profile normalizes connections strings and a vanity slug", () => {
+  const raw = {
+    scope: "linkedin.profile",
+    data: {
+      data: {
+        items: [
+          {
+            profileUrl: "https://www.linkedin.com/in/jane-doe-42/",
+            fullName: "Jane Doe",
+            headline: "Builder",
+            location: "Chennai",
+            connections: "500+",
+            profilePictureUrl: "https://example.com/a.jpg",
+            about: "Hi",
+          },
+        ],
+      },
+    },
+  };
+
+  const profile = normalizeLinkedIn(raw);
+  assert.equal(profile?.fullName, "Jane Doe");
+  assert.equal(profile?.connections, 500);
+  assert.equal(identityOf("linkedin.profile", raw), "jane-doe-42");
+
+  const evidence = foldRead({}, "linkedin.profile", raw);
+  assert.equal(evidence.linkedin?.connections, 500);
+  assert.ok(scorePatina(evidence).sourcesConnected.includes("linkedin"));
 });

@@ -15,7 +15,7 @@
  * No SDK imports: this file is shared with client components.
  */
 
-export type SourceId = "youtube" | "instagram" | "github" | "spotify";
+export type SourceId = "youtube" | "instagram" | "github" | "spotify" | "linkedin";
 
 export type SourceSpec = {
   id: SourceId;
@@ -49,7 +49,8 @@ export function cleanHandle(input: string): string {
   return input
     .trim()
     .replace(/^https?:\/\//i, "")
-    .replace(/^(www\.)?(youtube\.com|instagram\.com|github\.com)\/?/i, "")
+    .replace(/^(www\.)?(youtube\.com|instagram\.com|github\.com|linkedin\.com)\/?/i, "")
+    .replace(/^in\//i, "")
     .replace(/^@/, "")
     .replace(/\/+$/, "")
     .split(/[/?#]/)[0]
@@ -78,7 +79,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     // Posts can only be collected by the Data Connect DESKTOP app. Asking for
     // them makes Vana tell a phone user to go and install software, which for
     // this audience means they leave. Requesting the profile keeps it a
-    // web-only flow, which is the whole reason these four sources were chosen.
+    // web-only flow, which is the whole reason these sources were chosen.
     scopes: ["instagram.profile"],
     blurb: "How long you have been posting, and to how many.",
     handle: {
@@ -102,6 +103,21 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     },
     findIt: null,
   },
+  linkedin: {
+    id: "linkedin",
+    label: "LinkedIn",
+    scopes: ["linkedin.profile"],
+    // Web LinkedIn has no join date in the published schema — it mainly adds
+    // breadth and a connections signal. Still worth connecting.
+    blurb: "Another independent account, and who is connected to you.",
+    handle: {
+      prefix: "linkedin.com/in/",
+      placeholder: "your-name",
+      urlTemplate: "https://www.linkedin.com/in/{handle}",
+      hint: "Open your LinkedIn profile. The bit after /in/ is your public name.",
+    },
+    findIt: null,
+  },
   spotify: {
     id: "spotify",
     label: "Spotify",
@@ -119,7 +135,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   },
 };
 
-export const SOURCE_ORDER: SourceId[] = ["youtube", "instagram", "github", "spotify"];
+export const SOURCE_ORDER: SourceId[] = ["youtube", "instagram", "github", "linkedin", "spotify"];
 
 /**
  * The public profile URL Vana will ask for, or an empty string if we cannot

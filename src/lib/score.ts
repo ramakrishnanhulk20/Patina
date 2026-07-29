@@ -14,7 +14,7 @@
  * user, because a score nobody can interrogate is a score nobody should trust.
  */
 
-export type SourceId = "youtube" | "instagram" | "github" | "spotify";
+export type SourceId = "youtube" | "instagram" | "github" | "spotify" | "linkedin";
 
 export type YouTubeProfile = {
   joinedDate?: string | null;
@@ -62,12 +62,30 @@ export type SpotifyProfile = {
   followers?: number;
 };
 
+/**
+ * LinkedIn's published web schema has no account-opened date — only profile
+ * text and a connections count. So on the web path it feeds Standing and
+ * Breadth, not Age. Defensively keep a createdAt slot in case Data Pipe ever
+ * returns one the way GitHub does.
+ */
+export type LinkedInProfile = {
+  profileUrl?: string;
+  fullName?: string;
+  headline?: string;
+  location?: string;
+  /** Parsed from strings like "500+" that the connector often returns. */
+  connections?: number;
+  about?: string;
+  createdAt?: string;
+};
+
 export type Evidence = {
   youtube?: YouTubeProfile;
   instagram?: InstagramProfile;
   instagramPosts?: InstagramPosts;
   github?: GitHubProfile;
   spotify?: SpotifyProfile;
+  linkedin?: LinkedInProfile;
 };
 
 export type Component = {
@@ -122,6 +140,9 @@ function ageComponent(evidence: Evidence): { component: Component; oldest: Patin
 
   const ghCreated = parseDate(evidence.github?.createdAt);
   if (ghCreated) candidates.push({ date: ghCreated, source: "GitHub account opened" });
+
+  const liCreated = parseDate(evidence.linkedin?.createdAt);
+  if (liCreated) candidates.push({ date: liCreated, source: "LinkedIn account opened" });
 
   const postDates = (evidence.instagramPosts?.posts ?? [])
     .map((post) => parseDate(post.taken_at))
@@ -190,6 +211,7 @@ function corroborationComponent(evidence: Evidence): Component {
     [
       ["YouTube", yearsSince(parseDate(evidence.youtube?.joinedDate))],
       ["GitHub", yearsSince(parseDate(evidence.github?.createdAt))],
+      ["LinkedIn", yearsSince(parseDate(evidence.linkedin?.createdAt ?? null))],
       ["Instagram", yearsSince(oldestPost ?? null)],
     ] as [string, number | null][]
   ).filter((entry): entry is [string, number] => entry[1] !== null);
@@ -269,7 +291,8 @@ function standingComponent(evidence: Evidence, connected: number): Component {
     (evidence.instagram?.follower_count ?? 0) +
     (evidence.youtube?.subscriberCount ?? 0) +
     (evidence.github?.followers ?? 0) +
-    (evidence.spotify?.followers ?? 0);
+    (evidence.spotify?.followers ?? 0) +
+    (evidence.linkedin?.connections ?? 0);
 
   const vouches =
     (evidence.github?.organizations?.length ?? 0) + (evidence.github?.achievements?.length ?? 0);
@@ -294,8 +317,10 @@ function standingComponent(evidence: Evidence, connected: number): Component {
  * because that is where the cost to an attacker rises fastest.
  */
 function breadthComponent(sources: SourceId[]): Component {
-  const table = [0, 3, 6, 8, 10];
-  const points = table[Math.min(sources.length, 4)];
+  // Caps at 10 once four sources are connected; a fifth (LinkedIn) corroborates
+  // but does not invent points past the ceiling.
+  const table = [0, 3, 6, 8, 10, 10];
+  const points = table[Math.min(sources.length, 5)];
 
   const detail =
     sources.length === 0
@@ -329,6 +354,7 @@ export function scorePatina(evidence: Evidence): PatinaScore {
   if (evidence.instagram || evidence.instagramPosts) sourcesConnected.push("instagram");
   if (evidence.github) sourcesConnected.push("github");
   if (evidence.spotify) sourcesConnected.push("spotify");
+  if (evidence.linkedin) sourcesConnected.push("linkedin");
 
   const { component: age, oldest } = ageComponent(evidence);
   const corroboration = corroborationComponent(evidence);

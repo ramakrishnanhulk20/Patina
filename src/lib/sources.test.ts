@@ -20,6 +20,8 @@ test("whatever someone pastes, we get the handle out of it", () => {
     ["https://youtube.com/@ramkumar/", "ramkumar"],
     ["https://www.instagram.com/ramkumar/", "ramkumar"],
     ["https://github.com/ramkumar", "ramkumar"],
+    ["https://www.linkedin.com/in/ramkumar/", "ramkumar"],
+    ["linkedin.com/in/ram-kumar-123", "ram-kumar-123"],
     ["https://www.youtube.com/@ramkumar?si=abc123", "ramkumar"],
     ["https://www.instagram.com/ramkumar/reels/", "ramkumar"],
     ["HTTPS://WWW.YOUTUBE.COM/@RamKumar", "RamKumar"],
@@ -43,6 +45,10 @@ test("a pasted handle builds the URL Vana will ask for", () => {
   );
   assert.equal(buildProfileUrl(SOURCE_SPECS.instagram, "@ram"), "https://www.instagram.com/ram");
   assert.equal(buildProfileUrl(SOURCE_SPECS.github, "github.com/ram"), "https://github.com/ram");
+  assert.equal(
+    buildProfileUrl(SOURCE_SPECS.linkedin, "https://www.linkedin.com/in/ram-kumar/"),
+    "https://www.linkedin.com/in/ram-kumar",
+  );
 
   // Nothing usable in, nothing out. Never a half-built URL.
   assert.equal(buildProfileUrl(SOURCE_SPECS.youtube, "   "), "");

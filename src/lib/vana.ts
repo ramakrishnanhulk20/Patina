@@ -43,6 +43,12 @@ export const SOURCES = {
     scopes: ["github.profile"],
     blurb: "What you have built, and who with.",
   },
+  linkedin: {
+    id: "linkedin",
+    label: "LinkedIn",
+    scopes: ["linkedin.profile"],
+    blurb: "Another independent account, and who is connected to you.",
+  },
   spotify: {
     id: "spotify",
     label: "Spotify",

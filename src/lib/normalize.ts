@@ -28,6 +28,7 @@ import type {
   GitHubProfile,
   InstagramPosts,
   InstagramProfile,
+  LinkedInProfile,
   SpotifyProfile,
   YouTubeProfile,
 } from "./score";
@@ -184,6 +185,51 @@ export function normalizeSpotify(raw: unknown): SpotifyProfile | undefined {
   };
 }
 
+/** LinkedIn often returns connections as "500+" rather than a number. */
+function parseConnections(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+  const match = value.replace(/,/g, "").match(/(\d+)/);
+  if (!match) return undefined;
+  const n = Number(match[1]);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Vanity slug from a LinkedIn profile URL, used as the stable account id. */
+function linkedInSlug(profileUrl: string | undefined): string | undefined {
+  if (!profileUrl) return undefined;
+  const match = profileUrl.match(/linkedin\.com\/in\/([^/?#]+)/i);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+}
+
+export function normalizeLinkedIn(raw: unknown): LinkedInProfile | undefined {
+  const p = payloadOf(raw);
+  if (!p) return undefined;
+
+  const profileUrl = pick(p, ["profileUrl", "profile_url", "url"], isStr);
+  const connections =
+    parseConnections(p.connections) ??
+    parseConnections(p.connectionCount) ??
+    pick(p, ["connectionCount", "connectionsCount"], isNum);
+
+  // Refuse an empty object: a failed scrape that returns {} would otherwise
+  // claim the LinkedIn slot and block a later good read.
+  if (!profileUrl && !pick(p, ["fullName", "full_name", "name"], isStr) && connections === undefined) {
+    return undefined;
+  }
+
+  return {
+    profileUrl,
+    fullName: pick(p, ["fullName", "full_name", "name"], isStr),
+    headline: pick(p, ["headline"], isStr),
+    location: pick(p, ["location"], isStr),
+    connections,
+    about: pick(p, ["about", "summary"], isStr),
+    // Not in the published schema; keep the door open the way GitHub's createdAt works.
+    createdAt: pick(p, ["createdAt", "created_at", "joinedDate", "joined_date"], isStr),
+  };
+}
+
 /**
  * A stable id for the ACCOUNT behind a read.
  *
@@ -206,6 +252,10 @@ export function identityOf(scope: string, raw: unknown): string | undefined {
       return pick(p, ["username"], isStr);
     case "spotify.profile":
       return pick(p, ["id"], isStr);
+    case "linkedin.profile": {
+      const url = pick(p, ["profileUrl", "profile_url", "url"], isStr);
+      return linkedInSlug(url) ?? pick(p, ["vanityName", "publicIdentifier", "username"], isStr);
+    }
     default:
       return undefined;
   }
@@ -229,6 +279,8 @@ export function foldRead(evidence: Evidence, scope: string, raw: unknown): Evide
       return { ...evidence, instagramPosts: normalizeInstagramPosts(raw) ?? evidence.instagramPosts };
     case "spotify.profile":
       return { ...evidence, spotify: normalizeSpotify(raw) ?? evidence.spotify };
+    case "linkedin.profile":
+      return { ...evidence, linkedin: normalizeLinkedIn(raw) ?? evidence.linkedin };
     default:
       return evidence;
   }
