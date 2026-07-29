@@ -18,6 +18,8 @@ import {
   scoredProfileCount,
   standingOf,
   topProfiles,
+  leaguePoints,
+  POINTS_PER_REFERRAL,
 } from "./store.ts";
 
 /**
@@ -455,4 +457,79 @@ test("shares counted are qualified ones, never raw visits", async () => {
   const tally = await referralTally(code);
   assert.equal(tally.invited, 10, "the visits are recorded");
   assert.equal(tally.qualified, 0, "but none of them are worth a share");
+});
+
+
+/**
+ * Points and the Patina score are two different numbers on purpose. The score
+ * is evidence about a person; points are score plus what they brought in, and
+ * only points decide who is in the paying places.
+ */
+test("bringing real people moves you up the leaderboard", async () => {
+  const referrer = newProfileId();
+  await recordSource(referrer, "youtube", {
+    scope: "youtube.profile",
+    readAt: new Date().toISOString(),
+    externalId: "host-channel",
+    evidence: { youtube: { joinedDate: "2016-01-01T00:00:00Z" } },
+  }, 30);
+
+  const code = (await getProfile(referrer))!.referralCode;
+  const before = (await topProfiles(2000)).find((r) => r.id === referrer)!.score;
+
+  // Two genuine people, no shared accounts.
+  for (const who of ["friend-one", "friend-two"]) {
+    const id = newProfileId();
+    await ensureProfile(id, code);
+    await recordSource(id, "youtube", {
+      scope: "youtube.profile",
+      readAt: new Date().toISOString(),
+      externalId: who,
+      evidence: { youtube: { joinedDate: "2014-01-01T00:00:00Z" } },
+    }, 45, code);
+  }
+
+  const profile = await getProfile(referrer);
+  assert.equal(profile?.referrals, 2, "both invites are counted");
+  assert.equal(profile?.score, 30, "the Patina score is untouched by referrals");
+
+  const after = (await topProfiles(2000)).find((r) => r.id === referrer)!.score;
+  assert.equal(after, before + 2 * POINTS_PER_REFERRAL, "points rose by the referral value");
+  assert.ok(after > before, "and the position moved with them");
+});
+
+test("points are score plus referrals, and the score stays separate", () => {
+  assert.equal(leaguePoints(40, 0), 40);
+  assert.equal(leaguePoints(40, 3), 40 + 3 * POINTS_PER_REFERRAL);
+  assert.equal(leaguePoints(0, 5), 5 * POINTS_PER_REFERRAL, "referrals count even with no score");
+});
+
+test("somebody who shares can outrank somebody who only has old accounts", async () => {
+  const sharer = newProfileId();
+  const hoarder = newProfileId();
+
+  await recordSource(sharer, "youtube", {
+    scope: "youtube.profile",
+    readAt: new Date().toISOString(),
+    externalId: "sharer-chan",
+    evidence: { youtube: { joinedDate: "2020-01-01T00:00:00Z" } },
+  }, 35);
+  await recordSource(hoarder, "github", record("hoarder", "2010-01-01T00:00:00Z"), 70);
+
+  const code = (await getProfile(sharer))!.referralCode;
+  for (let i = 0; i < 4; i += 1) {
+    const id = newProfileId();
+    await ensureProfile(id, code);
+    await recordSource(id, "github", record(`brought${i}`, "2014-01-01T00:00:00Z"), 40, code);
+  }
+
+  const board = await topProfiles(2000);
+  const sharerAt = board.findIndex((r) => r.id === sharer);
+  const hoarderAt = board.findIndex((r) => r.id === hoarder);
+
+  assert.ok(
+    sharerAt < hoarderAt,
+    "35 + four real people must beat 70 alone, or sharing is pointless",
+  );
+  assert.equal((await getProfile(sharer))?.score, 35, "without inflating the humanity score");
 });

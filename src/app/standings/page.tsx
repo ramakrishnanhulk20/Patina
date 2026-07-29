@@ -3,6 +3,7 @@ import { SectionLabel } from "../components/SectionLabel";
 import { readSessionId } from "@/lib/session";
 import { resolveProfileId, scoredProfileCount, standings } from "@/lib/store";
 import { REWARD } from "@/lib/rewards";
+import { POINTS_PER_REFERRAL, REFERRAL_QUALIFIES_AT } from "@/lib/store";
 
 export const metadata = {
   title: "Standings",
@@ -28,9 +29,19 @@ export default async function StandingsPage() {
       <h1 className="t-section mt-5 text-text">The most worn-in people here.</h1>
 
       <p className="mt-5 max-w-2xl text-lg leading-relaxed text-text-2">
-        The top {REWARD.places} share the reward if Patina places in the Vana Cup. Names here are
-        chosen by each person. The accounts behind a score are never shown: we hold those only to
-        stop one person counting twice, and publishing them would be the opposite of the point.
+        Ranked by <span className="text-text">points</span>, which are your Patina score plus{" "}
+        {POINTS_PER_REFERRAL} for every real person you bring. The top {REWARD.places} share the
+        reward if Patina places in the Vana Cup.
+      </p>
+
+      {/*
+        Said outright, because a leaderboard invites exactly the wrong reading.
+        Top of this board means "did the most for this", not "is the most human".
+      */}
+      <p className="mt-4 max-w-2xl text-sm leading-relaxed text-text-3">
+        Being high here means you contributed most, not that you are the most human. Your Patina
+        score is the separate, smaller number, and nothing but your own history can move it. Names
+        are chosen by each person; the accounts behind a score are never shown.
       </p>
 
       <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
@@ -96,12 +107,13 @@ export default async function StandingsPage() {
                       {isMine && <span className="t-label shrink-0 text-accent">You</span>}
                     </span>
                     <span className="t-mono mt-1 block text-xs text-text-3">
-                      {row.sources} {row.sources === 1 ? "source" : "sources"}
+                      score {row.score}
+                      {row.referrals > 0 ? ` · brought ${row.referrals}` : ""}
                       {row.oldestYear ? ` · since ${row.oldestYear}` : ""}
                     </span>
                   </span>
 
-                  <span className="t-mono shrink-0 text-2xl text-text">{row.score}</span>
+                  <span className="t-mono shrink-0 text-2xl text-text">{row.points}</span>
                 </li>
               );
             })}
@@ -116,8 +128,9 @@ export default async function StandingsPage() {
                 <tr className="border-b border-line">
                   <th scope="col" className="t-label p-4 font-medium text-text-3">#</th>
                   <th scope="col" className="t-label p-4 font-medium text-text-3">Who</th>
+                  <th scope="col" className="t-label p-4 font-medium text-text-3">Points</th>
                   <th scope="col" className="t-label p-4 font-medium text-text-3">Score</th>
-                  <th scope="col" className="t-label p-4 font-medium text-text-3">Sources</th>
+                  <th scope="col" className="t-label p-4 font-medium text-text-3">Brought</th>
                   <th scope="col" className="t-label p-4 font-medium text-text-3">History from</th>
                 </tr>
               </thead>
@@ -138,8 +151,11 @@ export default async function StandingsPage() {
                         </span>
                         {isMine && <span className="t-label ml-2.5 text-accent">You</span>}
                       </td>
-                      <td className="t-mono p-4 text-lg text-text">{row.score}</td>
-                      <td className="t-mono p-4 text-text-2">{row.sources}</td>
+                      <td className="t-mono p-4 text-lg text-text">{row.points}</td>
+                      <td className="t-mono p-4 text-text-2">{row.score}</td>
+                      <td className="t-mono p-4 text-text-2">
+                        {row.referrals > 0 ? row.referrals : "—"}
+                      </td>
                       <td className="t-mono p-4 text-text-2">{row.oldestYear ?? "—"}</td>
                     </tr>
                   );
@@ -151,8 +167,9 @@ export default async function StandingsPage() {
       )}
 
       <p className="mt-6 text-sm leading-relaxed text-text-3">
-        Ranked by Patina score, which is mostly a measure of time: how far back your history goes and
-        how evenly it is spread. Adding another account is usually the fastest way up.{" "}
+        Two ways up: connect another account, or bring in someone real. Each person you bring is
+        worth {POINTS_PER_REFERRAL} points, and they only count once they have a score of{" "}
+        {REFERRAL_QUALIFIES_AT} or more, so empty accounts are worth nothing to anybody.{" "}
         <Link href="/rewards" className="text-accent underline underline-offset-4">
           How the reward works
         </Link>

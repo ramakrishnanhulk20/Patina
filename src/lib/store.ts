@@ -48,6 +48,8 @@ export type Profile = {
   referredBy?: string;
   /** Cached so counting a referrer's qualified invites does not rescore everyone. */
   score: number;
+  /** Qualified people this profile brought in. Cached so ranking stays cheap. */
+  referrals: number;
   /** Chosen by the person, shown on the standings. Absent until they pick one. */
   username?: string;
   /** Set only when someone claims a reward share. Never asked for up front. */
@@ -64,6 +66,30 @@ export type Profile = {
  * being nineteen.
  */
 export const REFERRAL_QUALIFIES_AT = 20;
+
+/**
+ * What one real person you bring is worth in LEADERBOARD POINTS.
+ *
+ * Points and the Patina score are deliberately different numbers, and conflating
+ * them would wreck both. The score is evidence about YOU: how far back your
+ * history goes, and nothing else may touch it, or the card stops meaning
+ * anything. Points are score plus contribution, and they decide only one thing,
+ * which is whether you are in the places that share the reward.
+ *
+ * So being top of the leaderboard says "did the most for this", not "is the most
+ * human". Those are different claims and the pages say so.
+ *
+ * Ten is chosen against the real spread: a long history scores about 90 and a
+ * typical one about 40, so five genuine people you brought is worth roughly what
+ * a decade of your own history is worth. That feels right, and it matches what
+ * the competition itself rewards, where a new person is worth up to four goals.
+ */
+export const POINTS_PER_REFERRAL = 10;
+
+/** The number the leaderboard ranks on. */
+export function leaguePoints(score: number, qualifiedReferrals: number): number {
+  return Math.round(score + POINTS_PER_REFERRAL * Math.max(0, qualifiedReferrals));
+}
 
 const PREFIX = "patina:v1";
 const profileKey = (id: string) => `${PREFIX}:profile:${id}`;
@@ -419,6 +445,7 @@ export async function ensureProfile(profileId: string, referredBy?: string): Pro
     referralCode: newReferralCode(),
     deviceToken: newDeviceToken(),
     score: 0,
+    referrals: 0,
     // A referral is recorded at creation and never rewritten, so someone cannot
     // be reassigned to a different referrer later.
     ...(referredBy ? { referredBy } : {}),
@@ -477,7 +504,7 @@ export async function adoptProfile(
     target.score = rescore(evidenceOf(target));
     target.updatedAt = new Date().toISOString();
     await saveProfile(target);
-    await db().rank(RANK_KEY, target.id, target.score);
+    await db().rank(RANK_KEY, target.id, leaguePoints(target.score, target.referrals));
   }
 
   await db().set(linkKey(sessionId), target.id);
@@ -516,7 +543,7 @@ export async function recordSource(
   profile.score = scoreAfter;
 
   await saveProfile(profile);
-  await db().rank(RANK_KEY, profile.id, scoreAfter);
+  await db().rank(RANK_KEY, profile.id, leaguePoints(profile.score, profile.referrals));
 
   // Index the underlying account so the same person cannot be counted twice.
   if (record.externalId) {
@@ -533,7 +560,21 @@ export async function recordSource(
       !(await sharesAnAccountWith(profile, referrerId));
 
     if (legitimate) {
+      const before = await db().setMembers(qualifiedKey(profile.referredBy));
       await db().addToSet(qualifiedKey(profile.referredBy), profile.id);
+
+      // Only re-rank when this is genuinely new, since the set is idempotent
+      // and re-counting on every subsequent read would be wasted work.
+      if (!before.includes(profile.id)) {
+        const referrer = await getProfile(referrerId);
+        if (referrer) {
+          referrer.referrals = before.length + 1;
+          referrer.updatedAt = new Date().toISOString();
+          await saveProfile(referrer);
+          // Their points just went up, so their place has to move with it.
+          await db().rank(RANK_KEY, referrer.id, leaguePoints(referrer.score, referrer.referrals));
+        }
+      }
     }
   }
 
@@ -592,6 +633,7 @@ export async function claimProfile(
     referralCode: current?.referralCode ?? newReferralCode(),
     deviceToken: current?.deviceToken ?? newDeviceToken(),
     score: 0,
+    referrals: current?.referrals ?? 0,
     ...(current?.referredBy ? { referredBy: current.referredBy } : {}),
   };
 
@@ -625,7 +667,7 @@ export async function claimProfile(
   await db().set(tokenKey(profile.deviceToken), profile.id);
   await db().set(linkKey(sessionId), profile.id);
   if (profile.username) await db().set(usernameKey(profile.username), profile.id);
-  await db().rank(RANK_KEY, profile.id, profile.score);
+  await db().rank(RANK_KEY, profile.id, leaguePoints(profile.score, profile.referrals));
 
   return profile;
 }
@@ -696,7 +738,15 @@ export async function setUsername(
 export async function standings(
   count: number,
 ): Promise<
-  { id: string; score: number; sources: number; oldestYear: number | null; username?: string }[]
+  {
+    id: string;
+    points: number;
+    score: number;
+    referrals: number;
+    sources: number;
+    oldestYear: number | null;
+    username?: string;
+  }[]
 > {
   const top = await topProfiles(count);
   const profiles = await Promise.all(top.map((row) => getProfile(row.id)));
@@ -715,7 +765,11 @@ export async function standings(
 
     return {
       id: row.id,
-      score: row.score,
+      // row.score is the RANKED value, which is points. The Patina score is the
+      // separate, purer number stored on the profile.
+      points: row.score,
+      score: profile?.score ?? 0,
+      referrals: profile?.referrals ?? 0,
       sources: Object.keys(profile?.sources ?? {}).length,
       oldestYear: dates.length ? new Date(Math.min(...dates)).getUTCFullYear() : null,
       username: profile?.username,

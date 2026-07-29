@@ -5,6 +5,7 @@ import {
   referralTally,
   resolveProfileId,
   standingOf,
+  leaguePoints,
 } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { REWARD } from "@/lib/rewards";
@@ -21,6 +22,8 @@ const EMPTY = () => {
     referralCode: null,
     referralCount: 0,
     referralInvited: 0,
+    points: 0,
+    referrals: 0,
     rank: null as number | null,
     totalScored: 0,
     signedIn: false,
@@ -60,8 +63,11 @@ export async function GET() {
     referralCode: profile.referralCode,
     referralCount: tally.qualified,
     referralInvited: tally.invited,
+    points: leaguePoints(profile.score, profile.referrals),
+    referrals: profile.referrals ?? 0,
     rank: standing.rank,
     totalScored: standing.total,
+    inTheMoney: standing.inTheMoney,
     // A profile id prefixed g: came from Google sign-in, so it is stable across
     // devices; anything else is still just this browser.
     signedIn: profile.id.startsWith("g:"),

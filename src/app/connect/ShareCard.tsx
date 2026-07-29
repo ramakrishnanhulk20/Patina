@@ -21,10 +21,18 @@ export function ShareCard({
   referralCode,
   referralCount,
   username,
+  points,
+  rank,
+  perShareIfWin,
 }: {
   score: ScoreView;
   referralCode: string;
   referralCount: number;
+  /** Leaderboard points: the Patina score plus what they have brought in. */
+  points: number;
+  rank: number | null;
+  /** VANA a single share is worth if Patina takes the Cup. */
+  perShareIfWin: number;
   /** Needed for the card link. Without a name there is no public page to share. */
   username: string | null;
 }) {
@@ -91,17 +99,46 @@ export function ShareCard({
       <p className="t-label text-text-3">Share your card</p>
 
       <p className="mt-3 text-sm leading-relaxed text-text-2">
-        Your card shows your score and how far back you go. Everyone in the top {50} gets one share
-        of the reward, and every real person who joins through your card gets you another.
+        Your card shows how far back you go. Every real person who opens it and connects moves you
+        up the leaderboard and adds a share of the reward. If Patina does not place, there is
+        nothing to split, and the board is public so you can watch where it stands.
       </p>
 
-      <div className="mt-4 flex items-baseline gap-2">
-        <span className="t-mono text-2xl text-accent">{referralCount + 1}</span>
-        <span className="text-sm text-text-3">
-          {referralCount === 0
-            ? "share so far, just yours"
-            : `shares: yours plus ${referralCount} ${referralCount === 1 ? "person" : "people"}`}
+      {/*
+        The number, and what the number is worth.
+        People act on figures they can watch move, so this shows the share count
+        first and translates it, while keeping the condition attached: it is
+        "if Patina wins", never "you will get".
+      */}
+      <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line">
+        <div className="bg-bg p-4">
+          <p className="t-label text-text-3">Your shares</p>
+          <p className="t-mono mt-1.5 text-3xl text-accent">{referralCount + 1}</p>
+          <p className="mt-1 text-xs leading-relaxed text-text-3">
+            {referralCount === 0
+              ? "just yours so far"
+              : `yours plus ${referralCount} ${referralCount === 1 ? "person" : "people"}`}
+          </p>
+        </div>
+        <div className="bg-bg p-4">
+          <p className="t-label text-text-3">If Patina wins</p>
+          <p className="t-mono mt-1.5 text-3xl text-text">
+            ~{Math.round(perShareIfWin * (referralCount + 1))}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-text-3">VANA, split at close</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-3">
+        <span>
+          Points <span className="t-mono text-text">{points}</span>
         </span>
+        {rank !== null && (
+          <span>
+            Rank <span className="t-mono text-text">#{rank}</span>
+          </span>
+        )}
+        <span className="text-text-4">Each real person you bring adds 10 points and one share.</span>
       </div>
 
       {!username && (

@@ -15,6 +15,7 @@ export function ConnectFlow({
   referralCode,
   referralCount,
   promptForName,
+  perShareIfWin,
   initialSignedIn,
   initialUsername,
 }: {
@@ -24,6 +25,7 @@ export function ConnectFlow({
   referralCode: string;
   referralCount: number;
   promptForName: boolean;
+  perShareIfWin: number;
   initialSignedIn: boolean;
   initialUsername: string | null;
 }) {
@@ -42,6 +44,8 @@ export function ConnectFlow({
   // "Sign in" forever, because the client never asked.
   const [signedIn, setSignedIn] = useState(initialSignedIn);
   const [username, setUsername] = useState<string | null>(initialUsername);
+  const [points, setPoints] = useState(initialScore.total);
+  const [rank, setRank] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -52,6 +56,8 @@ export function ConnectFlow({
       if (typeof next.referralCode === "string") setCode(next.referralCode);
       setSignedIn(Boolean(next.signedIn));
       setUsername(next.username ?? null);
+      setPoints(typeof next.points === "number" ? next.points : 0);
+      setRank(typeof next.rank === "number" ? next.rank : null);
     } catch {
       // A failed refresh is cosmetic. The read already succeeded and is stored,
       // so a slightly stale number beats an error thrown at someone who just
@@ -141,6 +147,9 @@ export function ConnectFlow({
                 referralCode={code}
                 referralCount={invites}
                 username={username}
+                points={points}
+                rank={rank}
+                perShareIfWin={perShareIfWin}
               />
             )}
           </>
