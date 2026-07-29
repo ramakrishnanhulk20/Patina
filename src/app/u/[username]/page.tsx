@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { SectionLabel } from "../../components/SectionLabel";
 import { GlowCard3D } from "./GlowCard3D";
 import { PlateCard } from "./PlateCard";
+import { SaveCard } from "./SaveCard";
 import { evidenceOf, profileByUsername, standingOf } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { REWARD } from "@/lib/rewards";
@@ -88,6 +89,16 @@ export default async function ProfilePage({
             years={years}
           />
         </GlowCard3D>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <SaveCard username={profile.username ?? "anonymous"} />
+        <Link
+          href={`/u/${encodeURIComponent(profile.username ?? "")}/story`}
+          className="btn btn-ghost px-6 py-3.5 text-base"
+        >
+          See the whole story
+        </Link>
       </div>
 
       <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border border-line bg-panel p-5 sm:grid-cols-4">

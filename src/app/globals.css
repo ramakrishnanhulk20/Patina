@@ -249,6 +249,39 @@ select {
   overscroll-behavior-x: contain;
 }
 
+/*
+  STORY
+
+  Scroll-revealed sections on the story page. Hidden only once JavaScript has
+  taken over — the class is applied on the client — so a reader without JS, or
+  one who prefers reduced motion, gets every section plainly visible rather than
+  a blank page that never fills in.
+*/
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 720ms cubic-bezier(0.2, 0, 0, 1),
+    transform 720ms cubic-bezier(0.2, 0, 0, 1);
+  will-change: opacity, transform;
+}
+
+.reveal[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The growing bar in the year-by-year chart. */
+.story-bar {
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 900ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.story-bar[data-shown="true"] {
+  transform: scaleY(1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

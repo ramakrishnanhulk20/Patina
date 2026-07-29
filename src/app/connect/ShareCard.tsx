@@ -264,13 +264,21 @@ export function ShareCard({
           )}
         </div>
 
-        {canShareNatively && username && (
-          <Link
-            href={`/u/${encodeURIComponent(username)}`}
-            className="tap t-label block pt-1 text-center text-text-3 underline-offset-4 hover:text-accent hover:underline"
-          >
-            See what people will open
-          </Link>
+        {username && (
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1">
+            <Link
+              href={`/u/${encodeURIComponent(username)}`}
+              className="tap t-label text-text-3 underline-offset-4 hover:text-accent hover:underline"
+            >
+              See what people will open
+            </Link>
+            <Link
+              href={`/u/${encodeURIComponent(username)}/story`}
+              className="tap t-label text-accent underline-offset-4 hover:underline"
+            >
+              See your whole story
+            </Link>
+          </div>
         )}
       </div>
 
