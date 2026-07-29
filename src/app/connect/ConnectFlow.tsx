@@ -17,7 +17,6 @@ export function ConnectFlow({
   promptForName,
   initialSignedIn,
   initialUsername,
-  initialDeviceToken,
 }: {
   sources: SourceSpec[];
   initialScore: ScoreView;
@@ -27,7 +26,6 @@ export function ConnectFlow({
   promptForName: boolean;
   initialSignedIn: boolean;
   initialUsername: string | null;
-  initialDeviceToken: string | null;
 }) {
   const [score, setScore] = useState(initialScore);
   const [readAt, setReadAt] = useState(initialReadAt);
@@ -42,7 +40,6 @@ export function ConnectFlow({
   // refresh(), which nothing called on page load. So after signing in and being
   // redirected back, the server knew who you were and the page still showed
   // "Sign in" forever, because the client never asked.
-  const [deviceToken, setDeviceToken] = useState<string | null>(initialDeviceToken);
   const [signedIn, setSignedIn] = useState(initialSignedIn);
   const [username, setUsername] = useState<string | null>(initialUsername);
 
@@ -53,7 +50,6 @@ export function ConnectFlow({
       setReadAt(next.readAt ?? {});
       if (typeof next.referralCount === "number") setInvites(next.referralCount);
       if (typeof next.referralCode === "string") setCode(next.referralCode);
-      setDeviceToken(typeof next.deviceToken === "string" ? next.deviceToken : null);
       setSignedIn(Boolean(next.signedIn));
       setUsername(next.username ?? null);
     } catch {
@@ -144,7 +140,7 @@ export function ConnectFlow({
                 score={score}
                 referralCode={code}
                 referralCount={invites}
-                deviceToken={deviceToken}
+                username={username}
               />
             )}
           </>

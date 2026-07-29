@@ -58,7 +58,6 @@ export async function GET() {
       Object.entries(profile.sources).map(([source, record]) => [source, record.readAt]),
     ),
     referralCode: profile.referralCode,
-    deviceToken: profile.deviceToken,
     referralCount: tally.qualified,
     referralInvited: tally.invited,
     rank: standing.rank,

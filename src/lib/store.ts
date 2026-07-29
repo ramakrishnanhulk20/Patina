@@ -590,6 +590,13 @@ export async function claimProfile(
   return profile;
 }
 
+/** Look up a profile by the name shown publicly. Null when nobody holds it. */
+export async function profileByUsername(name: string): Promise<Profile | null> {
+  const id = await db().get(usernameKey(name));
+  if (typeof id !== "string" || id === "") return null;
+  return getProfile(id);
+}
+
 /** Shape rules kept in one place so the API and the form cannot disagree. */
 export function usernameProblem(name: string): string | null {
   const trimmed = name.trim();

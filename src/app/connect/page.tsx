@@ -75,7 +75,6 @@ export default async function ConnectPage({
         promptForName={params.name === "1"}
         initialSignedIn={Boolean(profile?.id.startsWith("g:"))}
         initialUsername={profile?.username ?? null}
-        initialDeviceToken={profile?.deviceToken ?? null}
       />
 
       <NextApps apps={nextApps} />

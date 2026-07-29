@@ -8,9 +8,7 @@ import type { ScoreView } from "./ScorePanel";
 const noSubscribe = () => () => {};
 
 function shareText(score: ScoreView): string {
-  const year = score.oldestSignal
-    ? new Date(score.oldestSignal.date).getFullYear()
-    : null;
+  const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
 
   if (year) {
     return `My digital life goes back to ${year}. Patina scored it ${score.total}/100.\n\nAnyone can make a new account. Nobody can make an old one.`;
@@ -22,41 +20,58 @@ export function ShareCard({
   score,
   referralCode,
   referralCount,
-  deviceToken,
+  username,
 }: {
   score: ScoreView;
   referralCode: string;
   referralCount: number;
-  /** Private. Only ever rendered into the owner's own device link. */
-  deviceToken: string | null;
+  /** Needed for the card link. Without a name there is no public page to share. */
+  username: string | null;
 }) {
   const [copied, setCopied] = useState(false);
-  const [copiedDevice, setCopiedDevice] = useState(false);
 
   // window does not exist during the server render, so the origin is read as an
-  // external value with an empty server snapshot rather than being pushed into
-  // state from an effect.
+  // external value with an empty server snapshot rather than pushed into state
+  // from an effect.
   const origin = useSyncExternalStore(
     noSubscribe,
     () => window.location.origin,
     () => "",
   );
 
-  const link = origin ? `${origin}/?r=${referralCode}` : "";
+  /**
+   * One link, doing both jobs.
+   *
+   * It opens the person's card, which is the thing worth looking at, and it
+   * carries their referral code, which is the thing that earns them a share. A
+   * separate "invite link" was one link too many: people posted the wrong one.
+   */
+  const link =
+    origin && username
+      ? `${origin}/u/${encodeURIComponent(username)}?r=${referralCode}`
+      : origin
+        ? `${origin}/?r=${referralCode}`
+        : "";
+
   const text = useMemo(() => shareText(score), [score]);
 
   const tweetUrl = link
     ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`
     : "";
 
-  async function copyDevice() {
-    if (!origin || !deviceToken) return;
+  // The OS share sheet on Android and iOS. Far better than a copy button on a
+  // phone: it reaches WhatsApp and Telegram, which is where this audience is.
+  const canShareNatively = useSyncExternalStore(
+    noSubscribe,
+    () => typeof navigator !== "undefined" && typeof navigator.share === "function",
+    () => false,
+  );
+
+  async function shareNatively() {
     try {
-      await navigator.clipboard.writeText(`${origin}/d?k=${deviceToken}`);
-      setCopiedDevice(true);
-      setTimeout(() => setCopiedDevice(false), 2200);
+      await navigator.share({ title: "My Patina score", text, url: link });
     } catch {
-      // Blocked outside a secure context. The field above is selectable.
+      // Cancelling the sheet throws. Not an error worth showing.
     }
   }
 
@@ -67,18 +82,17 @@ export function ShareCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
     } catch {
-      // Clipboard is blocked in some mobile browsers without a secure context.
-      // The link sits in a selectable field below, so there is still a way out.
+      // Blocked outside a secure context. The field below is selectable.
     }
   }
 
   return (
-    <div className="border border-line bg-panel p-6">
-      <p className="t-label text-text-3">Bring someone with you</p>
+    <div className="border border-line bg-panel p-5 sm:p-6">
+      <p className="t-label text-text-3">Share your card</p>
 
       <p className="mt-3 text-sm leading-relaxed text-text-2">
-        Everyone in the top 50 gets one share of the reward. Every real person who joins through
-        your link gets you another. Empty accounts count for nothing, which is rather the point.
+        Your card shows your score and how far back you go. Everyone in the top {50} gets one share
+        of the reward, and every real person who joins through your card gets you another.
       </p>
 
       <div className="mt-4 flex items-baseline gap-2">
@@ -90,83 +104,70 @@ export function ShareCard({
         </span>
       </div>
 
-      <Link
-        href="/rewards"
-        className="tap t-label mt-3 inline-block text-text-4 underline-offset-4 transition hover:text-accent hover:underline"
-      >
-        How the reward works
-      </Link>
+      {!username && (
+        <p className="mt-4 border border-warn/40 bg-warn/5 p-3 text-sm leading-relaxed text-warn">
+          Pick a name above first. Your card lives at a web address, and it needs one.
+        </p>
+      )}
 
-      <label className="mt-5 block">
-        <span className="sr-only">Your invite link</span>
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {canShareNatively ? (
+          <button
+            type="button"
+            onClick={shareNatively}
+            disabled={!link}
+            className="btn btn-primary w-full px-5 py-3 text-sm sm:w-auto"
+          >
+            Share
+          </button>
+        ) : (
+          tweetUrl && (
+            <a
+              href={tweetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-primary w-full px-5 py-3 text-sm sm:w-auto"
+            >
+              Post on X
+            </a>
+          )
+        )}
+
+        <button
+          type="button"
+          onClick={copy}
+          disabled={!link}
+          className="btn btn-ghost w-full px-5 py-3 text-sm sm:w-auto"
+        >
+          {copied ? "Copied" : "Copy link"}
+        </button>
+
+        {username && (
+          <Link
+            href={`/u/${encodeURIComponent(username)}`}
+            className="btn btn-ghost w-full px-5 py-3 text-sm sm:w-auto"
+          >
+            View card
+          </Link>
+        )}
+      </div>
+
+      <label className="mt-4 block">
+        <span className="sr-only">Your card link</span>
         <input
           readOnly
           value={link}
           onFocus={(event) => event.currentTarget.select()}
-          className="t-mono w-full border border-line bg-bg px-3 py-2.5 text-xs text-text-2"
+          className="t-mono w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-xs text-text-2"
         />
       </label>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" onClick={copy} className="btn btn-ghost px-4 py-2.5 text-sm">
-          {copied ? "Copied" : "Copy link"}
-        </button>
-        {tweetUrl && (
-          <a
-            href={tweetUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-primary px-4 py-2.5 text-sm"
-          >
-            Post it
-          </a>
-        )}
-      </div>
-
-      {/*
-        Continuing on another device.
-
-        A profile lives in this browser, so a phone and a laptop would otherwise
-        be two different people with two half-finished scores. This link is how
-        one person stays one person. It is a secret, so it is kept apart from the
-        invite link above and labelled as private, since the two sitting next to
-        each other is exactly how somebody posts the wrong one.
-      */}
-      {deviceToken && origin && (
-        <div className="mt-6 border-t border-line pt-5">
-          <p className="t-label text-text-3">Using another device?</p>
-          <p className="mt-2 text-sm leading-relaxed text-text-2">
-            Open this on your phone or laptop to carry the same score across. Some sources are
-            easier to connect on one than the other.
-          </p>
-
-          <label className="mt-3 block">
-            <span className="sr-only">Your private device link</span>
-            <input
-              readOnly
-              value={`${origin}/d?k=${deviceToken}`}
-              onFocus={(event) => event.currentTarget.select()}
-              className="t-mono w-full border border-line bg-bg px-3 py-2.5 text-xs text-text-2"
-            />
-          </label>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={copyDevice}
-              className="btn btn-ghost px-4 py-2.5 text-sm"
-            >
-              {copiedDevice ? "Copied" : "Copy device link"}
-            </button>
-            <span className="t-label text-warn">Keep private</span>
-          </div>
-
-          <p className="mt-2.5 text-xs leading-relaxed text-text-4">
-            Anyone with this link gets your score, so do not post it. The invite link above is the
-            one to share.
-          </p>
-        </div>
-      )}
+      <Link
+        href="/rewards"
+        className="tap t-label mt-4 inline-block text-text-4 underline-offset-4 transition hover:text-accent hover:underline"
+      >
+        How the reward works
+      </Link>
     </div>
   );
 }
