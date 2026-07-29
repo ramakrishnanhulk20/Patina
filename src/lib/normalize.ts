@@ -96,6 +96,29 @@ function listOf(raw: unknown, key: string): Json[] {
   return [];
 }
 
+/**
+ * The envelope's own `items` array, whatever depth it is buried at.
+ *
+ * Distinct from `listOf`, which looks for a NAMED list inside the payload. Some
+ * reads put the records straight into `items` with no wrapper key at all.
+ */
+function itemsOf(raw: unknown): Json[] {
+  let node: unknown = raw;
+
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (!isObject(node)) return [];
+    if (Array.isArray(node.items)) return (node.items as unknown[]).filter(isObject);
+    if (Array.isArray(node.data)) return (node.data as unknown[]).filter(isObject);
+    if ("data" in node && isObject(node.data)) {
+      node = node.data;
+      continue;
+    }
+    return [];
+  }
+
+  return [];
+}
+
 /** First present value among several possible field spellings. */
 function pick<T>(source: Json | undefined, keys: string[], guard: (v: unknown) => v is T): T | undefined {
   if (!source) return undefined;
@@ -160,14 +183,26 @@ export function normalizeInstagramProfile(raw: unknown): InstagramProfile | unde
   };
 }
 
+/** Field names a post's timestamp has been seen under. */
+const POST_DATE_KEYS = ["taken_at", "takenAt", "timestamp", "created_at", "createdAt"];
+
+/** Does this record look like a post rather than an envelope? */
+function looksLikeAPost(record: Json): boolean {
+  return POST_DATE_KEYS.some((key) => isStr(record[key]));
+}
+
 export function normalizeInstagramPosts(raw: unknown): InstagramPosts | undefined {
-  const posts = listOf(raw, "posts");
-  const source = posts.length ? posts : (payloadOf(raw) ? [] : []);
+  // A `posts` array is the documented shape. But this is now the scope Age and
+  // Corroboration depend on, so a payload that hands back the posts as the
+  // envelope's own `items` must not read as "no history": that would silently
+  // cost 60 of the 100 points on a read the user already paid for.
+  const named = listOf(raw, "posts");
+  const source = named.length ? named : itemsOf(raw).filter(looksLikeAPost);
   if (!source.length) return undefined;
 
   return {
     posts: source.map((post) => ({
-      taken_at: pick(post, ["taken_at", "takenAt", "timestamp", "created_at"], isStr),
+      taken_at: pick(post, POST_DATE_KEYS, isStr),
       num_of_likes: pick(post, ["num_of_likes", "numOfLikes", "like_count", "likes"], isNum),
       caption: pick(post, ["caption"], isStr),
     })),
@@ -248,8 +283,21 @@ export function identityOf(scope: string, raw: unknown): string | undefined {
     case "youtube.profile":
       return pick(p, ["channelId", "handle", "channelUrl", "email"], isStr);
     case "instagram.profile":
-    case "instagram.posts":
       return pick(p, ["username"], isStr);
+    case "instagram.posts": {
+      // A posts payload may put the account on the envelope rather than on each
+      // record, and `payloadOf` can legitimately land on the first POST, which
+      // carries no account at all. Without an id here the same Instagram
+      // account connected twice is invisible to the self-referral check, so it
+      // is worth looking in both places.
+      const direct = pick(p, ["username", "owner", "ownerUsername", "user"], isStr);
+      if (direct) return direct;
+      for (const item of itemsOf(raw)) {
+        const owned = pick(item, ["username", "owner", "ownerUsername", "user"], isStr);
+        if (owned) return owned;
+      }
+      return undefined;
+    }
     case "spotify.profile":
       return pick(p, ["id"], isStr);
     case "linkedin.profile": {

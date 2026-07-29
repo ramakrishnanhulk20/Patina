@@ -160,3 +160,67 @@ test("LinkedIn profile normalizes connections strings and a vanity slug", () => 
   assert.equal(evidence.linkedin?.connections, 500);
   assert.ok(scorePatina(evidence).sourcesConnected.includes("linkedin"));
 });
+
+/**
+ * Instagram is now read as `instagram.posts` rather than `instagram.profile`,
+ * because the profile carries no date and post timestamps feed Age and
+ * Corroboration — 60 of the 100 points. These tests pin the shapes that must
+ * keep working, since a silent miss here costs the user most of their score on
+ * a read they already paid for.
+ */
+test("Instagram posts normalize from a named posts array", () => {
+  const raw = {
+    scope: "instagram.posts",
+    data: {
+      data: {
+        items: [
+          {
+            username: "janedoe",
+            posts: [
+              { taken_at: "2014-03-02T10:00:00Z", num_of_likes: 12, caption: "one" },
+              { taken_at: "2021-11-20T10:00:00Z", num_of_likes: 40 },
+            ],
+          },
+        ],
+      },
+    },
+  };
+
+  const evidence = foldRead({}, "instagram.posts", raw);
+  assert.equal(evidence.instagramPosts?.posts?.length, 2);
+  assert.equal(identityOf("instagram.posts", raw), "janedoe");
+
+  // The oldest post is what Age is built from.
+  const score = scorePatina(evidence);
+  assert.ok(score.sourcesConnected.includes("instagram"));
+  assert.equal(new Date(score.oldestSignal!.date).getUTCFullYear(), 2014);
+});
+
+test("Instagram posts still normalize when the records ARE the envelope items", () => {
+  const raw = {
+    scope: "instagram.posts",
+    data: {
+      data: {
+        items: [
+          { taken_at: "2015-06-01T10:00:00Z", like_count: 3 },
+          { taken_at: "2019-01-01T10:00:00Z", like_count: 9 },
+        ],
+      },
+    },
+  };
+
+  const evidence = foldRead({}, "instagram.posts", raw);
+  assert.equal(evidence.instagramPosts?.posts?.length, 2);
+  assert.equal(new Date(scorePatina(evidence).oldestSignal!.date).getUTCFullYear(), 2015);
+});
+
+test("A posts read with no timestamps anywhere records nothing at all", () => {
+  // Must stay undefined rather than claiming the slot: an empty Instagram
+  // record would block a later, better read from filling it.
+  const evidence = foldRead({}, "instagram.posts", {
+    scope: "instagram.posts",
+    data: { data: { items: [] } },
+  });
+  assert.equal(evidence.instagramPosts, undefined);
+  assert.equal(scorePatina(evidence).sourcesConnected.length, 0);
+});

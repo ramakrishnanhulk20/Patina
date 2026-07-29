@@ -146,6 +146,24 @@ export default async function Image({ params }: { params: Promise<{ username: st
         </div>
       </div>
     ),
-    size,
+    {
+      ...size,
+      /**
+       * Let the CDN answer the unfurls.
+       *
+       * Every time this link is pasted into a chat, that app fetches this image
+       * to build a preview — and a link that spreads gets fetched by WhatsApp,
+       * Telegram, X and Slack, repeatedly, for one share. Uncached, each of
+       * those is a Redis read plus a PNG render, on the request path of the
+       * thing we most want to be fast.
+       *
+       * Ten minutes is the trade: a score that just changed is stale in
+       * previews for a few minutes, and `stale-while-revalidate` means nobody
+       * ever waits for the refresh. The card page itself is always live.
+       */
+      headers: {
+        "cache-control": "public, max-age=0, s-maxage=600, stale-while-revalidate=86400",
+      },
+    },
   );
 }

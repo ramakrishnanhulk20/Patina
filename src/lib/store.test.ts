@@ -6,7 +6,6 @@ import {
   evidenceOf,
   getProfile,
   isPersistent,
-  adoptProfile,
   claimProfile,
   setUsername,
   newProfileId,
@@ -199,93 +198,6 @@ test("a rescored profile moves in the ranking rather than duplicating", async ()
 
   assert.equal(mine.length, 1, "one profile must occupy exactly one place");
   assert.equal(mine[0].score, 72, "the ranking must hold the latest score");
-});
-
-/**
- * The bug this layer exists to kill: one person connecting on a phone and a
- * laptop became two profiles with two partial scores, two rows in the standings,
- * and two claims on a single reward share.
- */
-test("one person on two devices ends up as one profile", async () => {
-  const phone = newProfileId();
-  const laptop = newProfileId();
-
-  await recordSource(phone, "youtube", {
-    scope: "youtube.profile",
-    readAt: "2026-07-01T00:00:00Z",
-    externalId: "chan",
-    evidence: { youtube: { joinedDate: "2012-04-01T00:00:00Z", videoCount: 9 } },
-  }, 40);
-
-  // The laptop connects something of its own before the two are joined up.
-  await recordSource(laptop, "github", record("dev", "2013-01-01T00:00:00Z"), 30);
-
-  const phoneProfile = await getProfile(phone);
-  const adopted = await adoptProfile(laptop, phoneProfile!.deviceToken, () => 66);
-
-  assert.ok(adopted, "a valid token must adopt the profile");
-  assert.equal(await resolveProfileId(laptop), phone, "both devices now point at one profile");
-
-  const merged = await getProfile(phone);
-  assert.ok(merged!.sources.youtube, "the phone's source survived");
-  assert.ok(merged!.sources.github, "the laptop's source came across");
-
-  const evidence = evidenceOf(merged!);
-  assert.equal(evidence.youtube?.joinedDate, "2012-04-01T00:00:00Z");
-  assert.equal(evidence.github?.username, "dev");
-});
-
-test("adopting leaves exactly one row in the standings, not two", async () => {
-  const first = newProfileId();
-  const second = newProfileId();
-
-  await recordSource(first, "github", record("keeper", "2011-01-01T00:00:00Z"), 70);
-  await recordSource(second, "youtube", {
-    scope: "youtube.profile",
-    readAt: "2026-07-02T00:00:00Z",
-    externalId: "c2",
-    evidence: { youtube: { joinedDate: "2015-01-01T00:00:00Z" } },
-  }, 25);
-
-  const target = await getProfile(first);
-  await adoptProfile(second, target!.deviceToken, () => 75);
-
-  const board = await topProfiles(1000);
-  assert.ok(board.some((r) => r.id === first), "the adopted profile stays ranked");
-  assert.ok(
-    !board.some((r) => r.id === second),
-    "the absorbed profile must leave the standings entirely",
-  );
-});
-
-test("a referral link shared from the absorbed device keeps working", async () => {
-  const keep = newProfileId();
-  const absorbed = newProfileId();
-
-  await recordSource(keep, "github", record("a", "2012-01-01T00:00:00Z"), 50);
-  const shared = (await ensureProfile(absorbed)).referralCode;
-
-  const target = await getProfile(keep);
-  await adoptProfile(absorbed, target!.deviceToken, () => 50);
-
-  assert.equal(await profileIdForCode(shared), keep, "an already-shared code must still resolve");
-});
-
-test("a wrong or stale device token does nothing at all", async () => {
-  const session = newProfileId();
-  await recordSource(session, "github", record("mine", "2012-01-01T00:00:00Z"), 44);
-
-  const result = await adoptProfile(session, "0".repeat(48), () => 44);
-
-  assert.equal(result, null, "an unknown token must not adopt or create anything");
-  assert.equal(await resolveProfileId(session), session, "the session keeps its own profile");
-  const still = await getProfile(session);
-  assert.equal(still?.sources.github?.externalId, "mine");
-});
-
-test("a device token is long enough not to be guessed", async () => {
-  const profile = await ensureProfile(newProfileId());
-  assert.match(profile.deviceToken, /^[0-9a-f]{48}$/);
 });
 
 test("evidence from every source is merged for scoring", async () => {
@@ -570,4 +482,58 @@ test("somebody who shares can outrank somebody who only has old accounts", async
     "35 + four real people must beat 70 alone, or sharing is pointless",
   );
   assert.equal((await getProfile(sharer))?.score, 35, "without inflating the humanity score");
+});
+
+test("two people claiming one name at the same instant: exactly one wins", async () => {
+  // The reason setUsername uses SET NX rather than get-then-set. Fired together
+  // so both calls read the world before either has written to it.
+  const a = newProfileId();
+  const b = newProfileId();
+  await recordSource(a, "github", record("race-a", "2012-01-01T00:00:00Z"), 40);
+  await recordSource(b, "github", record("race-b", "2012-01-01T00:00:00Z"), 40);
+
+  const [first, second] = await Promise.all([
+    setUsername(a, "contested"),
+    setUsername(b, "contested"),
+  ]);
+
+  const winners = [first, second].filter((result) => result.ok);
+  assert.equal(winners.length, 1, "exactly one claim may succeed");
+
+  const holders = [(await getProfile(a))?.username, (await getProfile(b))?.username];
+  assert.deepEqual(
+    holders.filter((name) => name === "contested").length,
+    1,
+    "and only one profile may end up holding it",
+  );
+});
+
+test("renaming frees the name for a genuinely atomic re-claim", async () => {
+  const a = newProfileId();
+  const b = newProfileId();
+  await recordSource(a, "github", record("rel-a", "2012-01-01T00:00:00Z"), 40);
+  await recordSource(b, "github", record("rel-b", "2012-01-01T00:00:00Z"), 40);
+
+  await setUsername(a, "released_one");
+  await setUsername(a, "kept_instead");
+
+  // The old key is deleted rather than blanked, so the next claim goes through
+  // the same SET NX gate as any other rather than a second get-then-set path.
+  assert.deepEqual(await setUsername(b, "released_one"), {
+    ok: true,
+    username: "released_one",
+  });
+});
+
+test("names that could impersonate Patina cannot be claimed", async () => {
+  const a = newProfileId();
+  await recordSource(a, "github", record("res-a", "2012-01-01T00:00:00Z"), 40);
+
+  for (const name of ["patina", "Vana", "ADMIN", "support", "rewards"]) {
+    const result = await setUsername(a, name);
+    assert.equal(result.ok, false, `${name} must be refused`);
+  }
+
+  // A normal name containing a reserved word is fine; only exact matches go.
+  assert.equal((await setUsername(a, "patina_fan")).ok, true);
 });

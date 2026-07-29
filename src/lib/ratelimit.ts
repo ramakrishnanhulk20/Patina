@@ -55,18 +55,49 @@ export async function checkConnectRate(
   request: Request,
   sessionId: string | null,
 ): Promise<RateVerdict> {
+  return check("connect", request, sessionId, MAX_PER_WINDOW, WINDOW_SECONDS);
+}
+
+/**
+ * A cap on username attempts.
+ *
+ * Claiming a name is cheap for us and was completely unmetered, which made the
+ * endpoint a free oracle: submit names in a loop and you learn which ones are
+ * taken, and you can sit on a rename the instant somebody releases one. Sixty
+ * an hour is far more than a person picking a name will ever need and far less
+ * than a script needs to be useful.
+ */
+export async function checkUsernameRate(
+  request: Request,
+  sessionId: string | null,
+): Promise<RateVerdict> {
+  return check("username", request, sessionId, 60, WINDOW_SECONDS);
+}
+
+/**
+ * Shared counter. Fails OPEN, deliberately: blocking real users to stop a
+ * hypothetical one is the wrong trade when the downside is a few cents and a
+ * few wasted names.
+ */
+async function check(
+  bucket: string,
+  request: Request,
+  sessionId: string | null,
+  max: number,
+  windowSeconds: number,
+): Promise<RateVerdict> {
   const store = redis();
   if (!store) return { allowed: true, retryAfterSeconds: 0 };
 
-  const key = `patina:v1:rate:connect:${callerKey(request, sessionId)}`;
+  const key = `patina:v1:rate:${bucket}:${callerKey(request, sessionId)}`;
 
   try {
     const count = await store.incr(key);
-    if (count === 1) await store.expire(key, WINDOW_SECONDS);
+    if (count === 1) await store.expire(key, windowSeconds);
 
-    if (count > MAX_PER_WINDOW) {
+    if (count > max) {
       const ttl = await store.ttl(key);
-      return { allowed: false, retryAfterSeconds: ttl > 0 ? ttl : WINDOW_SECONDS };
+      return { allowed: false, retryAfterSeconds: ttl > 0 ? ttl : windowSeconds };
     }
 
     return { allowed: true, retryAfterSeconds: 0 };

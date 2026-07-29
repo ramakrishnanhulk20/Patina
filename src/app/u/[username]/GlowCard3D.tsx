@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import * as THREE from "three";
+import { useEffect, useRef, useState } from "react";
+import type { PlateHandle } from "./plateScene";
 
 type GlowCard3DProps = {
   username: string;
@@ -9,268 +9,210 @@ type GlowCard3DProps = {
   verdict: string;
   year: number | null;
   years: number | null;
+  children: React.ReactNode;
 };
 
 /**
- * A real WebGL card — the thing people screenshot and share.
+ * Puts a real WebGL plate over the HTML card, when that is a good idea.
  *
- * CSS stacked panels faked depth; this is an actual plate with thickness,
- * verdigris edge light, and slow idle motion. Falls back to nothing when the
- * canvas cannot start (old WebViews): the page still has the plain HTML card.
+ * Three things this is careful about, all of which the previous version was not:
+ *
+ *   THE BUNDLE. three.js is 520KB, and it used to sit in the initial chunk of
+ *   the one page strangers open from a link in a chat, on mobile data. It is
+ *   now behind a dynamic import that runs after paint, so the card is readable
+ *   before a byte of it arrives.
+ *
+ *   THE BATTERY. The old loop ran forever — scrolled away, tab hidden, phone in
+ *   a pocket. It now runs only while the card is actually on screen in a
+ *   visible tab.
+ *
+ *   FAILURE. If the context will not start, nothing is swapped and the HTML
+ *   card simply stays. There is no state in which this page shows an empty box.
  */
-export function GlowCard3D({ username, score, verdict, year, years }: GlowCard3DProps) {
+export function GlowCard3D({ username, score, verdict, year, years, children }: GlowCard3DProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current;
-    if (!host) return;
+    const canvas = canvasRef.current;
+    if (!host || !canvas) return;
 
-    const width = host.clientWidth || 640;
-    const height = Math.max(360, Math.round(width * 0.62));
+    let handle: PlateHandle | null = null;
+    let cancelled = false;
+    const observers: Array<{ disconnect: () => void }> = [];
+    const teardown: Array<() => void> = [];
 
-    let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-    } catch {
-      return;
-    }
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(width, height);
-    renderer.setClearColor(0x000000, 0);
-    host.appendChild(renderer.domElement);
+    void (async () => {
+      // Wait for Geist before drawing type into a texture. Without this the
+      // face is baked with whatever fallback happened to be resolved at that
+      // instant, and the card ships with the wrong typeface permanently — a
+      // canvas texture never re-renders itself the way live DOM text does.
+      try {
+        await document.fonts.ready;
+      } catch {
+        // Font loading API absent. The stack below still resolves to something.
+      }
+      if (cancelled) return;
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 40);
-    camera.position.set(0, 0.15, 5.4);
+      const { createPlateScene } = await import("./plateScene");
+      if (cancelled) return;
 
-    const plate = buildPlate({ username, score, verdict, year, years });
-    scene.add(plate);
-
-    const rings = buildRings();
-    scene.add(rings);
-
-    const key = new THREE.PointLight(0x35e0a1, 18, 12, 2);
-    key.position.set(1.6, 1.4, 3.2);
-    scene.add(key);
-
-    const fill = new THREE.PointLight(0x6affc0, 6, 10, 2);
-    fill.position.set(-2.2, -0.6, 2.4);
-    scene.add(fill);
-
-    const rim = new THREE.DirectionalLight(0x128f65, 1.2);
-    rim.position.set(-2, 3, -2);
-    scene.add(rim);
-
-    scene.add(new THREE.AmbientLight(0x1a2a22, 0.55));
-
-    const pointer = { x: 0, y: 0 };
-    const onMove = (event: PointerEvent) => {
       const rect = host.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
-    };
-    const onLeave = () => {
-      pointer.x = 0;
-      pointer.y = 0;
-    };
-    host.addEventListener("pointermove", onMove);
-    host.addEventListener("pointerleave", onLeave);
+      if (rect.width < 1 || rect.height < 1) return;
 
-    let frame = 0;
-    let alive = true;
-    const clock = new THREE.Clock();
+      handle = createPlateScene(
+        canvas,
+        {
+          username,
+          score,
+          verdict,
+          year,
+          years,
+          fontFamily: getComputedStyle(host).fontFamily,
+        },
+        { width: rect.width, height: rect.height, reducedMotion },
+      );
 
-    const tick = () => {
-      if (!alive) return;
-      frame = requestAnimationFrame(tick);
-      const t = clock.getElapsedTime();
+      if (!handle) return; // No WebGL. The HTML card below stays exactly as it is.
+      if (cancelled) {
+        handle.dispose();
+        return;
+      }
 
-      plate.rotation.y = pointer.x * 0.35 + Math.sin(t * 0.45) * 0.08;
-      plate.rotation.x = pointer.y * -0.22 + Math.cos(t * 0.55) * 0.04;
-      plate.position.y = Math.sin(t * 0.9) * 0.06;
+      setLive(true);
 
-      rings.rotation.z = t * 0.08;
-      rings.rotation.y = Math.sin(t * 0.25) * 0.15;
+      const applySize = () => {
+        const box = host.getBoundingClientRect();
+        if (box.width > 0 && box.height > 0) handle?.resize(box.width, box.height);
+      };
 
-      key.intensity = 16 + Math.sin(t * 2.1) * 2.5;
+      const resize = new ResizeObserver(([entry]) => {
+        const box = entry.contentRect;
+        if (box.width > 0 && box.height > 0) handle?.resize(box.width, box.height);
+      });
+      resize.observe(host);
+      observers.push(resize);
 
-      renderer.render(scene, camera);
-    };
-    tick();
+      // ResizeObserver is the right tool and usually enough, but it has been
+      // unreliable around iOS orientation changes, where the element's box is
+      // reported before the viewport has settled. A plain resize listener costs
+      // nothing and means a rotated phone cannot end up with a stretched card.
+      window.addEventListener("resize", applySize);
+      window.addEventListener("orientationchange", applySize);
+      teardown.push(() => {
+        window.removeEventListener("resize", applySize);
+        window.removeEventListener("orientationchange", applySize);
+      });
 
-    const onResize = () => {
-      const nextW = host.clientWidth || width;
-      const nextH = Math.max(360, Math.round(nextW * 0.62));
-      renderer.setSize(nextW, nextH);
-      camera.aspect = nextW / nextH;
-      camera.updateProjectionMatrix();
-    };
-    window.addEventListener("resize", onResize);
+      // Only animate while genuinely on screen. `threshold: 0` is enough: the
+      // question is "is any of it visible", not "how much".
+      //
+      // Starts TRUE, not false. A tab opened in the background gets no initial
+      // IntersectionObserver report until it is shown, and defaulting to "not
+      // visible" left the card frozen on the first frame for anyone who opened
+      // a shared link into a background tab and came to it later.
+      let onScreen = true;
+      const sync = () => {
+        if (onScreen && document.visibilityState === "visible") handle?.play();
+        else handle?.pause();
+      };
+
+      const visible = new IntersectionObserver(
+        ([entry]) => {
+          onScreen = entry.isIntersecting;
+          sync();
+        },
+        { threshold: 0 },
+      );
+      visible.observe(host);
+      observers.push(visible);
+
+      document.addEventListener("visibilitychange", sync);
+      teardown.push(() => document.removeEventListener("visibilitychange", sync));
+
+      // Pointer tilt, for anyone with a pointer.
+      const onPointerMove = (event: PointerEvent) => {
+        if (event.pointerType === "touch") return;
+        const box = host.getBoundingClientRect();
+        handle?.setTilt(
+          ((event.clientX - box.left) / box.width) * 2 - 1,
+          -(((event.clientY - box.top) / box.height) * 2 - 1),
+        );
+      };
+      const onPointerLeave = () => handle?.setTilt(0, 0);
+      host.addEventListener("pointermove", onPointerMove);
+      host.addEventListener("pointerleave", onPointerLeave);
+      teardown.push(() => {
+        host.removeEventListener("pointermove", onPointerMove);
+        host.removeEventListener("pointerleave", onPointerLeave);
+      });
+
+      /**
+       * On a phone there is no pointer, and hijacking touch would fight the
+       * scroll. So the tilt comes from where the card sits in the viewport:
+       * scrolling past it turns it. It reads as the card responding to you
+       * without taking anything away from you.
+       */
+      if (!reducedMotion) {
+        let queued = false;
+        const onScroll = () => {
+          if (queued) return;
+          queued = true;
+          requestAnimationFrame(() => {
+            queued = false;
+            const box = host.getBoundingClientRect();
+            const centre = box.top + box.height / 2;
+            const through = (centre / window.innerHeight) * 2 - 1;
+            handle?.setTilt(through * 0.5, -through * 0.6);
+          });
+        };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        teardown.push(() => window.removeEventListener("scroll", onScroll));
+        onScroll();
+      }
+
+      sync();
+    })();
 
     return () => {
-      alive = false;
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", onResize);
-      host.removeEventListener("pointermove", onMove);
-      host.removeEventListener("pointerleave", onLeave);
-      disposeObject(plate);
-      disposeObject(rings);
-      renderer.dispose();
-      if (renderer.domElement.parentNode === host) host.removeChild(renderer.domElement);
+      cancelled = true;
+      for (const observer of observers) observer.disconnect();
+      for (const off of teardown) off();
+      handle?.dispose();
+      setLive(false);
     };
   }, [username, score, verdict, year, years]);
 
   return (
     <div
       ref={hostRef}
-      className="relative w-full overflow-hidden rounded-2xl border border-line bg-panel"
-      style={{ minHeight: 360 }}
-      aria-hidden="true"
-    />
+      className="relative w-full overflow-hidden rounded-2xl aspect-[5/4] sm:aspect-[16/10]"
+    >
+      {/*
+        The HTML card is the real content and never leaves the document — it is
+        only faded out once the plate is genuinely rendering, so the swap cannot
+        produce an empty frame.
+      */}
+      <div
+        className={`absolute inset-0 transition-opacity duration-500 ${
+          live ? "opacity-0" : "opacity-100"
+        }`}
+        aria-hidden={live ? "true" : undefined}
+      >
+        {children}
+      </div>
+
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className={`absolute inset-0 h-full w-full transition-opacity duration-700 ${
+          live ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
   );
-}
-
-function buildPlate(props: GlowCard3DProps): THREE.Group {
-  const group = new THREE.Group();
-
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(3.4, 2.15, 0.12, 1, 1, 1),
-    new THREE.MeshStandardMaterial({
-      color: 0x121412,
-      metalness: 0.35,
-      roughness: 0.45,
-      emissive: 0x0a1f18,
-      emissiveIntensity: 0.4,
-    }),
-  );
-  group.add(body);
-
-  const face = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.2, 1.95),
-    new THREE.MeshBasicMaterial({ map: faceTexture(props), transparent: true }),
-  );
-  face.position.z = 0.062;
-  group.add(face);
-
-  const edge = new THREE.Mesh(
-    new THREE.BoxGeometry(3.42, 2.17, 0.02),
-    new THREE.MeshBasicMaterial({
-      color: 0x35e0a1,
-      transparent: true,
-      opacity: 0.35,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  );
-  edge.position.z = -0.01;
-  group.add(edge);
-
-  const glow = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.8, 2.5),
-    new THREE.MeshBasicMaterial({
-      color: 0x35e0a1,
-      transparent: true,
-      opacity: 0.12,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  );
-  glow.position.z = -0.08;
-  group.add(glow);
-
-  return group;
-}
-
-function buildRings(): THREE.Group {
-  const group = new THREE.Group();
-  group.position.set(1.35, 0.35, -0.55);
-
-  const sizes = [0.55, 0.9, 1.3, 1.75, 2.25];
-  sizes.forEach((radius, index) => {
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(radius * 0.92, radius, 64),
-      new THREE.MeshBasicMaterial({
-        color: 0x35e0a1,
-        transparent: true,
-        opacity: 0.08 + index * 0.05,
-        side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    ring.rotation.x = -0.35;
-    group.add(ring);
-  });
-
-  return group;
-}
-
-function faceTexture(props: GlowCard3DProps): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 640;
-  const ctx = canvas.getContext("2d")!;
-
-  ctx.fillStyle = "#121412";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const wash = ctx.createRadialGradient(780, 120, 40, 780, 120, 420);
-  wash.addColorStop(0, "rgba(53, 224, 161, 0.28)");
-  wash.addColorStop(1, "rgba(53, 224, 161, 0)");
-  ctx.fillStyle = wash;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "#a8ada8";
-  ctx.font = "500 28px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText("PATINA", 72, 88);
-
-  ctx.fillStyle = "#f3f4f3";
-  ctx.font = "600 42px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText(props.username, 72, 150);
-
-  ctx.fillStyle = "#35e0a1";
-  ctx.font = "700 220px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText(String(props.score), 64, 380);
-
-  ctx.fillStyle = "#6c716c";
-  ctx.font = "600 48px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText("/100", 64 + ctx.measureText(String(props.score)).width + 16, 360);
-
-  ctx.fillStyle = "#f3f4f3";
-  ctx.font = "600 40px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText(props.verdict, 72, 460);
-
-  if (props.year !== null) {
-    ctx.fillStyle = "#a8ada8";
-    ctx.font = "500 30px ui-sans-serif, system-ui, sans-serif";
-    const line =
-      props.years !== null
-        ? `Traced back to ${props.year} · ${props.years} years`
-        : `Traced back to ${props.year}`;
-    ctx.fillText(line, 72, 520);
-  }
-
-  ctx.strokeStyle = "rgba(53, 224, 161, 0.45)";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
-  return texture;
-}
-
-function disposeObject(root: THREE.Object3D) {
-  root.traverse((obj) => {
-    const mesh = obj as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    mesh.geometry.dispose();
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of materials) {
-      const map = (material as THREE.MeshBasicMaterial).map;
-      if (map) map.dispose();
-      material.dispose();
-    }
-  });
 }

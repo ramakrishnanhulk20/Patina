@@ -5,8 +5,9 @@ import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
 
 const SOURCES = [
   { name: "YouTube", reads: "The day your account was opened", note: "Google sign-in" },
-  { name: "Instagram", reads: "How long you have posted, and to how many", note: "Profile" },
+  { name: "Instagram", reads: "How far back your posts go", note: "Posts" },
   { name: "GitHub", reads: "When you joined and what you have built", note: "Profile" },
+  { name: "LinkedIn", reads: "Another independent account, and who knows you", note: "Profile" },
   { name: "Spotify", reads: "A listening life", note: "Profile" },
 ];
 
@@ -188,7 +189,7 @@ export default function Home() {
 
           <div className="mt-16">
             <p className="t-label text-text-3">What it can read today</p>
-            <div className="mt-5 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-5 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
               {SOURCES.map((source) => (
                 <div key={source.name} className="bg-bg p-6">
                   <h4 className="text-base font-semibold text-text">{source.name}</h4>

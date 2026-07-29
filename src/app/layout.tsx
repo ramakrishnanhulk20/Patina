@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppNav } from "./components/AppNav";
+import { SITE_URL } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,13 +16,6 @@ const geistMono = Geist_Mono({
 
 const DESCRIPTION =
   "Anyone can make a new account. Nobody can make an old one. Patina reads the history you already have and turns it into proof a real person has been here for years.";
-
-/**
- * Absolute URLs for social cards. Falls back to the live domain rather than
- * localhost, so a preview deploy that forgets the env var still produces
- * shareable links instead of ones pointing at someone's laptop.
- */
-const SITE_URL = process.env.VANA_APP_URL ?? "https://patinadata.xyz";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -40,6 +34,34 @@ export const metadata: Metadata = {
     title: "Patina — proof you have been here a while",
     description: DESCRIPTION,
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    // Lets someone who adds Patina to their home screen open it without the
+    // browser chrome, which is most of what makes a web app feel like an app.
+    capable: true,
+    title: "Patina",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+/**
+ * VIEWPORT-FIT=COVER IS LOAD-BEARING, not a flourish.
+ *
+ * Next's default viewport tag omits it, and without it iOS reports
+ * `env(safe-area-inset-*)` as 0. Both the fixed mobile tab bar and the body
+ * padding that clears it are written against that variable, so on every notch
+ * iPhone the tab bar sat under the home indicator and the last row of content
+ * was clipped. This one line is what makes those insets real.
+ *
+ * `themeColor` matches the page ground so Android Chrome's address bar and iOS
+ * Safari's chrome stop rendering a pale strip against a near-black page.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b0c0b",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({

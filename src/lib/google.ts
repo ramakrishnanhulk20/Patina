@@ -13,6 +13,8 @@
  * yours" has no business collecting more than it needs to tell people apart.
  */
 
+import { siteUrl } from "./site";
+
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 
@@ -21,8 +23,7 @@ export function googleConfigured(): boolean {
 }
 
 function redirectUri(): string {
-  const base = process.env.VANA_APP_URL ?? "https://patinadata.xyz";
-  return `${base.replace(/\/$/, "")}/api/login/callback`;
+  return siteUrl("/api/login/callback");
 }
 
 /** Unguessable value tying a callback back to the browser that started it. */

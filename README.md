@@ -29,25 +29,37 @@ rather than in money.
 
 | Signal | Max | What it measures |
 | --- | --- | --- |
-| **Age** | 34 | The oldest date provable across every connected source |
-| **Continuity** | 26 | How many separate months the history actually touches |
-| **Depth** | 18 | Posts, videos and repositories actually made |
+| **Age** | 40 | The oldest date provable across every connected source |
+| **Corroboration** | 20 | How many *independent* sources prove that date, weighted by how old each is |
+| **Depth** | 20 | Posts, videos and repositories actually made |
 | **Standing** | 10 | Others treating you as real. Weighted low: followers are buyable |
-| **Breadth** | 12 | Independent accounts corroborating each other |
+| **Breadth** | 10 | Independent accounts corroborating each other |
 
-Age and continuity are earned outright. Everything else is **gated behind
+Corroboration replaced an earlier **Continuity** signal that counted distinct
+months of post history. That was the better measure and it turned out to be
+unreachable: per-item timestamps only existed on scopes the desktop app
+collects, so on the web it scored zero for everybody and made a quarter of the
+total unwinnable. A score with points nobody can earn is not a strict score,
+it is a broken one.
+
+Age and corroboration are earned outright. Everything else is **gated behind
 them**: an attacker can manufacture breadth, depth and followers in an
 afternoon, so those only count to the extent that real elapsed history backs
 them up. A floor of 15% stops a genuinely young person being flattened to zero
 for the crime of being nineteen.
 
-Measured against real data:
+Scored against representative profiles, under the weights above:
 
 | | Score |
 | --- | --- |
-| Eleven years of ordinary history across four accounts | **76** |
-| Genuinely young, three years, real | **31** |
-| Account farm: 3,900 bought followers, 120 posts in one week | **6** |
+| Eleven years of ordinary history across four accounts | **83** |
+| Genuinely young: three years, two accounts, real | **23** |
+| Account farm: 3,900 bought followers, 120 posts in one week | **5** |
+
+The gap between the first and last row is the whole product. The middle row is
+the one to keep an eye on: a real person with a short history scores low by
+design, and the further that sits above zero the better, because a low score is
+evidence of absence rather than an accusation.
 
 ## Why this needs Vana
 

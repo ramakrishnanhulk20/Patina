@@ -14,6 +14,18 @@ import { useEffect, useRef } from "react";
  * you move on. Nothing is clickable and nothing is explained; it just rewards
  * moving the mouse.
  *
+ * ON A PHONE THERE IS NO POINTER, which made the whole thing dead for roughly
+ * nine in ten visitors. The rings were drawn at 5% alpha — measured at a peak
+ * of 27/255 against the page ground — and the polish that was supposed to be
+ * the point of them was bound to `pointermove`, an event a touchscreen never
+ * sends. So the desktop got a background that responds to you and the phone got
+ * a nearly blank rectangle.
+ *
+ * The fix is not to make it brighter for everybody: the desktop composition was
+ * reviewed and approved as it is, and this file should not quietly restyle it.
+ * Instead, a device with no pointer gets its own light source that drifts across
+ * the field on its own, and enough contrast to survive a phone screen outdoors.
+ *
  * Performance notes, because this runs behind the most important screen we have:
  *   - one requestAnimationFrame loop, no React state, so React never re-renders
  *   - the loop stops entirely when the canvas scrolls out of view
@@ -29,6 +41,15 @@ export function RingField({ className = "" }: { className?: string }) {
     if (!ctx) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /**
+     * Is there a real pointer to polish with?
+     *
+     * `(hover: hover) and (pointer: fine)` is the honest test — a phone answers
+     * no, a laptop yes, and a touchscreen laptop yes, which is the right answer
+     * because it still has a mouse.
+     */
+    const hasPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
     let width = 0;
     let height = 0;
@@ -66,8 +87,12 @@ export function RingField({ className = "" }: { className?: string }) {
       canvas!.height = Math.round(height * dpr);
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Density scales with area so a phone does not get a soup of rings.
-      const count = Math.max(5, Math.min(16, Math.round((width * height) / 130000)));
+      // Density scales with area so a phone does not get a soup of rings. The
+      // floor is raised on touch, where the old minimum of five left a tall
+      // narrow screen looking empty rather than sparse.
+      const count = hasPointer
+        ? Math.max(5, Math.min(16, Math.round((width * height) / 130000)))
+        : Math.max(8, Math.min(14, Math.round((width * height) / 70000)));
       const rand = mulberry(20260728);
 
       seeds = Array.from({ length: count }, () => ({
@@ -87,6 +112,25 @@ export function RingField({ className = "" }: { className?: string }) {
       ctx!.clearRect(0, 0, width, height);
       ctx!.lineWidth = 1;
 
+      /**
+       * Without a pointer, the light moves by itself.
+       *
+       * Two sine waves at unrelated periods, so the path never visibly repeats
+       * and never sits still — it reads as light travelling over tarnished
+       * metal rather than as a looping animation. Kept away from the very edges
+       * so the bright patch is always somewhere the user is actually looking.
+       */
+      if (!hasPointer) {
+        pointer.x = width * (0.5 + 0.34 * Math.sin(t * 0.21));
+        pointer.y = height * (0.42 + 0.3 * Math.sin(t * 0.13 + 1.7));
+        pointer.strength = 0.9;
+      }
+
+      // On touch the rings have to survive a phone screen in daylight, so the
+      // resting alpha is roughly double. The pointer path keeps the reviewed
+      // desktop value untouched.
+      const baseAlpha = hasPointer ? 0.05 : 0.1;
+
       for (const seed of seeds) {
         // Rings breathe outward very slowly, then reset. Growth, not pulsing.
         const grow = ((t * seed.drift * 0.06 + seed.phase) % 1) * seed.gap;
@@ -96,7 +140,7 @@ export function RingField({ className = "" }: { className?: string }) {
 
           // Fade the outermost ring out as it goes, so nothing pops.
           const life = 1 - i / seed.rings;
-          let alpha = 0.05 * life;
+          let alpha = baseAlpha * life;
 
           // Polish: brighten rings whose stroke passes near the pointer.
           if (pointer.strength > 0.001) {
@@ -120,8 +164,9 @@ export function RingField({ className = "" }: { className?: string }) {
         }
       }
 
-      // Ease the polish away when the pointer leaves.
-      pointer.strength *= 0.94;
+      // Ease the polish away when the pointer leaves. Only meaningful where
+      // there is a pointer; the autonomous light sets its own strength above.
+      if (hasPointer) pointer.strength *= 0.94;
 
       raf = requestAnimationFrame(frame);
     }
@@ -193,8 +238,12 @@ export function RingField({ className = "" }: { className?: string }) {
     );
     visibility.observe(canvas);
 
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    document.addEventListener("pointerleave", onPointerLeave);
+    // No point listening for a pointer on a device that does not have one, and
+    // a stray synthetic pointermove would fight the autonomous light for it.
+    if (hasPointer) {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+      document.addEventListener("pointerleave", onPointerLeave);
+    }
 
     return () => {
       running = false;

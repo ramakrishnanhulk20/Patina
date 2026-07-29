@@ -15,13 +15,11 @@ const network = process.env.VANA_NETWORK === "mainnet" ? "mainnet" : "moksha";
  * whichever the access request reports back as `status.scope`. Asking for
  * `["instagram.profile", "instagram.posts"]` therefore paid for a grant over
  * both and returned only one of them, with no way to tell which until it
- * arrived. Left as it was, Continuity (26 points, and the single hardest signal
- * for a farm to fake) would have read zero for everyone whose posts never came
- * back.
+ * arrived.
  *
  * Where a source offers a choice, the scope carrying DATES wins. Timestamps
- * feed Age and Continuity, which are 60 of the 100 points; follower counts feed
- * Standing, which is 10 and buyable anyway.
+ * feed Age and Corroboration, which are 60 of the 100 points; follower counts
+ * feed Standing, which is 10 and buyable anyway.
  */
 export const SOURCES = {
   youtube: {
@@ -33,9 +31,10 @@ export const SOURCES = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    // Web-collectable. instagram.posts is desktop-only: see sources.ts.
-    scopes: ["instagram.profile"],
-    blurb: "How long you have been posting, and to how many.",
+    // Web-collectable through the Data Pipe, and the scope that carries dates.
+    // See the note in sources.ts.
+    scopes: ["instagram.posts"],
+    blurb: "How far back your posts go.",
   },
   github: {
     id: "github",

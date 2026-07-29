@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SectionLabel } from "../../components/SectionLabel";
 import { GlowCard3D } from "./GlowCard3D";
+import { PlateCard } from "./PlateCard";
 import { evidenceOf, profileByUsername, standingOf } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { REWARD } from "@/lib/rewards";
@@ -60,32 +61,33 @@ export default async function ProfilePage({
     <main className="mx-auto w-full max-w-2xl px-5 py-10 sm:px-6 sm:py-14">
       <SectionLabel>Patina card</SectionLabel>
 
-      <div className="relative mt-6">
+      {/*
+        A real heading, which this page went without entirely. The name and the
+        score existed only inside the canvas and an sr-only block, so the page
+        had nothing for a crawler to title it by and nothing on screen at all if
+        WebGL failed to start.
+      */}
+      <h1 className="sr-only">
+        {profile.username} scored {score.total} out of 100 on Patina. {line}.
+        {year !== null ? ` A digital life traced back to ${year}.` : ""}
+      </h1>
+
+      <div className="mt-6">
         <GlowCard3D
           username={profile.username ?? "anonymous"}
           score={score.total}
           verdict={line}
           year={year}
           years={years}
-        />
-
-        {/*
-          Readable fallback under the canvas for screen readers and for anyone
-          whose browser will not start WebGL. Visually hidden when the canvas
-          paints, because the plate already carries the same facts.
-        */}
-        <div className="sr-only">
-          <p>{profile.username}</p>
-          <p>
-            {score.total} out of 100. {line}.
-          </p>
-          {year !== null && (
-            <p>
-              A digital life traced back to {year}
-              {years !== null ? `, ${years} years of history` : ""}.
-            </p>
-          )}
-        </div>
+        >
+          <PlateCard
+            username={profile.username ?? "anonymous"}
+            score={score.total}
+            verdict={line}
+            year={year}
+            years={years}
+          />
+        </GlowCard3D>
       </div>
 
       <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border border-line bg-panel p-5 sm:grid-cols-4">

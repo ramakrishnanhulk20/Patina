@@ -1,4 +1,4 @@
-import { REFERRAL_QUALIFIES_AT } from "./store";
+import { REFERRAL_QUALIFIES_AT } from "./points.ts";
 
 /**
  * The incentive, in one place.

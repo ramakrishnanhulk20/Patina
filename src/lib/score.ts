@@ -279,7 +279,7 @@ function depthComponent(evidence: Evidence, connected: number): Component {
 }
 
 /**
- * STANDING (max 10). Unchanged: still the most purchasable signal here. Other people and organisations treating you as real.
+ * STANDING (max 10). Other people and organisations treating you as real.
  *
  * Weighted LOW on purpose. Followers are the most purchasable signal on this
  * list, so it contributes flavour rather than substance. GitHub organisations
@@ -310,7 +310,7 @@ function standingComponent(evidence: Evidence, connected: number): Component {
 }
 
 /**
- * BREADTH (max 12). Independent corroboration.
+ * BREADTH (max 10). Independent corroboration.
  *
  * Faking one account is easy. Faking four, each with its own years of history,
  * is a different job entirely. Scored steeply for the second and third source
@@ -333,7 +333,7 @@ function breadthComponent(sources: SourceId[]): Component {
 }
 
 /**
- * Everything except age and continuity is gated behind this.
+ * Everything except age and corroboration is gated behind this.
  *
  * An account farm can manufacture breadth, depth and followers in an afternoon:
  * open four accounts, bulk-upload, buy 3,000 followers. What it cannot

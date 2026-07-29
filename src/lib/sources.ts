@@ -74,14 +74,19 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    // instagram.profile, NOT instagram.posts.
+    // instagram.posts, NOT instagram.profile.
     //
-    // Posts can only be collected by the Data Connect DESKTOP app. Asking for
-    // them makes Vana tell a phone user to go and install software, which for
-    // this audience means they leave. Requesting the profile keeps it a
-    // web-only flow, which is the whole reason these sources were chosen.
-    scopes: ["instagram.profile"],
-    blurb: "How long you have been posting, and to how many.",
+    // This used to request the profile, on a note claiming posts were
+    // desktop-only. That was wrong twice over: the Data Pipe covers
+    // `instagram.posts` (up to the 150 most recent), and it is the connector's
+    // own default scope in the registry.
+    //
+    // It matters because the profile carries NO DATE. Requesting it meant
+    // Instagram contributed nothing to Age (40) or Corroboration (20) — 60 of
+    // the 100 points — and only fed Depth and Standing, which are gated down by
+    // timeFactor anyway. Post timestamps feed all four.
+    scopes: ["instagram.posts"],
+    blurb: "How far back your posts go.",
     handle: {
       prefix: "instagram.com/",
       placeholder: "yourusername",

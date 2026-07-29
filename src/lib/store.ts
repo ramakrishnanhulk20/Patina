@@ -15,8 +15,10 @@
  * The fallback announces itself once rather than pretending everything is fine.
  */
 
+import { cache } from "react";
 import { Redis } from "@upstash/redis";
 import type { Evidence, SourceId } from "./score";
+import { leaguePoints, REFERRAL_QUALIFIES_AT } from "./points.ts";
 
 export type SourceRecord = {
   scope: string;
@@ -39,11 +41,11 @@ export type Profile = {
   /** Short public code this person shares to invite others. */
   referralCode: string;
   /**
-   * Private. Whoever holds this can adopt the profile on another device, so it
-   * is never rendered anywhere except in the owner's own "use on another
-   * device" link, and never returned by a public endpoint.
+   * Left over from the device-link flow that Google sign-in replaced. Still
+   * present on profiles written before it was removed, never written now, and
+   * read by nothing. Optional so new profiles simply do not carry it.
    */
-  deviceToken: string;
+  deviceToken?: string;
   /** The code that brought them here, if any. Set once and never changed. */
   referredBy?: string;
   /** Cached so counting a referrer's qualified invites does not rescore everyone. */
@@ -57,43 +59,12 @@ export type Profile = {
 };
 
 /**
- * The score an invited person must reach before their referrer gets credit.
- *
- * Without a bar like this, a reward-bearing referral link is an invitation to
- * farm: register two hundred throwaway accounts, collect two hundred credits.
- * A throwaway scores about 2 and a genuinely young but real person scores about
- * 30, so 20 separates them with room to spare and without punishing anyone for
- * being nineteen.
+ * The leaderboard constants live in `points.ts`, which imports nothing, so that
+ * client components can read them without pulling Redis into the browser
+ * bundle. Re-exported here because every server-side caller already reaches for
+ * them through the store.
  */
-export const REFERRAL_QUALIFIES_AT = 20;
-
-/**
- * What one real person you bring is worth in LEADERBOARD POINTS.
- *
- * Points and the Patina score are deliberately different numbers, and conflating
- * them would wreck both. The score is evidence about YOU: how far back your
- * history goes, and nothing else may touch it, or the card stops meaning
- * anything. Points are score plus contribution, and they decide only one thing,
- * which is whether you are in the places that share the reward.
- *
- * So being top of the leaderboard says "did the most for this", not "is the most
- * human". Those are different claims and the pages say so.
- *
- * Ten is chosen against the real spread: a long history scores about 90 and a
- * typical one about 40, so five genuine people you brought is worth roughly what
- * a decade of your own history is worth. That feels right, and it matches what
- * the competition itself rewards, where a new person is worth up to four goals.
- */
-export const POINTS_PER_REFERRAL = 10;
-
-/** The number the leaderboard ranks on. */
-export function leaguePoints(score: number, qualifiedReferrals: number): number {
-  // Coerce hard. Older profiles may lack `referrals`, and Math.max(0, undefined)
-  // is NaN — which would write a broken rank and show as "2 points / 78 score".
-  const safeScore = Number.isFinite(score) ? score : 0;
-  const safeRefs = Number.isFinite(qualifiedReferrals) ? Math.max(0, qualifiedReferrals) : 0;
-  return Math.round(safeScore + POINTS_PER_REFERRAL * safeRefs);
-}
+export { REFERRAL_QUALIFIES_AT, POINTS_PER_REFERRAL, leaguePoints } from "./points.ts";
 
 const PREFIX = "patina:v1";
 const profileKey = (id: string) => `${PREFIX}:profile:${id}`;
@@ -123,23 +94,17 @@ const RANK_KEY = `${PREFIX}:ranking`;
 const linkKey = (sessionId: string) => `${PREFIX}:link:${sessionId}`;
 
 /**
- * A secret that lets one person pick their own profile up on another device.
+ * Device tokens are gone.
  *
- * The wallet address would have been a better key, but it is not reachable on
- * the path we are on: the Direct SDK never reveals it, grants made through it
- * do not appear on-chain under our grantee id, and the SDK's own auth mode
- * routes through ODL's separate commercial gateway, which needs a client_id we
- * do not have and answers "This app is not registered with Vana" without one.
- *
- * So the person carries their own identity: a long random token in a link only
- * they have. Opening it on a second device adopts the profile there.
- *
- * Deliberately NOT keyed on the connected account (the YouTube channel, the
- * GitHub username). Server-side collection reads a PUBLIC profile from a URL the
- * user types, so it proves nothing about ownership. Merging on it would let
- * anyone absorb a stranger's profile by pasting their channel URL.
+ * They existed to let somebody carry a profile to a second device by opening a
+ * secret link, because the Vana wallet address was not reachable on our path.
+ * Google sign-in solved the same problem properly — `sub` is stable across
+ * every device a person owns — and the token flow was left behind with no route
+ * serving it and nothing able to reach `adoptProfile`. Dead code that mints
+ * secrets and writes index keys is worse than dead code that does not, so it
+ * has been removed rather than kept for a rainy day. Existing profiles in Redis
+ * keep an unused `deviceToken` field; nothing reads it.
  */
-const tokenKey = (token: string) => `${PREFIX}:token:${token}`;
 
 /** Usernames are claimed first-come and held here so two people cannot share one. */
 const usernameKey = (name: string) => `${PREFIX}:username:${name.toLowerCase()}`;
@@ -186,6 +151,15 @@ export async function getRequest(requestId: string): Promise<PendingRequest | nu
 interface Backend {
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
+  /**
+   * Write only if the key is absent. True when this caller won it.
+   *
+   * The point of contact with reality: claiming a username was a read followed
+   * by a write, so two people typing the same name at the same moment both read
+   * "free" and both wrote, and the second silently took it from the first.
+   */
+  setIfAbsent(key: string, value: string): Promise<boolean>;
+  remove(key: string): Promise<void>;
   addToSet(key: string, member: string): Promise<void>;
   setMembers(key: string): Promise<string[]>;
   /** Ranked index. Needed to answer "who is in the top 50" at all. */
@@ -217,6 +191,15 @@ function memoryBackend(): Backend {
     },
     async set(key, value) {
       map.set(key, value);
+    },
+    async setIfAbsent(key, value) {
+      // Single-threaded, so this really is atomic here.
+      if (map.has(key)) return false;
+      map.set(key, value);
+      return true;
+    },
+    async remove(key) {
+      map.delete(key);
     },
     async addToSet(key, member) {
       const set = sets.get(key) ?? new Set<string>();
@@ -253,6 +236,15 @@ function redisBackend(redis: Redis): Backend {
     },
     async set(key, value) {
       await redis.set(key, value);
+    },
+    async setIfAbsent(key, value) {
+      // Redis SET NX is atomic across every instance, which is the whole reason
+      // this exists rather than a get-then-set in application code.
+      const result = await redis.set(key, value, { nx: true });
+      return result === "OK";
+    },
+    async remove(key) {
+      await redis.del(key);
     },
     async addToSet(key, member) {
       await redis.sadd(key, member);
@@ -383,15 +375,6 @@ function newReferralCode(): string {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }
 
-/**
- * Long and unguessable, unlike the referral code, because holding this one
- * grants control of a profile rather than credit for an invite.
- */
-function newDeviceToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 export async function getProfile(id: string): Promise<Profile | null> {
   const raw = await db().get(profileKey(id));
   if (!raw) return null;
@@ -447,7 +430,6 @@ export async function ensureProfile(profileId: string, referredBy?: string): Pro
     updatedAt: now,
     sources: {},
     referralCode: newReferralCode(),
-    deviceToken: newDeviceToken(),
     score: 0,
     referrals: 0,
     // A referral is recorded at creation and never rewritten, so someone cannot
@@ -457,63 +439,9 @@ export async function ensureProfile(profileId: string, referredBy?: string): Pro
 
   await saveProfile(profile);
   await db().set(codeKey(profile.referralCode), profile.id);
-  await db().set(tokenKey(profile.deviceToken), profile.id);
   if (referredBy) await db().addToSet(invitedKey(referredBy), profile.id);
 
   return profile;
-}
-
-/**
- * Adopt a profile on this device using its private token.
- *
- * Anything this browser had collected on its own is folded in rather than
- * discarded, and then dropped from the standings so one person cannot hold two
- * places. Returns null for an unknown token rather than creating anything, so a
- * guessed or stale link is simply inert.
- */
-export async function adoptProfile(
-  sessionId: string,
-  token: string,
-  rescore: (evidence: Evidence) => number,
-): Promise<Profile | null> {
-  const targetId = await db().get(tokenKey(token));
-  if (typeof targetId !== "string") return null;
-
-  const target = await getProfile(targetId);
-  if (!target) return null;
-
-  const currentId = await resolveProfileId(sessionId);
-
-  if (currentId !== targetId) {
-    const current = await getProfile(currentId);
-
-    if (current) {
-      for (const [source, record] of Object.entries(current.sources)) {
-        // The profile being adopted wins on conflict: it is the one the person
-        // deliberately reached for.
-        if (!target.sources[source as SourceId]) {
-          target.sources[source as SourceId] = record;
-        }
-      }
-      if (!target.referredBy && current.referredBy) target.referredBy = current.referredBy;
-      if (current.createdAt < target.createdAt) target.createdAt = current.createdAt;
-
-      // Any invite link already shared from the absorbed profile keeps working.
-      if (current.referralCode !== target.referralCode) {
-        await db().set(codeKey(current.referralCode), target.id);
-      }
-      await db().unrank(RANK_KEY, current.id);
-    }
-
-    target.score = rescore(evidenceOf(target));
-    if (typeof target.referrals !== "number") target.referrals = 0;
-    target.updatedAt = new Date().toISOString();
-    await saveProfile(target);
-    await db().rank(RANK_KEY, target.id, leaguePoints(target.score, target.referrals));
-  }
-
-  await db().set(linkKey(sessionId), target.id);
-  return target;
 }
 
 export async function profileIdForCode(code: string): Promise<string | null> {
@@ -643,7 +571,6 @@ export async function claimProfile(
     updatedAt: now,
     sources: {},
     referralCode: current?.referralCode ?? newReferralCode(),
-    deviceToken: current?.deviceToken ?? newDeviceToken(),
     score: 0,
     referrals: current?.referrals ?? 0,
     ...(current?.referredBy ? { referredBy: current.referredBy } : {}),
@@ -661,12 +588,9 @@ export async function claimProfile(
     if (!profile.username && current.username) profile.username = current.username;
     if (current.createdAt < profile.createdAt) profile.createdAt = current.createdAt;
 
-    // A referral or device link already handed out has to keep working.
+    // A referral link already handed out has to keep working.
     if (current.referralCode !== profile.referralCode) {
       await db().set(codeKey(current.referralCode), profile.id);
-    }
-    if (current.deviceToken !== profile.deviceToken) {
-      await db().set(tokenKey(current.deviceToken), profile.id);
     }
     await db().unrank(RANK_KEY, current.id);
   }
@@ -677,7 +601,6 @@ export async function claimProfile(
 
   await saveProfile(profile);
   await db().set(codeKey(profile.referralCode), profile.id);
-  await db().set(tokenKey(profile.deviceToken), profile.id);
   await db().set(linkKey(sessionId), profile.id);
   if (profile.username) await db().set(usernameKey(profile.username), profile.id);
   await db().rank(RANK_KEY, profile.id, leaguePoints(profile.score, profile.referrals));
@@ -685,12 +608,60 @@ export async function claimProfile(
   return profile;
 }
 
-/** Look up a profile by the name shown publicly. Null when nobody holds it. */
-export async function profileByUsername(name: string): Promise<Profile | null> {
+/**
+ * Look up a profile by the name shown publicly. Null when nobody holds it.
+ *
+ * Memoised per request. The card page needs the same profile twice — once in
+ * `generateMetadata` and once in the page body — and each call is two round
+ * trips (name → id, then id → profile). Sharing one result across the request
+ * halves the store traffic on the page that receives the most of it, since
+ * every chat-app link preview hits it too.
+ *
+ * `cache` is request-scoped, so this is deduplication and not caching: two
+ * visitors never see each other's result, and a profile updated between
+ * requests is read fresh.
+ */
+export const profileByUsername = cache(async (name: string): Promise<Profile | null> => {
   const id = await db().get(usernameKey(name));
   if (typeof id !== "string" || id === "") return null;
   return getProfile(id);
-}
+});
+
+/**
+ * Names nobody may claim.
+ *
+ * A leaderboard row reading "patina" or "admin", or a card at /u/support, is a
+ * ready-made impersonation for anyone wanting to run a fake payout. The reward
+ * terms promise we will never ask for a seed phrase; a convincing account name
+ * is most of what somebody would need to make that promise hard to trust.
+ */
+const RESERVED = new Set([
+  "patina",
+  "vana",
+  "admin",
+  "administrator",
+  "root",
+  "support",
+  "help",
+  "official",
+  "team",
+  "staff",
+  "mod",
+  "moderator",
+  "system",
+  "security",
+  "billing",
+  "payout",
+  "rewards",
+  "reward",
+  "standings",
+  "connect",
+  "api",
+  "login",
+  "null",
+  "undefined",
+  "anonymous",
+]);
 
 /** Shape rules kept in one place so the API and the form cannot disagree. */
 export function usernameProblem(name: string): string | null {
@@ -698,6 +669,7 @@ export function usernameProblem(name: string): string | null {
   if (trimmed.length < 3) return "At least 3 characters.";
   if (trimmed.length > 20) return "20 characters at most.";
   if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) return "Letters, numbers and underscores only.";
+  if (RESERVED.has(trimmed.toLowerCase())) return "That one is reserved. Pick another.";
   return null;
 }
 
@@ -715,27 +687,48 @@ export async function setUsername(
   if (problem) return { ok: false, reason: problem };
 
   const username = name.trim();
-  const holder = await db().get(usernameKey(username));
-
-  // An empty value means the name was released by a rename. Anything else that
-  // is not us means somebody currently holds it.
-  if (typeof holder === "string" && holder !== "" && holder !== profileId) {
-    return { ok: false, reason: "Somebody already has that one." };
-  }
 
   const profile = await getProfile(profileId);
   if (!profile) return { ok: false, reason: "Connect a source first." };
 
+  const alreadyMine = profile.username?.toLowerCase() === username.toLowerCase();
+
+  /**
+   * Claim it atomically, or find out who has it.
+   *
+   * This was a `get` followed by a `set`, which is a race with a real outcome:
+   * two people submitting the same name in the same moment both saw it free and
+   * both wrote, so the second quietly took a name the first had been told was
+   * theirs. `setIfAbsent` is a single SET NX, so exactly one of them wins.
+   */
+  if (!alreadyMine) {
+    const won = await db().setIfAbsent(usernameKey(username), profileId);
+
+    if (!won) {
+      const holder = await db().get(usernameKey(username));
+
+      // An empty value is a name released by an older rename, before releases
+      // deleted the key. Those are free, and taking one is safe because a
+      // second claimant would have lost the SET NX above.
+      if (holder === "") {
+        await db().set(usernameKey(username), profileId);
+      } else if (holder !== profileId) {
+        return { ok: false, reason: "Somebody already has that one." };
+      }
+    }
+  }
+
   // Release the old name so it is not held forever by someone who renamed.
+  // Deleted rather than blanked, so the SET NX above is the only gate a future
+  // claimant has to pass.
   if (profile.username && profile.username.toLowerCase() !== username.toLowerCase()) {
-    await db().set(usernameKey(profile.username), "");
+    await db().remove(usernameKey(profile.username));
   }
 
   profile.username = username;
   profile.updatedAt = new Date().toISOString();
 
   await saveProfile(profile);
-  await db().set(usernameKey(username), profileId);
 
   return { ok: true, username };
 }
@@ -751,8 +744,16 @@ export async function setUsername(
  * Points are ALWAYS derived from the profile (`score + 10 × referrals`), never
  * trusted from the ranked index alone. The index can go stale across deploys
  * that change the ranking formula; the profile cannot lie about its own fields
- * the same way. Mismatches are rewritten here so the next visitor sees the
- * truth without an admin script.
+ * the same way. So the rows below are built from profiles, and a stale index
+ * can only affect WHICH profiles are fetched, never what they are shown as.
+ *
+ * WHAT THIS NO LONGER DOES, and must not do again: it used to call
+ * `reconcileRankings` first, on every request. That is one sequential
+ * `getProfile` for every ranked profile in the system, on a `force-dynamic`
+ * page, for every visitor. At a thousand users that is a thousand round trips
+ * to Upstash to render one page — the page times out, and the bill grows with
+ * views × users rather than with either one. Reconciliation is a migration, so
+ * it now runs as one (see `reconcileRankings`).
  */
 export async function standings(
   count: number,
@@ -768,9 +769,9 @@ export async function standings(
     username?: string;
   }[]
 > {
-  await reconcileRankings(rescore);
-
-  const top = await topProfiles(Math.max(count, 200));
+  // Fetch a margin beyond `count` so a stale index cannot push a genuinely
+  // top-`count` profile off the page, then re-sort on the truth below.
+  const top = await topProfiles(Math.max(count * 2, 120));
   const profiles = await Promise.all(top.map((row) => getProfile(row.id)));
 
   const rows = top
@@ -778,7 +779,10 @@ export async function standings(
       const profile = profiles[index];
       if (!profile) return null;
 
-      const score = profile.score;
+      // `rescore` recomputes from stored evidence, so a change to the score
+      // formula shows up here immediately rather than waiting for a migration.
+      // Read-only: nothing is written back on a page render.
+      const score = rescore ? rescore(evidenceOf(profile)) : profile.score;
       const referrals = profile.referrals ?? 0;
       const points = leaguePoints(score, referrals);
 
@@ -817,6 +821,14 @@ export async function standings(
  *
  * Optional `rescore` recomputes the Patina score from stored evidence, so a
  * formula change heals without asking everyone to reconnect.
+ *
+ * THIS IS A MIGRATION, NOT A PAGE HELPER. It touches every profile in the
+ * system, one at a time, and writes back the ones that drifted. Calling it to
+ * render a page — which the standings page did, on every request — makes the
+ * cost of one page view scale with the size of the whole user base. Run it from
+ * `/api/admin/reconcile` after a formula change and not otherwise; the
+ * standings page derives its numbers from profiles directly, so it stays
+ * correct in the meantime whether or not this has run.
  */
 export async function reconcileRankings(
   rescore?: (evidence: Evidence) => number,

@@ -2,6 +2,7 @@ import { controllerFor, isSourceId } from "@/lib/vana";
 import { ensureSessionId, readSessionId } from "@/lib/session";
 import { rememberRequest, resolveProfileId } from "@/lib/store";
 import { checkConnectRate } from "@/lib/ratelimit";
+import { siteUrl } from "@/lib/site";
 
 export async function POST(request: Request) {
   const source = new URL(request.url).searchParams.get("source");
@@ -43,7 +44,9 @@ export async function POST(request: Request) {
   // "you may close this tab" page only makes sense for the popup flow, and we
   // do not use one because popups break on phones.
   const accessRequest = await controllerFor(source).createAccessRequest({
-    returnUrl: `${process.env.VANA_APP_URL}/connect`,
+    // siteUrl, not the raw env var: unset, this interpolated to the literal
+    // string "undefined/connect" and dropped every approved user on a dead page.
+    returnUrl: siteUrl("/connect"),
   });
 
   await rememberRequest(accessRequest.requestId, {
