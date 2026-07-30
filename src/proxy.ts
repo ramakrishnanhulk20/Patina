@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { APP_WIP, WIP_UNLOCK_COOKIE } from "@/lib/wip";
 
 /**
  * Catches a referral code off any page visit and parks it in a cookie.
@@ -8,16 +9,26 @@ import type { NextRequest } from "next/server";
  * to the reward section, and only connect several clicks later. The code has to
  * survive that, so it moves out of the URL and into a cookie on first sight.
  *
- * Note this runs before rendering and must not import anything from the app.
- * It only ever SETS the cookie, never reads it to make a decision, so there is
- * nothing here worth attacking.
+ * Also enforces the WIP lock: visitors without the admin unlock cookie are
+ * rewritten to /wip. The unlock route sets that cookie after a password check.
+ *
+ * Note this runs before rendering and must not import app/server stores.
  */
 
-const COOKIE = "patina_ref";
+const REF_COOKIE = "patina_ref";
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 const VALID = /^[a-z2-9]{4,16}$/;
 
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (APP_WIP && !isUnlocked(request) && shouldLockPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/wip";
+    url.search = "";
+    return NextResponse.rewrite(url);
+  }
+
   const code = request.nextUrl.searchParams.get("r");
   const response = NextResponse.next();
 
@@ -30,9 +41,9 @@ export function proxy(request: NextRequest) {
 
   // First code wins. Otherwise anyone could overwrite a friend's credit by
   // sending the same person a second link.
-  if (request.cookies.get(COOKIE)) return response;
+  if (request.cookies.get(REF_COOKIE)) return response;
 
-  response.cookies.set(COOKIE, clean, {
+  response.cookies.set(REF_COOKIE, clean, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -41,6 +52,20 @@ export function proxy(request: NextRequest) {
   });
 
   return response;
+}
+
+function isUnlocked(request: NextRequest): boolean {
+  return request.cookies.get(WIP_UNLOCK_COOKIE)?.value === "1";
+}
+
+function shouldLockPath(pathname: string): boolean {
+  if (pathname === "/wip") return false;
+  if (pathname.startsWith("/api/")) return false;
+  if (pathname.startsWith("/_next/")) return false;
+  if (pathname === "/favicon.ico") return false;
+  if (pathname === "/manifest.webmanifest") return false;
+  if (/\.[a-zA-Z0-9]+$/.test(pathname)) return false;
+  return true;
 }
 
 export const config = {

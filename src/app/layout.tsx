@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppNav } from "./components/AppNav";
 import { SITE_URL } from "@/lib/site";
+import { isWipLocked } from "@/lib/wip-server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,22 +65,30 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locked = await isWipLocked();
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-text">
-        <AppNav />
-        {/* Clears the fixed mobile tab bar so nothing sits underneath it. */}
-        <div className="flex flex-1 flex-col pb-[calc(56px+env(safe-area-inset-bottom))] sm:pb-0">
-          {children}
-        </div>
+        {locked ? (
+          children
+        ) : (
+          <>
+            <AppNav />
+            {/* Clears the fixed mobile tab bar so nothing sits underneath it. */}
+            <div className="flex flex-1 flex-col pb-[calc(56px+env(safe-area-inset-bottom))] sm:pb-0">
+              {children}
+            </div>
+          </>
+        )}
       </body>
     </html>
   );

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none" role="img" aria-labelledby="title">
+  <title id="title">Construction work in progress</title>
+  <rect width="480" height="360" fill="#0b0c0b"/>
+  <!-- ground -->
+  <rect x="0" y="292" width="480" height="68" fill="#121412"/>
+  <path d="M0 292h480" stroke="#1e221f" stroke-width="2"/>
+
+  <!-- caution tape -->
+  <g transform="translate(48 248)">
+    <rect width="384" height="28" rx="2" fill="#1a1c1a"/>
+    <path d="M0 0h384v28H0z" fill="url(#stripes)"/>
+    <rect x="0" y="0" width="384" height="28" rx="2" stroke="#2a2e2b" stroke-width="1.5"/>
+  </g>
+
+  <!-- scaffolding -->
+  <g stroke="#35e0a1" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <path d="M150 248V120"/>
+    <path d="M330 248V120"/>
+    <path d="M150 120h180"/>
+    <path d="M150 168h180"/>
+    <path d="M150 216h180"/>
+    <path d="M150 120l40 48M190 120l40 48M230 120l40 48M270 120l40 48"/>
+    <path d="M190 168l40 48M230 168l40 48M270 168l40 48"/>
+  </g>
+  <g stroke="#2a3d34" stroke-width="2.5" stroke-linecap="round">
+    <path d="M150 248V120M330 248V120M150 120h180M150 168h180M150 216h180"/>
+  </g>
+  <g stroke="#35e0a1" stroke-width="2" stroke-linecap="round" opacity="0.55">
+    <path d="M150 120l40 48M190 120l40 48M230 120l40 48M270 120l40 48"/>
+    <path d="M190 168l40 48M230 168l40 48M270 168l40 48"/>
+  </g>
+
+  <!-- hard hat -->
+  <g transform="translate(220 88)">
+    <ellipse cx="20" cy="28" rx="28" ry="6" fill="#c9782a" opacity="0.9"/>
+    <path d="M2 26c2-18 12-26 18-26s16 8 18 26" fill="#e89a3a"/>
+    <rect x="14" y="10" width="12" height="6" rx="1" fill="#f0b45a"/>
+    <path d="M-4 26h48" stroke="#a86420" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- traffic cone -->
+  <g transform="translate(86 198)">
+    <path d="M18 50L4 50L14 0h8l10 50z" fill="#e86a2a"/>
+    <rect x="0" y="48" width="36" height="6" rx="1" fill="#c45a22"/>
+    <rect x="10" y="14" width="16" height="8" fill="#f4f0e8" opacity="0.95"/>
+    <rect x="8" y="30" width="20" height="8" fill="#f4f0e8" opacity="0.95"/>
+  </g>
+  <g transform="translate(358 198)">
+    <path d="M18 50L4 50L14 0h8l10 50z" fill="#e86a2a"/>
+    <rect x="0" y="48" width="36" height="6" rx="1" fill="#c45a22"/>
+    <rect x="10" y="14" width="16" height="8" fill="#f4f0e8" opacity="0.95"/>
+    <rect x="8" y="30" width="20" height="8" fill="#f4f0e8" opacity="0.95"/>
+  </g>
+
+  <defs>
+    <pattern id="stripes" patternUnits="userSpaceOnUse" width="28" height="28" patternTransform="rotate(-28)">
+      <rect width="14" height="28" fill="#e89a3a"/>
+      <rect x="14" width="14" height="28" fill="#1a1c1a"/>
+    </pattern>
+  </defs>
+</svg>
