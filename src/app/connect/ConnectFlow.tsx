@@ -161,14 +161,24 @@ export function ConnectFlow({
               app one look at each source.
             </p>
             {code && (
-              <ShareCard
-                score={score}
-                referralCode={code}
-                referralCount={invites}
-                username={username}
-                points={points}
-                rank={rank}
-              />
+              <div className="hidden sm:block">
+                <ShareCard
+                  score={score}
+                  referralCode={code}
+                  referralCount={invites}
+                  username={username}
+                  points={points}
+                  rank={rank}
+                />
+              </div>
+            )}
+            {code && (
+              <Link
+                href="/share"
+                className="btn btn-primary flex w-full px-6 py-3.5 text-base sm:hidden"
+              >
+                Share your card
+              </Link>
             )}
           </>
         )}

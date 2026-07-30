@@ -55,6 +55,36 @@ test("a pasted handle builds the URL Vana will ask for", () => {
   assert.equal(buildProfileUrl(SOURCE_SPECS.spotify, "anything"), "");
 });
 
+test("pasted YouTube channel URLs keep their real shape", () => {
+  assert.equal(
+    buildProfileUrl(SOURCE_SPECS.youtube, "https://www.youtube.com/channel/UCabc123"),
+    "https://www.youtube.com/channel/UCabc123",
+  );
+  assert.equal(
+    buildProfileUrl(SOURCE_SPECS.youtube, "https://m.youtube.com/c/MyChannel"),
+    "https://www.youtube.com/c/MyChannel",
+  );
+  assert.equal(
+    buildProfileUrl(SOURCE_SPECS.youtube, "https://youtube.com/user/legacyname"),
+    "https://www.youtube.com/user/legacyname",
+  );
+  assert.equal(
+    buildProfileUrl(SOURCE_SPECS.youtube, "https://m.youtube.com/@ramkumar"),
+    "https://www.youtube.com/@ramkumar",
+  );
+});
+
+test("Instagram deep links collapse to the profile root", () => {
+  assert.equal(
+    buildProfileUrl(SOURCE_SPECS.instagram, "https://www.instagram.com/ramkumar/reels/"),
+    "https://www.instagram.com/ramkumar",
+  );
+  assert.equal(
+    buildProfileUrl(SOURCE_SPECS.instagram, "https://instagram.com/ramkumar/"),
+    "https://www.instagram.com/ramkumar",
+  );
+});
+
 test("a handle cannot be used to point the URL somewhere else", () => {
   // If this were interpolated raw, the result would resolve to evil.com.
   const built = buildProfileUrl(SOURCE_SPECS.github, "ram%2F..%2F..%40evil.com");

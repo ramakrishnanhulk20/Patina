@@ -67,7 +67,7 @@ export function HandoffPrep({
             </span>
 
             <span className="mt-3 flex items-stretch overflow-hidden rounded-lg border border-line-strong bg-bg focus-within:border-accent">
-              <span className="t-mono hidden shrink-0 items-center bg-panel-2 px-3 text-sm text-text-3 sm:flex">
+              <span className="t-mono flex shrink-0 items-center bg-panel-2 px-2.5 text-xs text-text-3 sm:px-3 sm:text-sm">
                 {source.handle.prefix}
               </span>
               <input
@@ -98,6 +98,11 @@ export function HandoffPrep({
               We will copy <span className="text-accent">{url}</span> for you
             </p>
           )}
+
+          <p className="mt-3 text-xs leading-relaxed text-text-4">
+            If Vana says it could not connect the profile, come back and paste your full profile
+            link instead of just the username — especially for YouTube channels without an @.
+          </p>
         </>
       ) : (
         <>

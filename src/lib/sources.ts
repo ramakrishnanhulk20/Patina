@@ -8,9 +8,10 @@
  * needed it, and are being asked for it on somebody else's website halfway
  * through a flow they only half trust.
  *
- * So we prepare them here instead. Ask for the one thing they DO know (their
- * handle), build the URL for them, put it on their clipboard, and only then send
- * them over. By the time the box appears, the answer is already copied.
+ * So we prepare them here instead. Ask for the thing they DO know (their
+ * handle OR a pasted profile link), build the URL for them, put it on their
+ * clipboard on the way out. When the box appears on the next screen, the answer
+ * is already sitting in their paste buffer.
  *
  * No SDK imports: this file is shared with client components.
  */
@@ -44,12 +45,24 @@ export type SourceSpec = {
   findIt: string[] | null;
 };
 
+/** Hosts that count as "this platform" when someone pastes a mobile or bare URL. */
+const PLATFORM_HOSTS: Record<SourceId, string[]> = {
+  youtube: ["youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"],
+  instagram: ["instagram.com", "www.instagram.com", "m.instagram.com"],
+  github: ["github.com", "www.github.com"],
+  linkedin: ["linkedin.com", "www.linkedin.com", "m.linkedin.com"],
+  spotify: ["open.spotify.com", "spotify.com"],
+};
+
 /** Strip what people actually paste: full URLs, leading @, stray spaces. */
 export function cleanHandle(input: string): string {
   return input
     .trim()
     .replace(/^https?:\/\//i, "")
-    .replace(/^(www\.)?(youtube\.com|instagram\.com|github\.com|linkedin\.com)\/?/i, "")
+    .replace(
+      /^(www\.)?(m\.)?(music\.)?(youtube\.com|instagram\.com|github\.com|linkedin\.com)\/?/i,
+      "",
+    )
     .replace(/^in\//i, "")
     .replace(/^@/, "")
     .replace(/\/+$/, "")
@@ -65,9 +78,9 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     blurb: "The day your account was opened.",
     handle: {
       prefix: "youtube.com/@",
-      placeholder: "yourhandle",
+      placeholder: "yourhandle or paste channel link",
       urlTemplate: "https://www.youtube.com/@{handle}",
-      hint: "Open YouTube, tap your picture, and your handle is the bit starting with @.",
+      hint: "Paste your channel link if you have one (works for /@, /channel/, /c/). Or type the @ handle from your picture menu.",
     },
     findIt: null,
   },
@@ -90,9 +103,9 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     blurb: "How long you have been posting, and to how many.",
     handle: {
       prefix: "instagram.com/",
-      placeholder: "yourusername",
+      placeholder: "yourusername or paste profile link",
       urlTemplate: "https://www.instagram.com/{handle}",
-      hint: "Your username, the one shown at the top of your own profile.",
+      hint: "Your username, or paste your profile link. Reels/posts links are fine — we trim them.",
     },
     findIt: null,
   },
@@ -103,9 +116,9 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     blurb: "When you joined and what you have built.",
     handle: {
       prefix: "github.com/",
-      placeholder: "yourusername",
+      placeholder: "yourusername or paste profile link",
       urlTemplate: "https://github.com/{handle}",
-      hint: "Your GitHub username.",
+      hint: "Your GitHub username, or paste your profile link.",
     },
     findIt: null,
   },
@@ -118,9 +131,9 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     blurb: "Another independent account, and who is connected to you.",
     handle: {
       prefix: "linkedin.com/in/",
-      placeholder: "your-name",
+      placeholder: "your-name or paste /in/ link",
       urlTemplate: "https://www.linkedin.com/in/{handle}",
-      hint: "Open your LinkedIn profile. The bit after /in/ is your public name.",
+      hint: "Open your LinkedIn profile and paste the link (must include /in/). Or type the bit after /in/.",
     },
     findIt: null,
   },
@@ -136,7 +149,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     findIt: [
       "Open Spotify and go to your own profile.",
       "Tap the three dots, then Share, then Copy link to profile.",
-      "Come back here and paste it below.",
+      "Come back here and paste it on the Vana page when it asks.",
     ],
   },
 };
@@ -145,12 +158,132 @@ export const SOURCE_ORDER: SourceId[] = ["youtube", "instagram", "github", "link
 
 /**
  * The public profile URL Vana will ask for, or an empty string if we cannot
- * build one. Encodes the handle so a stray character cannot produce a URL
- * pointing somewhere other than the profile.
+ * build one.
+ *
+ * Two paths. If the person pasted a FULL profile URL for this platform, we
+ * preserve their exact path — this is what fixes the widespread "could not
+ * connect this public profile" failures. Reconstructing from a bare handle
+ * only knows one URL shape (youtube.com/@handle), but a huge share of real
+ * YouTube accounts are youtube.com/channel/UC…, /c/Name or /user/Name, and
+ * collapsing those to a single word produced a broken URL Vana could not
+ * resolve. A pasted URL carries the real shape.
+ *
+ * Otherwise we build from the bare handle via the template. Either way the
+ * result is pinned to the platform's own host, so a handle can never point the
+ * URL somewhere else.
  */
 export function buildProfileUrl(spec: SourceSpec, rawHandle: string): string {
   if (!spec.handle) return "";
-  const handle = cleanHandle(rawHandle);
+  const raw = rawHandle.trim();
+  if (!raw) return "";
+
+  const pasted = canonicalPlatformUrl(spec, raw);
+  if (pasted) return pasted;
+
+  const handle = cleanHandle(raw);
   if (!handle) return "";
   return spec.handle.urlTemplate.replace("{handle}", encodeURIComponent(handle));
+}
+
+/**
+ * If `raw` is a full URL on this platform's own host, return it normalised,
+ * path and all. Returns "" for a bare handle or an off-platform URL, so the
+ * caller falls back to the template and nothing off-host can slip through.
+ */
+function canonicalPlatformUrl(spec: SourceSpec, raw: string): string {
+  if (!spec.handle) return "";
+
+  let canonicalHost: string;
+  try {
+    canonicalHost = new URL(spec.handle.urlTemplate.replace("{handle}", "x")).host;
+  } catch {
+    return "";
+  }
+
+  // Add a scheme only when the input already looks like a domain with a path,
+  // so a bare handle ("ramkumar") is never mistaken for a URL.
+  const withScheme = /^https?:\/\//i.test(raw)
+    ? raw
+    : /^[a-z0-9-]+(\.[a-z0-9-]+)+\/\S/i.test(raw)
+      ? `https://${raw}`
+      : "";
+  if (!withScheme) return "";
+
+  let url: URL;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    return "";
+  }
+
+  const bare = (value: string) => value.replace(/^www\./i, "").toLowerCase();
+  const allowed = new Set(
+    (PLATFORM_HOSTS[spec.id] ?? [canonicalHost]).map((host) => bare(host)),
+  );
+  if (!allowed.has(bare(url.host))) return "";
+
+  const path = profilePathFor(spec.id, url);
+  if (!path) return "";
+
+  return `https://${canonicalHost}${path}`;
+}
+
+/**
+ * Trim deep links down to the profile root Vana's collector expects.
+ *
+ * Instagram share sheets often give /username/reels or /p/…. LinkedIn must
+ * keep /in/slug. YouTube must keep /@, /channel/, /c/, /user/ intact.
+ */
+function profilePathFor(id: SourceId, url: URL): string {
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts.length === 0) return "";
+
+  if (id === "instagram") {
+    const user = parts[0];
+    // Reserved Instagram path segments are not usernames.
+    if (["p", "reel", "reels", "stories", "explore", "accounts"].includes(user.toLowerCase())) {
+      return "";
+    }
+    return `/${encodeURIComponent(user)}`;
+  }
+
+  if (id === "linkedin") {
+    const inIndex = parts.findIndex((part) => part.toLowerCase() === "in");
+    if (inIndex === -1 || !parts[inIndex + 1]) return "";
+    return `/in/${encodeURIComponent(parts[inIndex + 1])}`;
+  }
+
+  if (id === "github") {
+    const user = parts[0];
+    if (["settings", "login", "orgs", "marketplace", "topics"].includes(user.toLowerCase())) {
+      return "";
+    }
+    return `/${encodeURIComponent(user)}`;
+  }
+
+  if (id === "youtube") {
+    // youtu.be is a video shortlink, not a channel — refuse it.
+    if (bareHost(url.host) === "youtu.be") return "";
+
+    const head = parts[0].toLowerCase();
+    if (head === "channel" || head === "c" || head === "user") {
+      if (!parts[1]) return "";
+      return `/${head}/${encodeURIComponent(parts[1])}`;
+    }
+    if (parts[0].startsWith("@")) {
+      // Keep the @ literal. Encoding it to %40 is a common reason Vana rejects
+      // an otherwise fine channel URL.
+      return `/@${encodeURIComponent(parts[0].slice(1))}`;
+    }
+    // /watch, /shorts, /playlist are not profiles.
+    if (["watch", "shorts", "playlist", "feed", "results"].includes(head)) return "";
+    // Bare custom path without @ — treat as a handle.
+    return `/@${encodeURIComponent(parts[0])}`;
+  }
+
+  return `/${parts.map((part) => encodeURIComponent(part)).join("/")}`;
+}
+
+function bareHost(value: string): string {
+  return value.replace(/^www\./i, "").toLowerCase();
 }
