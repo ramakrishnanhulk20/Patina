@@ -74,19 +74,20 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    // instagram.posts, NOT instagram.profile.
+    // instagram.profile, NOT instagram.posts.
     //
-    // This used to request the profile, on a note claiming posts were
-    // desktop-only. That was wrong twice over: the Data Pipe covers
-    // `instagram.posts` (up to the 150 most recent), and it is the connector's
-    // own default scope in the registry.
+    // We briefly switched to instagram.posts because the docs list it as
+    // Data-Pipe (web) collectable and it carries dates. A live connect proved
+    // otherwise: on the web path it demands the Data Connect DESKTOP app, which
+    // for this audience means they leave. The docs are unreliable in both
+    // directions — they were wrong about LinkedIn working, and wrong about
+    // posts working — so the only truth is a real connect on a phone.
     //
-    // It matters because the profile carries NO DATE. Requesting it meant
-    // Instagram contributed nothing to Age (40) or Corroboration (20) — 60 of
-    // the 100 points — and only fed Depth and Standing, which are gated down by
-    // timeFactor anyway. Post timestamps feed all four.
-    scopes: ["instagram.posts"],
-    blurb: "How far back your posts go.",
+    // So the profile it is. It has no date, so Instagram feeds Depth and
+    // Standing rather than Age, which is a smaller contribution but a real one
+    // that costs nobody an install.
+    scopes: ["instagram.profile"],
+    blurb: "How long you have been posting, and to how many.",
     handle: {
       prefix: "instagram.com/",
       placeholder: "yourusername",

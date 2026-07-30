@@ -11,7 +11,7 @@ description: Turn the history in accounts you already own into portable proof yo
 category: Identity
 scopes:
   - youtube.profile
-  - instagram.posts
+  - instagram.profile
   - github.profile
   - linkedin.profile
   - spotify.profile
@@ -34,4 +34,4 @@ Anyone can make a new account. Nobody can make an old one.
 
 Patina scores how much time is behind someone's accounts. Age and corroboration come from account-opened dates; volume, followers and breadth only count when real history backs them up.
 
-Web-only scopes (Data Pipe): youtube.profile, instagram.posts, github.profile, linkedin.profile, spotify.profile. No desktop required.
+Web-only scopes (Data Pipe): youtube.profile, instagram.profile, github.profile, linkedin.profile, spotify.profile. No desktop required.

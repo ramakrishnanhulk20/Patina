@@ -31,10 +31,10 @@ export const SOURCES = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    // Web-collectable through the Data Pipe, and the scope that carries dates.
-    // See the note in sources.ts.
-    scopes: ["instagram.posts"],
-    blurb: "How far back your posts go.",
+    // instagram.profile, not posts: a live connect showed posts demands the
+    // desktop app on the web path. See the note in sources.ts.
+    scopes: ["instagram.profile"],
+    blurb: "How long you have been posting, and to how many.",
   },
   github: {
     id: "github",

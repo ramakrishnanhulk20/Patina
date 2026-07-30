@@ -5,7 +5,7 @@ import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
 
 const SOURCES = [
   { name: "YouTube", reads: "The day your account was opened", note: "Google sign-in" },
-  { name: "Instagram", reads: "How far back your posts go", note: "Posts" },
+  { name: "Instagram", reads: "How long you have posted, and to how many", note: "Profile" },
   { name: "GitHub", reads: "When you joined and what you have built", note: "Profile" },
   { name: "LinkedIn", reads: "Another independent account, and who knows you", note: "Profile" },
   { name: "Spotify", reads: "A listening life", note: "Profile" },
