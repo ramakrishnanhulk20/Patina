@@ -109,7 +109,7 @@ export function AppNav() {
                 <Link
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 transition-colors ${
+                  className={`press flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 ${
                     active ? "text-accent" : "text-text-3"
                   }`}
                 >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { RingField } from "../../../components/RingField";
 import type { Story } from "@/lib/story";
@@ -192,6 +192,15 @@ export function StoryView({ username, story }: { username: string; story: Story 
               Back to your card
             </Link>
           </div>
+
+          <p className="mt-7 max-w-xl text-sm leading-relaxed text-text-3">
+            Or make it count double: let another app read the history you already connected, and
+            Patina scores an assist — worth two sign-ups in the Cup.{" "}
+            <Link href="/connect" className="text-accent underline underline-offset-4">
+              Put your data to work
+            </Link>
+            .
+          </p>
         </div>
       </section>
     </main>
@@ -268,10 +277,10 @@ function CountUp({ value, motion }: { value: number; motion: boolean }) {
   const [display, setDisplay] = useState(value);
 
   useEffect(() => {
-    if (!motion || !inView) {
-      setDisplay(value);
-      return;
-    }
+    // Not animating: the initial state already holds the final value, so there
+    // is nothing to set here — which also keeps this effect free of a direct
+    // state write on every pass.
+    if (!motion || !inView) return;
 
     let raf = 0;
     const start = performance.now();
@@ -297,22 +306,17 @@ function CountUp({ value, motion }: { value: number; motion: boolean }) {
  * arrive already revealed, so nothing would ever animate.
  */
 function useInView(ref: React.RefObject<HTMLElement | null>, motion: boolean): boolean {
-  const [inView, setInView] = useState(false);
+  const [seen, setSeen] = useState(false);
 
   useEffect(() => {
-    if (!motion) {
-      setInView(true);
-      return;
-    }
-    setInView(false);
-
+    if (!motion) return;
     const node = ref.current;
     if (!node) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setInView(true);
+          setSeen(true);
           observer.disconnect();
         }
       },
@@ -322,20 +326,26 @@ function useInView(ref: React.RefObject<HTMLElement | null>, motion: boolean): b
     return () => observer.disconnect();
   }, [ref, motion]);
 
-  return inView;
+  // Without motion there is nothing to wait for: everything counts as in view
+  // and stays visible. With motion, it holds false until the observer confirms.
+  return motion ? seen : true;
 }
 
-/** Whether animation is welcome here. False under prefers-reduced-motion. */
+/**
+ * Whether animation is welcome here. False under prefers-reduced-motion.
+ *
+ * Read as an external store rather than pushed into state from an effect: the
+ * server snapshot is false (motion off, everything visible, which is also the
+ * no-JS story), and the client subscribes to the media query directly.
+ */
 function useMotionAllowed(): boolean {
-  const [motion, setMotion] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setMotion(!query.matches);
-    sync();
-    query.addEventListener("change", sync);
-    return () => query.removeEventListener("change", sync);
-  }, []);
-
-  return motion;
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    },
+    () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false,
+  );
 }

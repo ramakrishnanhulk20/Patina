@@ -75,6 +75,63 @@
 html {
   background: var(--bg);
   color-scheme: dark;
+  /* Anchor jumps glide rather than teleport. The reduced-motion block below
+     turns this off for anyone who asked. */
+  scroll-behavior: smooth;
+}
+
+/*
+  ONE MOTION LANGUAGE.
+
+  Every interactive transition in the app pulls from these, so nothing moves on
+  a curve or a clock of its own. The curve is a gentle deceleration — fast to
+  start, soft to land — which is what makes a tap feel answered rather than
+  merely toggled.
+*/
+:root {
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-press: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/*
+  The grey box that mobile browsers flash over a tapped link is the single most
+  "unfinished" thing about a web app on a phone. We remove it everywhere and
+  provide our own press feedback instead, which is the whole difference between
+  a page and something that feels made.
+*/
+a,
+button,
+summary,
+label,
+[role="button"],
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+  Press feedback, applied to anything that should feel physical: it settles
+  under the finger and springs back. Kept tiny (0.98) so it reads as pressure,
+  not as a bounce. Honours reduced motion through the block at the foot of the
+  file.
+*/
+.press {
+  /* Bundles the colour transitions too, so dropping this on a card never
+     clobbers its hover recolour the way a transform-only rule would. */
+  transition:
+    transform 220ms var(--ease),
+    background-color 200ms var(--ease),
+    border-color 200ms var(--ease),
+    box-shadow 200ms var(--ease),
+    color 200ms var(--ease);
+  touch-action: manipulation;
+}
+
+.press:active {
+  transform: scale(0.98);
+  transition-duration: 60ms;
+  transition-timing-function: var(--ease-press);
 }
 
 body {
@@ -174,10 +231,21 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  touch-action: manipulation;
   transition:
-    background-color 160ms cubic-bezier(0.2, 0, 0, 1),
-    color 160ms cubic-bezier(0.2, 0, 0, 1),
-    border-color 160ms cubic-bezier(0.2, 0, 0, 1);
+    background-color 200ms var(--ease),
+    color 200ms var(--ease),
+    border-color 200ms var(--ease),
+    box-shadow 200ms var(--ease),
+    transform 220ms var(--ease);
+}
+
+/* Settles under the finger. The short, sharp curve on the way down is what
+   makes it feel like a real press rather than a slow squash. */
+.btn:active:not(:disabled) {
+  transform: scale(0.975);
+  transition-duration: 60ms;
+  transition-timing-function: var(--ease-press);
 }
 
 /*
@@ -209,6 +277,12 @@ input,
 textarea,
 select {
   font-size: max(1rem, 16px);
+  /* Focus should arrive, not snap. A field that eases to its accent border
+     reads as considered; one that flips reads as a default. */
+  transition:
+    border-color 200ms var(--ease),
+    box-shadow 200ms var(--ease),
+    background-color 200ms var(--ease);
 }
 
 .btn-primary {
@@ -218,6 +292,9 @@ select {
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-bright);
+  /* A faint verdigris halo on hover, so the primary action feels lit rather
+     than just recoloured. Only on devices that actually hover. */
+  box-shadow: 0 6px 24px -8px var(--accent);
 }
 
 .btn-primary:disabled {

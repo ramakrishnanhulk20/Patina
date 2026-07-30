@@ -141,15 +141,17 @@ export function ConnectFlow({
           that there is a whole page waiting for them.
         */}
         {connectedCount > 0 && username && (
-          <Link
-            href={`/u/${encodeURIComponent(username)}/story`}
-            className="btn btn-primary w-full flex-col gap-0.5 px-6 py-4 text-base"
-          >
-            <span>See your whole story</span>
-            <span className="text-xs font-normal opacity-70">
-              A time machine, built from your history
-            </span>
-          </Link>
+          <div>
+            <Link
+              href={`/u/${encodeURIComponent(username)}/story`}
+              className="btn btn-primary w-full px-6 py-3.5 text-base"
+            >
+              See your whole story
+            </Link>
+            <p className="mt-2 text-center text-sm text-text-3">
+              A time machine, built from your history.
+            </p>
+          </div>
         )}
 
         {connectedCount > 0 && (
