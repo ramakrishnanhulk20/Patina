@@ -132,7 +132,7 @@ export function ConnectFlow({
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-8">
-        <ScorePanel score={score} />
+        <ScorePanel score={score} username={username} />
 
         {/*
           The story sits right under the score on purpose. It is the payoff for

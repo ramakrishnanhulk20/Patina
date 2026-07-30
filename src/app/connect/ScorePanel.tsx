@@ -1,6 +1,8 @@
 "use client";
 
 import type { Component } from "@/lib/score";
+import { GlowCard3D } from "../components/GlowCard3D";
+import { PlateCard } from "../components/PlateCard";
 
 export type ScoreView = {
   total: number;
@@ -10,34 +12,47 @@ export type ScoreView = {
   sourcesConnected: string[];
 };
 
-function formatMonthYear(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-}
-
-export function ScorePanel({ score }: { score: ScoreView }) {
+export function ScorePanel({
+  score,
+  username,
+}: {
+  score: ScoreView;
+  /** Printed on the card. Falls back to a friendly placeholder before naming. */
+  username?: string | null;
+}) {
   const empty = score.sourcesConnected.length === 0;
+  const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
+  const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
+  const name = username && username.trim() ? username : "you";
 
   return (
     <div className="border border-line bg-panel">
-      <div className="border-b border-line p-6 sm:p-8">
-        <p className="t-label text-text-3">Your Patina</p>
-
-        <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
-          <span className="t-display text-accent" aria-label={`${score.total} out of 100`}>
-            {score.total}
-          </span>
-          <span className="pb-2 text-lg text-text-2">{empty ? "Nothing yet" : score.verdict}</span>
-        </div>
-
-        {score.oldestSignal && (
-          <p className="mt-4 text-lg leading-relaxed text-text-2">
-            Your trail starts in{" "}
-            <span className="text-text">{formatMonthYear(score.oldestSignal.date)}</span>. That is{" "}
-            <span className="text-text">{score.oldestSignal.years} years</span> of history nobody
-            could have manufactured.
+      {empty ? (
+        // Nothing to render on a card yet, so the panel opens with the plain
+        // number and an invitation rather than a lifeless "0" card.
+        <div className="border-b border-line p-6 sm:p-8">
+          <p className="t-label text-text-3">Your Patina</p>
+          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
+            <span className="t-display text-accent" aria-label={`${score.total} out of 100`}>
+              {score.total}
+            </span>
+            <span className="pb-2 text-lg text-text-2">Nothing yet</span>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-text-3">
+            Connect a source and this turns into your card — the thing you share.
           </p>
-        )}
-      </div>
+        </div>
+      ) : (
+        // The live card, in place of a bare number. It carries the score, the
+        // verdict and the year, so nothing is lost by dropping the digits — and
+        // it is the exact object the person will go on to share.
+        <div className="border-b border-line p-4 sm:p-5">
+          <p className="t-label px-1 pb-3 text-text-3">Your Patina</p>
+          <GlowCard3D username={name} score={score.total} verdict={score.verdict} year={year} years={years}>
+            <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} />
+          </GlowCard3D>
+        </div>
+      )}
 
       <dl className="divide-y divide-line">
         {score.components.map((component) => {
