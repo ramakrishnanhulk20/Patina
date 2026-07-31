@@ -1,4 +1,5 @@
-import { controllerFor } from "@/lib/vana";
+import { isSourceId } from "@/lib/vana";
+import { readApprovedDataSettled } from "@/lib/vana-settle-read";
 import { readReferralCode, readSessionId } from "@/lib/session";
 import {
   evidenceOf,
@@ -38,11 +39,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Every readApprovedData call settles a real fee, so a result is only ever
-    // fetched from the Personal Server once. A replayed request id is served from
-    // the cache and cannot drain escrow a cent at a time.
+    if (!isSourceId(pending.source)) {
+      return Response.json({ error: "Unknown source" }, { status: 400 });
+    }
+
+    // Prefer gateway settle (payForOp) before X-PAYMENT retry — matches the
+    // protocol docs. The stock SDK path only signs a header and was leaving
+    // every Patina read on "still requires payment after escrow settlement".
     const result =
-      pending.result ?? (await controllerFor(pending.source).readApprovedData({ requestId }));
+      pending.result ?? (await readApprovedDataSettled(pending.source, requestId));
 
     if (pending.result === undefined) {
       await rememberRequest(requestId, { ...pending, result });
