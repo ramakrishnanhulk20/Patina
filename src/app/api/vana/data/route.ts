@@ -1,4 +1,5 @@
-import { controllerFor, isSourceId } from "@/lib/vana";
+import { isSourceId } from "@/lib/vana";
+import { readApprovedDataSettled } from "@/lib/vana-settle-read";
 import { readReferralCode, readSessionId } from "@/lib/session";
 import {
   evidenceOf,
@@ -42,20 +43,12 @@ export async function GET(request: Request) {
       return Response.json({ error: "Unknown source" }, { status: 400 });
     }
 
-    // Let the SDK settle the 402 the way Vana intends: it signs the payment
-    // challenge (INCLUDING the accessRecord receipt the Personal Server hands
-    // back), sends it as X-PAYMENT, and the Personal Server settles it against
-    // our escrow server-side. It also retries transient network drops, which
-    // matters on mobile data.
-    //
-    // This replaces a hand-rolled settler that called the escrow gateway's
-    // /v1/escrow/pay directly and STRIPPED the accessRecord — which the gateway
-    // rejected ("accessRecord is required when dataAccessFee is greater than 0"),
-    // silently swallowed, then failed every paid read on "still requires payment
-    // after escrow settlement". Web Personal Servers mint their own dataPointIds,
-    // so the app must never call the gateway directly; the Personal Server does.
+    // Settle the 402 through the escrow gateway WITH the accessRecord, then read.
+    // The SDK's built-in readApprovedData (X-PAYMENT only, Personal Server
+    // settles server-side) does NOT settle on mainnet for this app — the read
+    // comes back 402 with registrationOwed. See vana-settle-read.ts.
     const result =
-      pending.result ?? (await controllerFor(pending.source).readApprovedData({ requestId }));
+      pending.result ?? (await readApprovedDataSettled(pending.source, requestId));
 
     if (pending.result === undefined) {
       await rememberRequest(requestId, { ...pending, result });
