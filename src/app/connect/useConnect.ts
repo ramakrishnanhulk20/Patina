@@ -26,10 +26,18 @@ import { useDirectVanaConnect } from "@opendatalabs/vana-sdk/react";
  * synchronously inside the click's transient activation, which is what gets past
  * blockers, and `popupBlocked` is reported so we can show a real link instead.
  *
- * What we add here is the mobile part. Switching tabs on a phone throttles
- * timers in the backgrounded one, so polling can crawl while the user is
- * approving. Coming back re-polls immediately instead of waiting out the
- * interval.
+ * What we add here is the mobile part, in two pieces:
+ *
+ *  1. Switching tabs on a phone throttles timers in the backgrounded one, so
+ *     polling can crawl while the user is approving. Coming back re-polls
+ *     immediately instead of waiting out the interval.
+ *
+ *  2. Phones DISCARD backgrounded tabs under memory pressure. The SDK keeps the
+ *     whole flow (requestId, poll timer) in memory, so a discard erases it: the
+ *     user approves in the Vana tab, comes back, and our tab has reloaded to a
+ *     blank slate with nothing left polling — stranded after approving, and
+ *     after paying. So the in-flight request is mirrored into localStorage and,
+ *     on reload, we pick it back up and finish the read ourselves.
  */
 
 export type ConnectPhase =
@@ -54,10 +62,66 @@ async function jsonFetch(path: string, init?: RequestInit) {
   return body;
 }
 
+/**
+ * A connection in flight, mirrored to localStorage so a discarded tab can pick
+ * it back up. Keyed once (there is only ever one connect at a time) and stamped
+ * so a stale entry cannot trigger a resume long after the fact.
+ */
+const PENDING_KEY = "patina:v1:connect-pending";
+/** Ignore a stored request older than the flow's own timeout: it cannot succeed. */
+const RESUME_TTL_MS = 6 * 60 * 1000;
+/** How long a resumed read waits for approval, then the data, before giving up. */
+const RESUME_POLL_MS = 2 * 60 * 1000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type PendingConnect = { requestId: string; source: string; startedAt: number };
+
+function savePending(pending: PendingConnect): void {
+  try {
+    window.localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  } catch {
+    // Private mode or a full quota. Resume is a safety net, not load-bearing.
+  }
+}
+
+function loadPending(): PendingConnect | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingConnect;
+    if (
+      typeof parsed?.requestId === "string" &&
+      typeof parsed?.source === "string" &&
+      typeof parsed?.startedAt === "number"
+    ) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function clearPending(): void {
+  try {
+    window.localStorage.removeItem(PENDING_KEY);
+  } catch {
+    // Ignore: see savePending.
+  }
+}
+
 export function useConnect(onConnected: () => void | Promise<void>) {
   const [source, setSource] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const readingSince = useRef<number | null>(null);
+  // Drives the phase while finishing a connection that was resumed from
+  // localStorage after a tab discard, when the SDK flow itself is back at idle.
+  const [resume, setResume] = useState<
+    | { source: string; kind: "reading" }
+    | { source: string; kind: "error"; message: string; code?: string }
+    | null
+  >(null);
   // Kept in a ref so the completion effect does not re-run every time the
   // parent hands down a new callback identity. Assigned in an effect rather
   // than during render, which React treats as a side effect.
@@ -95,10 +159,115 @@ export function useConnect(onConnected: () => void | Promise<void>) {
   const state = connect.state;
   const isReading = state.type === "reading";
   const isDone = state.type === "done";
+  const resumeReading = resume?.kind === "reading";
+  const showReading = isReading || resumeReading;
 
-  // Tick the "this is taking a while" counter, started when reading begins.
+  /**
+   * Mirror the in-flight request to storage while it is live, so a discarded
+   * tab can resume it. Saved once the request exists (awaiting_approval); the
+   * requestId does not change through reading, so there is no need to re-save.
+   * Cleared on a terminal SDK state. Deliberately NOT cleared on idle/creating:
+   * clearing on idle would wipe a just-restored entry on mount before the resume
+   * effect below can read it.
+   */
   useEffect(() => {
-    if (!isReading) {
+    if (state.type === "awaiting_approval") {
+      savePending({
+        requestId: (state.request as { requestId: string }).requestId,
+        source: sourceRef.current ?? source ?? "",
+        startedAt: Date.now(),
+      });
+    } else if (state.type === "done" || state.type === "error") {
+      clearPending();
+    }
+  }, [state, source]);
+
+  /**
+   * Pick up a connection stranded by a tab discard.
+   *
+   * Runs once, on mount. If storage holds a fresh in-flight request and the SDK
+   * flow has been reset to idle by the reload, we finish it ourselves: poll
+   * until Vana says the read is possible, fire the read, then hand off to the
+   * same onConnected refresh a normal completion uses. Times out quietly rather
+   * than erroring, so an abandoned attempt does not resurface as a scary message.
+   */
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    resumedRef.current = true;
+
+    const pending = loadPending();
+    if (!pending) return;
+    if (Date.now() - pending.startedAt > RESUME_TTL_MS) {
+      clearPending();
+      return;
+    }
+
+    setSource(pending.source);
+    setSeconds(0);
+    setResume({ source: pending.source, kind: "reading" });
+
+    void (async () => {
+      const deadline = Date.now() + RESUME_POLL_MS;
+      let ready = false;
+      try {
+        while (Date.now() < deadline) {
+          let status: { status?: string };
+          try {
+            status = await jsonFetch(
+              `/api/vana/status?requestId=${encodeURIComponent(pending.requestId)}`,
+            );
+          } catch {
+            // Unknown or not-ours request (404/403): nothing to resume.
+            clearPending();
+            setResume(null);
+            setSource(null);
+            return;
+          }
+          if (status.status === "approved" || status.status === "ready_for_read") {
+            ready = true;
+            break;
+          }
+          if (
+            status.status === "denied" ||
+            status.status === "expired" ||
+            status.status === "completed"
+          ) {
+            clearPending();
+            setResume(null);
+            setSource(null);
+            return;
+          }
+          await sleep(1500);
+        }
+
+        if (!ready) {
+          // Never approved within the window — treat as abandoned, silently.
+          clearPending();
+          setResume(null);
+          setSource(null);
+          return;
+        }
+
+        await jsonFetch(`/api/vana/data?requestId=${encodeURIComponent(pending.requestId)}`);
+        await onConnectedRef.current();
+        clearPending();
+        setResume(null);
+        setSource(null);
+      } catch (err) {
+        // Approved but the read failed — this IS worth showing (e.g. an empty
+        // source returns SOURCE_EMPTY, which becomes "check your source").
+        clearPending();
+        const e = err as Error & { code?: string };
+        setResume({ source: pending.source, kind: "error", message: e.message, code: e.code });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tick the "this is taking a while" counter, for a live read or a resumed one.
+  useEffect(() => {
+    if (!showReading) {
       readingSince.current = null;
       return;
     }
@@ -111,7 +280,7 @@ export function useConnect(onConnected: () => void | Promise<void>) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isReading]);
+  }, [showReading]);
 
   // Coming back from the Vana tab should feel instant. Mobile browsers throttle
   // timers in a backgrounded tab, so without this the user returns to a page
@@ -143,6 +312,7 @@ export function useConnect(onConnected: () => void | Promise<void>) {
       sourceRef.current = next;
       setSource(next);
       setSeconds(0);
+      setResume(null);
       // start() must run inside the click so the SDK can open the approval tab
       // under the browser's transient activation. Deferring it here is what
       // gets the popup blocked.
@@ -155,9 +325,18 @@ export function useConnect(onConnected: () => void | Promise<void>) {
     connect.reset();
     sourceRef.current = null;
     setSource(null);
+    setResume(null);
+    clearPending();
   }, [connect]);
 
   const phase: ConnectPhase = (() => {
+    // A resumed connection drives the UI while the SDK flow sits idle.
+    if (resume) {
+      return resume.kind === "reading"
+        ? { type: "reading", source: resume.source, seconds }
+        : { type: "error", source: resume.source, message: resume.message, code: resume.code };
+    }
+
     const forSource = source ?? "";
     switch (state.type) {
       case "creating":
