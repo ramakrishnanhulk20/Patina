@@ -140,14 +140,44 @@ export function SourceCard({
 
       {errored && (
         <div className="mt-5 border-t border-line pt-4">
-          <p className="text-sm text-bad">{phase.message}</p>
-          <button
-            type="button"
-            onClick={onDismissError}
-            className="tap t-label mt-2 text-text-3 underline-offset-4 hover:text-text hover:underline"
-          >
-            Try again
-          </button>
+          {phase.code === "SOURCE_EMPTY" ? (
+            <>
+              <p className="text-sm text-warn">{phase.message}</p>
+              <p className="mt-2 text-xs leading-relaxed text-text-4">
+                Open your {source.label} source on Vana and take a look. If it is empty or the wrong
+                account, remove it and add the right one — it has to be a public profile — then
+                reconnect here.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <a
+                  href={`https://app.vana.org/sources/${source.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary px-5 py-2.5 text-sm"
+                >
+                  Check your {source.label} on Vana
+                </a>
+                <button
+                  type="button"
+                  onClick={onDismissError}
+                  className="tap t-label text-text-3 underline-offset-4 hover:text-text hover:underline"
+                >
+                  Reconnect
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-bad">{phase.message}</p>
+              <button
+                type="button"
+                onClick={onDismissError}
+                className="tap t-label mt-2 text-text-3 underline-offset-4 hover:text-text hover:underline"
+              >
+                Try again
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

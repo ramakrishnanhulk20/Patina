@@ -15,7 +15,7 @@ import {
 } from "@opendatalabs/vana-sdk/server";
 import { CONTRACTS, createEscrowGatewayClient } from "@opendatalabs/vana-sdk";
 import { privateKeyToAccount } from "viem/accounts";
-import { controllerFor, type SourceId } from "./vana";
+import { controllerFor, SOURCES, type SourceId } from "./vana";
 
 /**
  * Paid Personal Server read, settled through the escrow gateway.
@@ -33,15 +33,49 @@ import { controllerFor, type SourceId } from "./vana";
  * registration. Then we re-read; the Personal Server now sees a settled op and
  * returns the data.
  *
- * A previous version stripped the accessRecord (to dodge an earlier, different
- * gateway 400) and swallowed the failure, so every paid read died on
- * "still requires payment after escrow settlement" with the real cause hidden.
- * Every error here is now surfaced.
+ * The one remaining failure is a real one the user can fix: if the source they
+ * connected collected EMPTY on Vana's side, the gateway has no data point to
+ * charge for and answers "dataPointId ... not found in gateway". That is not a
+ * payment fault — it is an empty source — so it is raised as SourceEmptyError
+ * and turned into "check your source" guidance rather than a scary error.
  */
 
 const network = process.env.VANA_NETWORK === "moksha" ? "moksha" : "mainnet";
 const env = process.env.VANA_ENV === "dev" ? "dev" : "production";
 const chainId = network === "mainnet" ? 1480 : 14800;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * The escrow gateway reports a dataPointId as "not found" when the source the
+ * user connected collected EMPTY on Vana's side (or has not finished collecting
+ * yet). There is no data to charge for, so the read can never settle — this is
+ * a user-fixable situation, not a payment fault.
+ */
+function isDataPointMissing(text: string | undefined): boolean {
+  return typeof text === "string" && /not found in gateway/i.test(text);
+}
+
+/** Friendly, source-named explanation shown when a source collected no data. */
+export function emptySourceMessage(source: SourceId): string {
+  const label = SOURCES[source]?.label ?? source;
+  return `We couldn't read any data from your ${label}. It may be empty, private, or still collecting on Vana.`;
+}
+
+/**
+ * Thrown when the source has no readable data. Carries a `code` the API route
+ * turns into a 422 and the connect UI turns into "check your source" guidance,
+ * instead of a scary payment error.
+ */
+export class SourceEmptyError extends Error {
+  readonly code = "SOURCE_EMPTY";
+  readonly details: unknown;
+  constructor(source: SourceId, details?: unknown) {
+    super(emptySourceMessage(source));
+    this.name = "SourceEmptyError";
+    this.details = details;
+  }
+}
 
 function escrowConfig(account: ReturnType<typeof privateKeyToAccount>): EscrowPaymentConfig {
   const endpoints = getDirectEndpoints(env);
@@ -120,25 +154,49 @@ export async function readApprovedDataSettled(
     });
 
     // Settle through the escrow gateway WITH the accessRecord. This pays the
-    // data-access fee and clears any owed registration. Surface failures rather
-    // than swallowing them, so a bad settle is visible in the next log.
+    // data-access fee and clears any owed registration. A "not found in gateway"
+    // means the data point is not there yet (empty source, or Vana still
+    // registering it), so retry once briefly before deciding it is empty.
     let settleError: string | undefined;
-    try {
-      const receipt = await authorizeGrantPayment({
-        payerAddress: account.address,
-        required,
-        config: escrow,
+    let settled = false;
+    for (let attempt = 0; attempt < 2 && !settled; attempt += 1) {
+      if (attempt > 0) await sleep(1500);
+      try {
+        const receipt = await authorizeGrantPayment({
+          payerAddress: account.address,
+          required,
+          config: escrow,
+        });
+        settled = true;
+        settleError = undefined;
+        console.info("[vana/settle] gateway settle ok", {
+          requestId,
+          source,
+          opId: receipt.opId,
+          amount: receipt.amount,
+          registrationPaid: receipt.breakdown?.registrationPaid,
+        });
+      } catch (err) {
+        settleError = err instanceof Error ? err.message : String(err);
+        console.error("[vana/settle] gateway settle failed", {
+          requestId,
+          source,
+          attempt,
+          error: settleError,
+        });
+        // Only a missing data point is worth retrying; other errors will not heal.
+        if (!isDataPointMissing(settleError)) break;
+      }
+    }
+
+    // A missing data point after retrying means the source is empty/unreadable.
+    // Surface it as user-fixable guidance, not a payment failure.
+    if (!settled && isDataPointMissing(settleError)) {
+      throw new SourceEmptyError(source, {
+        grantId: required.grantId,
+        dataPointId: required.accessRecord?.dataPointId,
+        settleError,
       });
-      console.info("[vana/settle] gateway settle ok", {
-        requestId,
-        source,
-        opId: receipt.opId,
-        amount: receipt.amount,
-        registrationPaid: receipt.breakdown?.registrationPaid,
-      });
-    } catch (err) {
-      settleError = err instanceof Error ? err.message : String(err);
-      console.error("[vana/settle] gateway settle failed", { requestId, source, error: settleError });
     }
 
     // Re-read. The op is now settled on the gateway, so a plain read should
@@ -168,6 +226,14 @@ export async function readApprovedDataSettled(
         settleError,
         body: body.slice(0, 1500),
       });
+      // If the data point is missing here too, it is the empty-source case.
+      if (isDataPointMissing(settleError) || isDataPointMissing(body)) {
+        throw new SourceEmptyError(source, {
+          grantId: required.grantId,
+          settleError,
+          personalServerBody: body.slice(0, 500),
+        });
+      }
       throw new PaymentRequiredError(
         "Personal Server still requires payment after escrow settlement",
         {

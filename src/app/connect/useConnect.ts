@@ -37,12 +37,20 @@ export type ConnectPhase =
   | { type: "starting"; source: string }
   | { type: "awaiting"; source: string; approvalUrl: string; popupBlocked: boolean }
   | { type: "reading"; source: string; seconds: number }
-  | { type: "error"; source: string; message: string };
+  | { type: "error"; source: string; message: string; code?: string };
 
 async function jsonFetch(path: string, init?: RequestInit) {
   const res = await fetch(path, init);
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.error ?? `Something went wrong (${res.status})`);
+  if (!res.ok) {
+    const error = new Error(body?.error ?? `Something went wrong (${res.status})`) as Error & {
+      code?: string;
+    };
+    // Carry the machine-readable code (e.g. SOURCE_EMPTY) so the UI can show
+    // "check your source" guidance instead of a generic error.
+    if (typeof body?.code === "string") error.code = body.code;
+    throw error;
+  }
   return body;
 }
 
@@ -164,7 +172,12 @@ export function useConnect(onConnected: () => void | Promise<void>) {
       case "reading":
         return { type: "reading", source: forSource, seconds };
       case "error":
-        return { type: "error", source: forSource, message: state.error.message };
+        return {
+          type: "error",
+          source: forSource,
+          message: state.error.message,
+          code: (state.error as { code?: string }).code,
+        };
       default:
         return { type: "idle" };
     }

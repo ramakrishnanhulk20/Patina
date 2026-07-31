@@ -1,5 +1,5 @@
 import { isSourceId } from "@/lib/vana";
-import { readApprovedDataSettled } from "@/lib/vana-settle-read";
+import { emptySourceMessage, readApprovedDataSettled } from "@/lib/vana-settle-read";
 import { readReferralCode, readSessionId } from "@/lib/session";
 import {
   evidenceOf,
@@ -60,7 +60,18 @@ export async function GET(request: Request) {
     // the write failed (a Redis blip, a cold instance timing out) the retry would
     // hit the cache, skip recording, and return early. The user had paid, the read
     // had succeeded, and their source was silently lost with no way to recover it.
-    await ensureRecorded(pending, result);
+    // A read that comes back with no usable data — an empty or wrong account, a
+    // private profile, or a Vana collection that returned nothing — records
+    // nothing. That must not look like a silent success: tell the user the
+    // source is empty so they can fix it, the same as the payment-time case.
+    const recorded = await ensureRecorded(pending, result);
+    if (!recorded) {
+      console.info("[vana/data] empty source", { requestId, source: pending.source });
+      return Response.json(
+        { error: emptySourceMessage(pending.source), code: "SOURCE_EMPTY" },
+        { status: 422 },
+      );
+    }
 
     return Response.json(await withScore(pending.profileId, result, pending.result !== undefined));
   } catch (err) {
@@ -75,7 +86,10 @@ export async function GET(request: Request) {
     const details =
       err && typeof err === "object" && "details" in err ? err.details : undefined;
     console.error("[vana/data]", { requestId, source: pending.source, code, message, details });
-    return Response.json({ error: message, code, details }, { status: 502 });
+    // An empty source is the user's to fix (wrong/empty/private account), not a
+    // server fault — 422 so the connect UI shows guidance instead of a 5xx error.
+    const status = code === "SOURCE_EMPTY" ? 422 : 502;
+    return Response.json({ error: message, code, details }, { status });
   }
 }
 
@@ -85,14 +99,15 @@ export async function GET(request: Request) {
  * Safe to call repeatedly with the same read: it overwrites the same source
  * slot with the same data and re-ranks to the same score.
  */
-async function ensureRecorded(pending: PendingRequest, result: unknown): Promise<void> {
+async function ensureRecorded(pending: PendingRequest, result: unknown): Promise<boolean> {
   const existing = await getProfile(pending.profileId);
   const scope = (result as { scope?: string }).scope ?? pending.source;
   const evidence = foldRead({}, scope, result);
 
   // Nothing usable came back. Recording an empty source would claim a slot and
-  // stop a later, better read from filling it.
-  if (Object.keys(evidence).length === 0) return;
+  // stop a later, better read from filling it. Report it so the caller can tell
+  // the user, rather than returning a success with no source to show for it.
+  if (Object.keys(evidence).length === 0) return false;
 
   const merged = { ...(existing ? evidenceOf(existing) : {}), ...evidence };
   const score = scorePatina(merged);
@@ -109,6 +124,8 @@ async function ensureRecorded(pending: PendingRequest, result: unknown): Promise
     score.total,
     await referrerFor(pending.profileId),
   );
+
+  return true;
 }
 
 /**
