@@ -1,6 +1,10 @@
 import { createDirectDataController } from "@opendatalabs/vana-sdk/server";
 
-const network = process.env.VANA_NETWORK === "mainnet" ? "mainnet" : "moksha";
+// Match Vana's data-app-starter / Career Quest default: mainnet unless moksha
+// is set explicitly. The old inverted default (moksha unless mainnet) was a
+// footgun — EIP-712 payment signs against the wrong chain if the env is missing.
+const network = process.env.VANA_NETWORK === "moksha" ? "moksha" : "mainnet";
+const env = process.env.VANA_ENV === "dev" ? "dev" : "production";
 
 /**
  * Patina reads one source per approval trip. Vana binds a grant to the
@@ -89,7 +93,7 @@ export function controllerFor(source: SourceId) {
 
   const spec = SOURCES[source];
   const controller = createDirectDataController({
-    env: "production",
+    env,
     network,
     appPrivateKey: process.env.VANA_APP_PRIVATE_KEY!,
     app: {

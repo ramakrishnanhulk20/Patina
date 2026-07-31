@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  *
  * Exists because the two failures that matter here are both SILENT. If the
  * Redis credentials are missing the app still boots, still scores people, and
- * quietly forgets everything on the next cold start. If VANA_NETWORK is left on
+ * quietly forgets everything on the next cold start. If VANA_NETWORK is set to
  * moksha the app works perfectly and earns nothing, because Cup points are only
  * scored on mainnet.
  *
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  * (which users see on the approval screen anyway), and booleans. No secrets.
  */
 export async function GET() {
-  const network = process.env.VANA_NETWORK === "mainnet" ? "mainnet" : "moksha";
+  const network = process.env.VANA_NETWORK === "moksha" ? "moksha" : "mainnet";
 
   let address: string | null = null;
   try {

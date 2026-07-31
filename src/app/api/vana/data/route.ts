@@ -37,25 +37,40 @@ export async function GET(request: Request) {
     return Response.json({ error: "Not your request" }, { status: 403 });
   }
 
-  // Every readApprovedData call settles a real fee, so a result is only ever
-  // fetched from the Personal Server once. A replayed request id is served from
-  // the cache and cannot drain escrow a cent at a time.
-  const result =
-    pending.result ?? (await controllerFor(pending.source).readApprovedData({ requestId }));
+  try {
+    // Every readApprovedData call settles a real fee, so a result is only ever
+    // fetched from the Personal Server once. A replayed request id is served from
+    // the cache and cannot drain escrow a cent at a time.
+    const result =
+      pending.result ?? (await controllerFor(pending.source).readApprovedData({ requestId }));
 
-  if (pending.result === undefined) {
-    await rememberRequest(requestId, { ...pending, result });
+    if (pending.result === undefined) {
+      await rememberRequest(requestId, { ...pending, result });
+    }
+
+    // Recording is idempotent and happens on BOTH paths, including the cached one.
+    //
+    // This is the important part. Caching used to happen before recording, so if
+    // the write failed (a Redis blip, a cold instance timing out) the retry would
+    // hit the cache, skip recording, and return early. The user had paid, the read
+    // had succeeded, and their source was silently lost with no way to recover it.
+    await ensureRecorded(pending, result);
+
+    return Response.json(await withScore(pending.profileId, result, pending.result !== undefined));
+  } catch (err) {
+    // Without this, Next turns SDK failures into an opaque 500 and the connect
+    // UI can only say "Something went wrong (500)" — which is what users report
+    // while Vana sits on "waiting for Patina to finish".
+    const message = err instanceof Error ? err.message : "Failed to read approved data";
+    const code =
+      err && typeof err === "object" && "code" in err && typeof err.code === "string"
+        ? err.code
+        : undefined;
+    const details =
+      err && typeof err === "object" && "details" in err ? err.details : undefined;
+    console.error("[vana/data]", { requestId, source: pending.source, code, message, details });
+    return Response.json({ error: message, code, details }, { status: 502 });
   }
-
-  // Recording is idempotent and happens on BOTH paths, including the cached one.
-  //
-  // This is the important part. Caching used to happen before recording, so if
-  // the write failed (a Redis blip, a cold instance timing out) the retry would
-  // hit the cache, skip recording, and return early. The user had paid, the read
-  // had succeeded, and their source was silently lost with no way to recover it.
-  await ensureRecorded(pending, result);
-
-  return Response.json(await withScore(pending.profileId, result, pending.result !== undefined));
 }
 
 /**

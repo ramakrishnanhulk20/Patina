@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import type { ConnectPhase } from "./useConnect";
-import { HandoffPrep } from "./HandoffPrep";
 import type { SourceSpec } from "@/lib/sources";
 
 /**
@@ -36,8 +34,6 @@ export function SourceCard({
   onStart: (source: string) => void;
   onDismissError: () => void;
 }) {
-  const [preparing, setPreparing] = useState(false);
-
   const mine = phase.type !== "idle" && phase.source === source.id;
   const busy =
     mine && (phase.type === "starting" || phase.type === "awaiting" || phase.type === "reading");
@@ -64,11 +60,11 @@ export function SourceCard({
           <p className="mt-1 text-sm leading-relaxed text-text-2">{source.blurb}</p>
         </div>
 
-        {!connected && !preparing && (
+        {!connected && (
           <button
             type="button"
             disabled={busy || otherBusy || locked}
-            onClick={() => setPreparing(true)}
+            onClick={() => onStart(source.id)}
             title={locked ? "Sign in first so your score follows you, not this browser" : undefined}
             className="btn btn-primary shrink-0 px-5 py-2.5 text-sm"
           >
@@ -76,15 +72,6 @@ export function SourceCard({
           </button>
         )}
       </div>
-
-      {preparing && !connected && !locked && (
-        <HandoffPrep
-          source={source}
-          busy={busy}
-          onContinue={() => onStart(source.id)}
-          onCancel={() => setPreparing(false)}
-        />
-      )}
 
       {busy && (
         <div className="mt-5 border-t border-line pt-4">
@@ -137,8 +124,8 @@ export function SourceCard({
               )}
 
               <p className="mt-3 text-xs leading-relaxed text-text-4">
-                Paste your link there and approve, then come back to this tab. Keep both open:
-                Vana&apos;s tab hands over the data and this one collects it.
+                Enter your profile on the Vana tab and approve, then come back here. Keep both tabs
+                open: Vana hands over the data and this one collects it.
               </p>
             </div>
           )}
@@ -156,10 +143,7 @@ export function SourceCard({
           <p className="text-sm text-bad">{phase.message}</p>
           <button
             type="button"
-            onClick={() => {
-              onDismissError();
-              setPreparing(true);
-            }}
+            onClick={onDismissError}
             className="tap t-label mt-2 text-text-3 underline-offset-4 hover:text-text hover:underline"
           >
             Try again
