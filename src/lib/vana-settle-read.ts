@@ -1,6 +1,5 @@
 import {
   AccessNotApprovedError,
-  authorizeEscrowPayment,
   buildEscrowPaymentHeader,
   buildPersonalServerDataReadRequest,
   createDefaultAccessRequestClient,
@@ -19,15 +18,17 @@ import { privateKeyToAccount } from "viem/accounts";
 import { controllerFor, type SourceId } from "./vana";
 
 /**
- * Paid read that matches the protocol docs, not only the SDK's header-only path.
+ * Paid Personal Server read.
  *
- * docs.vana.org §4.5: challenge → settle from escrow → retry with X-PAYMENT.
- * SDK 3.13.4 / PR184 `readPersonalServerData` only signs an X-PAYMENT header and
- * never calls `/v1/escrow/pay`. That leaves Patina stuck on
- * "still requires payment after escrow settlement" while Career Quest (and the
- * docs) expect a real gateway settle first.
+ * Do NOT call `/v1/escrow/pay` with the challenge `accessRecord`. Web Personal
+ * Servers mint local `dataPointId`s the gateway does not know, which 400s as:
+ *   accessRecord.dataPointId … not found in gateway
  *
- * Here we: probe → authorizeEscrowPayment (payForOp) → retry with X-PAYMENT → ack.
+ * Correct flow (stock SDK / Career Quest):
+ *   402 → sign X-PAYMENT (may include accessRecord in the PS-bound payload)
+ *       → optional gateway soft-lock WITHOUT accessRecord
+ *       → retry the Personal Server with X-PAYMENT
+ * The Personal Server verifies the signature and settles.
  */
 
 const network = process.env.VANA_NETWORK === "moksha" ? "moksha" : "mainnet";
@@ -95,10 +96,7 @@ export async function readApprovedDataSettled(
   const escrow = escrowConfig(account);
   const signMessage = (message: string | Uint8Array) =>
     account.signMessage({
-      message:
-        typeof message === "string"
-          ? message
-          : { raw: message },
+      message: typeof message === "string" ? message : { raw: message },
     });
 
   const buildRequest = () =>
@@ -112,7 +110,6 @@ export async function readApprovedDataSettled(
   let req = await buildRequest();
   let res = await fetch(req.url, { method: req.method, headers: req.headers });
 
-  let gatewayReceipt: unknown;
   if (res.status === 402) {
     const required = (await parsePersonalServerPaymentRequired(
       res,
@@ -127,34 +124,32 @@ export async function readApprovedDataSettled(
       amount: required.amount,
       asset: required.asset,
       hasAccessRecord: Boolean(required.accessRecord),
+      dataPointId: required.accessRecord?.dataPointId,
       paymentNonce: required.paymentNonce,
     });
-
-    try {
-      gatewayReceipt = await authorizeEscrowPayment({
-        payerAddress: account.address,
-        required,
-        config: escrow,
-      });
-      console.info("[vana/settle] payForOp ok", {
-        requestId,
-        source,
-        receipt: gatewayReceipt,
-      });
-    } catch (err) {
-      console.error("[vana/settle] payForOp failed", {
-        requestId,
-        source,
-        error: err instanceof Error ? err.message : err,
-      });
-      throw err;
-    }
 
     const paymentHeader = await buildEscrowPaymentHeader({
       payerAddress: account.address,
       required,
       config: escrow,
     });
+
+    // Soft-lock on the gateway using the same signature, but never attach the
+    // PS-local accessRecord (that is what 400'd with dataPointId not found).
+    try {
+      await payFromSignedHeaderWithoutAccessRecord({
+        escrow,
+        payerAddress: account.address,
+        paymentHeader,
+      });
+      console.info("[vana/settle] gateway pay ok (no accessRecord)");
+    } catch (err) {
+      console.warn("[vana/settle] gateway pay skipped/failed", {
+        requestId,
+        source,
+        error: err instanceof Error ? err.message : err,
+      });
+    }
 
     req = await buildRequest();
     res = await fetch(req.url, {
@@ -164,7 +159,7 @@ export async function readApprovedDataSettled(
 
     if (res.status === 402) {
       const body = await res.text().catch(() => "");
-      console.error("[vana/settle] still 402 after payForOp", {
+      console.error("[vana/settle] still 402 after X-PAYMENT", {
         requestId,
         source,
         body: body.slice(0, 1500),
@@ -177,7 +172,7 @@ export async function readApprovedDataSettled(
           asset: required.asset,
           amount: required.amount,
           opType: required.opType,
-          gatewayReceipt,
+          dataPointId: required.accessRecord?.dataPointId,
           personalServerBody: body.slice(0, 1000),
         },
       );
@@ -194,11 +189,8 @@ export async function readApprovedDataSettled(
   }
 
   const data = await res.json();
-  const payment =
-    paymentResponseMetadataFromHeader(res.headers.get("X-PAYMENT-RESPONSE")) ??
-    (gatewayReceipt as ApprovedDataResult["payment"]);
+  const payment = paymentResponseMetadataFromHeader(res.headers.get("X-PAYMENT-RESPONSE"));
 
-  // Same ack the controller would send after a successful read.
   const endpoints = getDirectEndpoints(env);
   const accessClient = createDefaultAccessRequestClient({
     baseUrl: endpoints.accessRequestBaseUrl,
@@ -218,6 +210,49 @@ export async function readApprovedDataSettled(
   return {
     scope: status.scope!,
     data,
-    payment: payment as ApprovedDataResult["payment"],
+    payment,
   };
+}
+
+async function payFromSignedHeaderWithoutAccessRecord(params: {
+  escrow: EscrowPaymentConfig;
+  payerAddress: `0x${string}`;
+  paymentHeader: string;
+}): Promise<void> {
+  const json = Buffer.from(params.paymentHeader, "base64").toString("utf8");
+  const decoded = JSON.parse(json) as {
+    payload?: {
+      message?: {
+        opType?: string;
+        opId?: string;
+        asset?: string;
+        amount?: string;
+        paymentNonce?: string;
+      };
+      signature?: string;
+    };
+  };
+
+  const message = decoded.payload?.message;
+  const signature = decoded.payload?.signature;
+  if (
+    !message?.opType ||
+    !message.opId ||
+    !message.asset ||
+    !message.amount ||
+    !message.paymentNonce ||
+    !signature
+  ) {
+    throw new Error("Could not decode X-PAYMENT payload for gateway pay");
+  }
+
+  await params.escrow.client.payForOp({
+    payerAddress: params.payerAddress,
+    opType: message.opType,
+    opId: message.opId as `0x${string}`,
+    asset: message.asset as `0x${string}`,
+    amount: message.amount,
+    paymentNonce: message.paymentNonce,
+    signature: signature as `0x${string}`,
+  });
 }
