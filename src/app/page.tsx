@@ -315,6 +315,9 @@ export default function Home() {
             <Link href="/rewards" className="tap t-label text-text-3 transition hover:text-text">
               Reward terms
             </Link>
+            <Link href="/verify" className="tap t-label text-text-3 transition hover:text-text">
+              Verify
+            </Link>
             <Link href="/privacy" className="tap t-label text-text-3 transition hover:text-text">
               Privacy
             </Link>

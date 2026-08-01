@@ -131,6 +131,16 @@ export default async function ProfilePage({
         </div>
       </dl>
 
+      {/* Screenshots lie; a signed attestation does not. Let a skeptic check. */}
+      <p className="mt-4 text-center text-sm text-text-3">
+        <Link
+          href={`/verify?u=${encodeURIComponent(profile.username ?? "")}`}
+          className="tap text-accent underline underline-offset-4"
+        >
+          Independently verify this score
+        </Link>
+      </p>
+
       <div className="mt-12 space-y-3">
         {score.components.map((component) => {
           const pct = component.max === 0 ? 0 : (component.points / component.max) * 100;
