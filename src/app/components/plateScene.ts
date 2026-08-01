@@ -44,6 +44,14 @@ const FRAMING = 1.22;
 
 const FOV = 30;
 
+/**
+ * How fast the plate turns on its own, in radians per second — a full turn every
+ * ~10.5s. Slow enough to read as considered rather than dizzying, and the rim
+ * lights were built to rake across the bevel as it comes edge-on, so the turn
+ * shows the metal off rather than flashing a blank back.
+ */
+const SPIN_SPEED = 0.6;
+
 export type PlateData = {
   username: string;
   score: number;
@@ -356,7 +364,9 @@ export function createPlateScene(
     eased.x += (tilt.x - eased.x) * Math.min(delta * 6, 1);
     eased.y += (tilt.y - eased.y) * Math.min(delta * 6, 1);
 
-    plate.rotation.y = eased.x * 0.42 + Math.sin(elapsed * 0.42) * 0.055;
+    // A continuous turntable spin, with the pointer/scroll tilt added on top so a
+    // finger still nudges it.
+    plate.rotation.y = elapsed * SPIN_SPEED + eased.x * 0.42;
     plate.rotation.x = eased.y * -0.28 + Math.cos(elapsed * 0.53) * 0.03;
     plate.position.y = Math.sin(elapsed * 0.8) * 0.035;
 
