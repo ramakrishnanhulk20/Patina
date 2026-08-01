@@ -315,6 +315,12 @@ export default function Home() {
             <Link href="/rewards" className="tap t-label text-text-3 transition hover:text-text">
               Reward terms
             </Link>
+            <Link href="/privacy" className="tap t-label text-text-3 transition hover:text-text">
+              Privacy
+            </Link>
+            <Link href="/terms" className="tap t-label text-text-3 transition hover:text-text">
+              Terms
+            </Link>
             <p className="t-label text-text-4">Built on Vana · Your data stays yours</p>
           </div>
         </div>

@@ -50,7 +50,7 @@ export function SignInGate({
 
       <ul className="mt-8 space-y-3">
         {[
-          "We ask Google for your account id and email. Nothing else.",
+          "We ask Google for your account id. Nothing else — not your email or name.",
           "No wallet, no seed phrase, no app to download.",
           "Your accounts stay in your own store. We keep only your score, and you can revoke access anytime.",
         ].map((line) => (
@@ -65,6 +65,10 @@ export function SignInGate({
         Curious what it measures first?{" "}
         <Link href="/" className="text-accent underline underline-offset-4">
           Read how the score works
+        </Link>
+        , or the{" "}
+        <Link href="/privacy" className="text-accent underline underline-offset-4">
+          privacy policy
         </Link>
         .
       </p>

@@ -8,9 +8,10 @@
  * laptop and a borrowed computer, so one person is one profile and one row in
  * the standings.
  *
- * Deliberately minimal scope: `openid email`. We do not ask for a name, a
- * picture, contacts, or anything else. An app whose pitch is "your data stays
- * yours" has no business collecting more than it needs to tell people apart.
+ * Deliberately minimal scope: `openid`. We do not ask for an email, a name, a
+ * picture, contacts, or anything else. All we need is Google's stable per-user
+ * `sub` to tell people apart across devices — an app whose pitch is "your data
+ * stays yours" has no business collecting more than that.
  */
 
 import { siteUrl } from "./site";
@@ -37,7 +38,7 @@ export function authUrl(state: string): string {
     client_id: process.env.GOOGLE_CLIENT_ID!,
     redirect_uri: redirectUri(),
     response_type: "code",
-    scope: "openid email",
+    scope: "openid",
     state,
     // Always show the picker: people share devices, and silently reusing a
     // signed-in Google account is how somebody ends up on a stranger's profile.

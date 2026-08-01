@@ -25,8 +25,8 @@ export function SignInPrompt({
       </p>
       <p className="mt-1 text-sm leading-relaxed text-text-2">
         {connected
-          ? "Right now this score lives on this browser alone. Sign in with Google to keep it across every device and put it on the leaderboard."
-          : "So your score belongs to you, not this browser. Connect one account first if you like — signing in keeps it on every device and gets you on the board."}
+          ? "Right now this score lives on this browser alone. Sign in with Google to keep it on every device, so a phone and a laptop stay one score under one name."
+          : "So your score follows you, not this browser. Connect one first if you like — signing in keeps it on every device and under one name."}
       </p>
 
       {loginError && <p className="mt-3 text-sm text-bad">{loginError}</p>}
@@ -40,6 +40,14 @@ export function SignInPrompt({
           <p className="text-sm text-warn">Sign-in is not switched on yet — you can still connect below.</p>
         )}
       </div>
+
+      <p className="mt-3 text-xs leading-relaxed text-text-4">
+        We keep only your score.{" "}
+        <a href="/privacy" className="underline underline-offset-4 hover:text-text-2">
+          Privacy
+        </a>
+        .
+      </p>
     </div>
   );
 }

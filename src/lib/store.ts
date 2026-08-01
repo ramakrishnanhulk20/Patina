@@ -161,6 +161,7 @@ interface Backend {
   setIfAbsent(key: string, value: string): Promise<boolean>;
   remove(key: string): Promise<void>;
   addToSet(key: string, member: string): Promise<void>;
+  removeFromSet(key: string, member: string): Promise<void>;
   setMembers(key: string): Promise<string[]>;
   /** Ranked index. Needed to answer "who is in the top 50" at all. */
   rank(key: string, member: string, score: number): Promise<void>;
@@ -206,6 +207,9 @@ function memoryBackend(): Backend {
       set.add(member);
       sets.set(key, set);
     },
+    async removeFromSet(key, member) {
+      sets.get(key)?.delete(member);
+    },
     async setMembers(key) {
       return [...(sets.get(key) ?? [])];
     },
@@ -248,6 +252,9 @@ function redisBackend(redis: Redis): Backend {
     },
     async addToSet(key, member) {
       await redis.sadd(key, member);
+    },
+    async removeFromSet(key, member) {
+      await redis.srem(key, member);
     },
     async setMembers(key) {
       return redis.smembers(key);
@@ -384,6 +391,41 @@ export async function getProfile(id: string): Promise<Profile | null> {
 
 export async function saveProfile(profile: Profile): Promise<void> {
   await db().set(profileKey(profile.id), profile);
+}
+
+/**
+ * Erase everything we hold about one profile — the right to be forgotten.
+ *
+ * Removes the profile itself, its public username and referral-code lookups, its
+ * place on the leaderboard, and its entries in the per-account identity index,
+ * and stops it counting toward the referrer who brought them. Nothing is left
+ * that could rebuild the person's score or presence.
+ *
+ * Session links are not chased down (there is no reverse index, and a link that
+ * points at a now-deleted profile simply resolves to "no profile" — an empty
+ * score — on the next request). The delete route drops the caller's own cookie
+ * so their browser starts clean regardless.
+ */
+export async function deleteProfile(profileId: string): Promise<void> {
+  const profile = await getProfile(profileId);
+  if (!profile) return;
+
+  await db().unrank(RANK_KEY, profileId);
+  await db().remove(codeKey(profile.referralCode));
+  if (profile.username) await db().remove(usernameKey(profile.username));
+
+  for (const [source, record] of Object.entries(profile.sources)) {
+    if (record.externalId) {
+      await db().removeFromSet(identityKey(source as SourceId, record.externalId), profileId);
+    }
+  }
+
+  if (profile.referredBy) {
+    await db().removeFromSet(invitedKey(profile.referredBy), profileId);
+    await db().removeFromSet(qualifiedKey(profile.referredBy), profileId);
+  }
+
+  await db().remove(profileKey(profileId));
 }
 
 /** Every underlying account a profile has connected, as `source:id` strings. */
