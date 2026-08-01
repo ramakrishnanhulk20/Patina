@@ -5,6 +5,7 @@ import { SectionLabel } from "../../components/SectionLabel";
 import { GlowCard3D } from "../../components/GlowCard3D";
 import { PlateCard } from "../../components/PlateCard";
 import { SaveCard } from "./SaveCard";
+import { DigitalRings } from "../../components/DigitalRings";
 import { evidenceOf, profileByUsername, standingOf } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { REWARD } from "@/lib/rewards";
@@ -54,6 +55,11 @@ export default async function ProfilePage({
 
   const score = scorePatina(evidenceOf(profile));
   const standing = await standingOf(profile.id, REWARD.places);
+  // A rarity flex, but only once there are enough people for it to mean anything.
+  const topPct =
+    standing.rank !== null && standing.total >= 10
+      ? Math.max(1, Math.round((standing.rank / standing.total) * 100))
+      : null;
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const line = verdict(score);
@@ -110,6 +116,14 @@ export default async function ProfilePage({
         <SaveCard username={profile.username ?? "anonymous"} />
       </div>
 
+      {topPct !== null && (
+        <p className="mt-5 text-center text-base text-text-2">
+          <span className="rings mr-2 align-middle" aria-hidden="true" />
+          In the <span className="font-semibold text-accent">top {topPct}%</span> of everyone on
+          Patina
+        </p>
+      )}
+
       <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border border-line bg-panel p-5 sm:grid-cols-4">
         <div>
           <dt className="t-label text-text-3">Rank</dt>
@@ -140,6 +154,12 @@ export default async function ProfilePage({
           Independently verify this score
         </Link>
       </p>
+
+      {years !== null && years >= 1 && (
+        <div className="mt-8 border border-line bg-panel p-8">
+          <DigitalRings years={years} oldestYear={year} />
+        </div>
+      )}
 
       <div className="mt-12 space-y-3">
         {score.components.map((component) => {

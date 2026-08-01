@@ -3,6 +3,7 @@
 import type { Component } from "@/lib/score";
 import { GlowCard3D } from "../components/GlowCard3D";
 import { PlateCard } from "../components/PlateCard";
+import { DigitalRings } from "../components/DigitalRings";
 
 export type ScoreView = {
   total: number;
@@ -51,6 +52,12 @@ export function ScorePanel({
           <GlowCard3D username={name} score={score.total} verdict={score.verdict} year={year} years={years}>
             <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} />
           </GlowCard3D>
+        </div>
+      )}
+
+      {years !== null && years >= 1 && (
+        <div className="border-b border-line p-6">
+          <DigitalRings years={years} oldestYear={year} />
         </div>
       )}
 

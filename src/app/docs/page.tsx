@@ -109,6 +109,43 @@ export default function DocsPage() {
       </section>
 
       <section className="mt-12">
+        <h2 className="text-2xl font-semibold tracking-tight text-text">Embed a verified badge</h2>
+        <p className="mt-3 leading-relaxed text-text-2">
+          A live SVG badge for any public profile — drop it on a site, a README, or a bio. It reads
+          current and links back to the proof.
+        </p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span className="t-label text-text-3">Looks like</span>
+          <svg width="223" height="30" viewBox="0 0 223 30" role="img" aria-label="Example Patina badge">
+            <rect x="0.5" y="0.5" width="222" height="29" rx="7" fill="#0b0c0b" stroke="#35e0a1" strokeOpacity="0.35" />
+            <g transform="translate(20 15)">
+              <circle r="7" fill="none" stroke="#35e0a1" strokeWidth="1.4" opacity="0.5" />
+              <circle r="3.1" fill="#35e0a1" />
+            </g>
+            <text x="34" y="15" dominantBaseline="central" fontFamily="ui-sans-serif, system-ui, sans-serif" fontSize="12.5" fontWeight="600">
+              <tspan fill="#f3f4f3">Patina</tspan>
+              <tspan fill="#6c716c"> · </tspan>
+              <tspan fill="#35e0a1">83</tspan>
+              <tspan fill="#6c716c">/100 · </tspan>
+              <tspan fill="#f3f4f3">13yr</tspan>
+            </text>
+            <g transform="translate(199 15)" stroke="#35e0a1" strokeWidth="1.9" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M-4 0 l2.6 2.6 L4.2 -3.2" />
+            </g>
+          </svg>
+        </div>
+
+        <p className="t-label mt-6 text-text-3">HTML</p>
+        <Code>{`<a href="https://patinadata.xyz/verify?u=alice">
+  <img src="https://patinadata.xyz/api/badge/alice" alt="Patina verified" height="30" />
+</a>`}</Code>
+
+        <p className="t-label mt-6 text-text-3">Markdown</p>
+        <Code>{`[![Patina verified](https://patinadata.xyz/api/badge/alice)](https://patinadata.xyz/verify?u=alice)`}</Code>
+      </section>
+
+      <section className="mt-12">
         <h2 className="text-2xl font-semibold tracking-tight text-text">The fields</h2>
         <dl className="mt-4 space-y-4 text-text-2">
           <div>

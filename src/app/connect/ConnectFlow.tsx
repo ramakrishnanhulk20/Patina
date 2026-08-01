@@ -75,6 +75,7 @@ export function ConnectFlow({
   const [username, setUsername] = useState<string | null>(initialUsername);
   const [points, setPoints] = useState(initialScore.total);
   const [rank, setRank] = useState<number | null>(null);
+  const [totalScored, setTotalScored] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -87,6 +88,7 @@ export function ConnectFlow({
       setUsername(next.username ?? null);
       setPoints(typeof next.points === "number" ? next.points : 0);
       setRank(typeof next.rank === "number" ? next.rank : null);
+      setTotalScored(typeof next.totalScored === "number" ? next.totalScored : 0);
     } catch {
       // A failed refresh is cosmetic. The read already succeeded and is stored,
       // so a slightly stale number beats an error thrown at someone who just
@@ -111,6 +113,10 @@ export function ConnectFlow({
   const connectedCount = Object.keys(readAt).length;
   const remaining = sources.length - connectedCount;
   const next = nextBestSource(new Set(Object.keys(readAt)), sources);
+  const topPct =
+    rank !== null && totalScored >= 10
+      ? Math.max(1, Math.round((rank / totalScored) * 100))
+      : null;
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-14">
@@ -159,7 +165,12 @@ export function ConnectFlow({
               <span className="t-label text-text-3">
                 {connectedCount} of {sources.length} connected
               </span>
-              {rank !== null && <span className="t-label text-text-3">Leaderboard #{rank}</span>}
+              {rank !== null && (
+                <span className="t-label text-text-3">
+                  #{rank}
+                  {topPct !== null && <span className="text-accent"> · top {topPct}%</span>}
+                </span>
+              )}
             </div>
 
             <div className="mt-3 flex gap-1.5" aria-hidden="true">
