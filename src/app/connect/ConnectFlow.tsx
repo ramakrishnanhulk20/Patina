@@ -7,7 +7,33 @@ import { SourceCard } from "./SourceCard";
 import type { SourceSpec } from "@/lib/sources";
 import { ShareCard } from "./ShareCard";
 import { Identity } from "./Identity";
+import { SignInPrompt } from "./SignInPrompt";
 import { useConnect } from "./useConnect";
+import { REWARD } from "@/lib/rewards";
+
+/**
+ * The source worth connecting next.
+ *
+ * Age and Corroboration are 60% of the score, and on the web only YouTube and
+ * GitHub carry an account-opened date, so an unconnected one of those wins.
+ * After that any new source adds Breadth. Null once everything is connected.
+ */
+function nextBestSource(
+  connected: Set<string>,
+  sources: SourceSpec[],
+): { label: string; reason: string } | null {
+  const dated = sources.find(
+    (source) => (source.id === "youtube" || source.id === "github") && !connected.has(source.id),
+  );
+  if (dated) {
+    return { label: dated.label, reason: "it proves how far back you go, the biggest part of the score" };
+  }
+  const other = sources.find((source) => !connected.has(source.id));
+  if (other) {
+    return { label: other.label, reason: "another independent account raises your breadth" };
+  }
+  return null;
+}
 
 export function ConnectFlow({
   sources,
@@ -18,6 +44,8 @@ export function ConnectFlow({
   promptForName,
   initialSignedIn,
   initialUsername,
+  loginAvailable,
+  loginError,
 }: {
   sources: SourceSpec[];
   initialScore: ScoreView;
@@ -27,6 +55,8 @@ export function ConnectFlow({
   promptForName: boolean;
   initialSignedIn: boolean;
   initialUsername: string | null;
+  loginAvailable: boolean;
+  loginError: string | null;
 }) {
   const [score, setScore] = useState(initialScore);
   const [readAt, setReadAt] = useState(initialReadAt);
@@ -80,6 +110,7 @@ export function ConnectFlow({
 
   const connectedCount = Object.keys(readAt).length;
   const remaining = sources.length - connectedCount;
+  const next = nextBestSource(new Set(Object.keys(readAt)), sources);
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-14">
@@ -101,13 +132,62 @@ export function ConnectFlow({
         </p>
 
         <div className="mt-8">
-          <Identity
-            signedIn={signedIn}
-            username={username}
-            promptForName={promptForName}
-            onNamed={refresh}
-          />
+          {signedIn ? (
+            <Identity
+              signedIn={signedIn}
+              username={username}
+              promptForName={promptForName}
+              onNamed={refresh}
+            />
+          ) : (
+            <SignInPrompt
+              loginAvailable={loginAvailable}
+              connected={connectedCount > 0}
+              loginError={loginError}
+            />
+          )}
         </div>
+
+        {/*
+          Progress, the best next move, and where they stand — the three things
+          that pull somebody from one connected source to a full profile, which
+          is what the score and the leaderboard both reward.
+        */}
+        {connectedCount > 0 && (
+          <div className="mt-6 border border-line bg-panel p-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="t-label text-text-3">
+                {connectedCount} of {sources.length} connected
+              </span>
+              {rank !== null && <span className="t-label text-text-3">Leaderboard #{rank}</span>}
+            </div>
+
+            <div className="mt-3 flex gap-1.5" aria-hidden="true">
+              {sources.map((source) => (
+                <span
+                  key={source.id}
+                  className={`h-1.5 flex-1 rounded-full ${
+                    readAt[source.id] ? "bg-accent" : "bg-line-strong"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {next && (
+              <p className="mt-3 text-sm leading-relaxed text-text-2">
+                Best next: <span className="font-medium text-text">{next.label}</span> — {next.reason}.
+              </p>
+            )}
+
+            {rank !== null && (
+              <p className="mt-2 text-sm leading-relaxed text-text-3">
+                {rank > REWARD.places
+                  ? `The top ${REWARD.places} split the reward. Every real friend you bring adds 10 points and moves you up.`
+                  : `You are inside the paying top ${REWARD.places}. Bringing real friends helps you hold it.`}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mt-4 space-y-3">
           {sources.map((source) => (
@@ -160,7 +240,7 @@ export function ConnectFlow({
               This is a snapshot taken when you connected, not a live reading, because Vana gives an
               app one look at each source.
             </p>
-            {code && (
+            {code && username && (
               <div className="hidden sm:block">
                 <ShareCard
                   score={score}
@@ -172,7 +252,7 @@ export function ConnectFlow({
                 />
               </div>
             )}
-            {code && (
+            {code && username && (
               <Link
                 href="/share"
                 className="btn btn-primary flex w-full px-6 py-3.5 text-base sm:hidden"

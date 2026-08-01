@@ -1,5 +1,4 @@
 import { ConnectFlow } from "./ConnectFlow";
-import { SignInGate } from "./SignInGate";
 import { NextApps } from "./NextApps";
 import { ecosystemApps } from "@/lib/ecosystem";
 import { SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
@@ -49,14 +48,11 @@ export default async function ConnectPage({
         ? "Sign-in is not switched on yet."
         : null;
 
-  if (!signedIn) {
-    return (
-      <main className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-6 sm:py-20">
-        <SignInGate loginAvailable={googleConfigured()} loginError={loginError} />
-      </main>
-    );
-  }
-
+  // No hard sign-in gate. A person can connect a source and see their score
+  // first, then be asked to sign in to KEEP it — which converts far better than
+  // a Google wall in front of any value. Signing in still folds this browser's
+  // profile into a stable identity (claimProfile), so "one person, one row"
+  // holds for everyone who signs in.
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-14">
       <ConnectFlow
@@ -72,8 +68,10 @@ export default async function ConnectPage({
         referralCode={profile?.referralCode ?? ""}
         referralCount={tally.qualified}
         promptForName={params.name === "1"}
-        initialSignedIn={Boolean(profile?.id.startsWith("g:"))}
+        initialSignedIn={signedIn}
         initialUsername={profile?.username ?? null}
+        loginAvailable={googleConfigured()}
+        loginError={loginError}
       />
 
       <NextApps apps={nextApps} />
