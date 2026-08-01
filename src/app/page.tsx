@@ -5,7 +5,7 @@ import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
 
 const SOURCES = [
   { name: "YouTube", reads: "The day your account was opened", note: "Google sign-in" },
-  { name: "Instagram", reads: "How long you have posted, and to how many", note: "Profile" },
+  { name: "Instagram", reads: "How much you post, and how many follow you", note: "Profile" },
   { name: "GitHub", reads: "When you joined and what you have built", note: "Profile" },
   { name: "LinkedIn", reads: "Another independent account, and who knows you", note: "Profile" },
   { name: "Spotify", reads: "A listening life", note: "Profile" },
@@ -43,17 +43,17 @@ const STEPS = [
   {
     step: "01",
     title: "Connect one account",
-    body: "Sign in with Google, Apple or an email code. No wallet, no download, no seed phrase. Start with one source and add more if you want a higher score.",
+    body: "No wallet, no download, no seed phrase. Start with the account you have had the longest, and your score appears straight away. Add more to raise it.",
   },
   {
     step: "02",
     title: "We read only what you approve",
-    body: "Your data lives in your own store, not ours. You approve a specific list, we read it once, and you can revoke it at any time. We never see a password.",
+    body: "Your accounts stay in your own store, not ours. You approve exactly what we read, we read it once, and you can revoke it whenever you want. We never see a password.",
   },
   {
     step: "03",
-    title: "You get a number, and it travels",
-    body: "A score out of a hundred, broken down so you can argue with it. Other apps can check it without you doing any of this again.",
+    title: "Save it, and it travels",
+    body: "Sign in with Google to keep your score across every device and put it on the leaderboard. Other apps can check it without you doing any of this again.",
   },
 ];
 
@@ -103,8 +103,9 @@ export default function Home() {
                 tightens up instead of pushing the buttons out of sight. */}
             <p className="mt-[clamp(1.25rem,3vh,2rem)] max-w-xl text-lg leading-relaxed text-text-2">
               Patina reads the history you already have, from accounts you already own, and turns it
-              into proof that a real person has been here for years. Nothing is stored. You approve
-              exactly what it sees, and you can take it back whenever you want.
+              into proof that a real person has been here for years. We never ask for a password or
+              keep a copy of your accounts — only your score and the few signals behind it, and you
+              can take that back whenever you want.
             </p>
 
             <div className="mt-[clamp(1.5rem,3.5vh,2.5rem)] flex flex-wrap items-center gap-3">

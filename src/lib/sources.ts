@@ -100,7 +100,9 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     // Standing rather than Age, which is a smaller contribution but a real one
     // that costs nobody an install.
     scopes: ["instagram.profile"],
-    blurb: "How long you have been posting, and to how many.",
+    // Not "how long": the web profile scope carries counts, not dates, so
+    // Instagram feeds Depth and Standing rather than Age. See vana.ts.
+    blurb: "How much you post, and how many follow you.",
     handle: {
       prefix: "instagram.com/",
       placeholder: "yourusername or paste profile link",

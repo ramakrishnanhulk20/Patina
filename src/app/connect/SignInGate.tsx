@@ -52,7 +52,7 @@ export function SignInGate({
         {[
           "We ask Google for your account id and email. Nothing else.",
           "No wallet, no seed phrase, no app to download.",
-          "Your data stays in your own store. We read it once, and you can revoke it.",
+          "Your accounts stay in your own store. We keep only your score, and you can revoke access anytime.",
         ].map((line) => (
           <li key={line} className="flex gap-3 text-sm leading-relaxed text-text-3">
             <span className="rings mt-1 shrink-0" aria-hidden="true" />

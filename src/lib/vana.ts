@@ -38,7 +38,7 @@ export const SOURCES = {
     // instagram.profile, not posts: a live connect showed posts demands the
     // desktop app on the web path. See the note in sources.ts.
     scopes: ["instagram.profile"],
-    blurb: "How long you have been posting, and to how many.",
+    blurb: "How much you post, and how many follow you.",
   },
   github: {
     id: "github",
