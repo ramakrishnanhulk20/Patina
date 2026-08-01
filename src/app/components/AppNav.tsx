@@ -122,7 +122,15 @@ export function AppNav() {
                     active ? "text-accent" : "text-text-3"
                   }`}
                 >
-                  {item.icon}
+                  {/* Material-style active pill behind the icon, so the current
+                      tab reads at a glance the way a native bottom bar does. */}
+                  <span
+                    className={`flex items-center justify-center rounded-full px-4 py-0.5 transition-colors duration-200 ${
+                      active ? "bg-accent-wash" : "bg-transparent"
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
                   <span className="text-[11px] font-medium leading-none">{item.label}</span>
                 </Link>
               </li>

@@ -71,7 +71,7 @@ export function InstallPrompt() {
 
   return (
     <div
-      className="fixed inset-x-3 z-50 border border-line bg-panel/95 p-4 shadow-lg backdrop-blur-md sm:inset-x-auto sm:right-4 sm:max-w-sm"
+      className="sheet-up fixed inset-x-3 z-50 border border-line bg-panel/95 p-4 shadow-lg backdrop-blur-md sm:inset-x-auto sm:right-4 sm:max-w-sm"
       style={{ bottom: "calc(56px + env(safe-area-inset-bottom) + 0.75rem)" }}
       role="dialog"
       aria-label="Add Patina to your home screen"

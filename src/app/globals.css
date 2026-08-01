@@ -78,6 +78,11 @@ html {
   /* Anchor jumps glide rather than teleport. The reduced-motion block below
      turns this off for anyone who asked. */
   scroll-behavior: smooth;
+  /* Clear the sticky desktop header when jumping to an in-page anchor. */
+  scroll-padding-top: 5rem;
+  /* Stop mobile browsers auto-inflating type on rotation. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /*
@@ -111,6 +116,29 @@ textarea {
 }
 
 /*
+  Chrome should not select its own text or pop the callout menu when held down:
+  that long-press-to-select behaviour is a clear tell that a control is web
+  rather than app. Page CONTENT stays selectable, and inputs are re-enabled just
+  below so people can still edit what they type.
+*/
+button,
+.btn,
+[role="button"],
+summary,
+.tap,
+nav a {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/*
   Press feedback, applied to anything that should feel physical: it settles
   under the finger and springs back. Kept tiny (0.98) so it reads as pressure,
   not as a bounce. Honours reduced motion through the block at the foot of the
@@ -141,6 +169,17 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* App-like touch. No 300ms delay and no double-tap zoom (pinch still works),
+     and the page does not rubber-band into the browser chrome or trip a
+     pull-to-refresh — the things that most give a web page away on a phone. */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+/* Selection in the accent, not the browser's default blue, on a dark ground. */
+::selection {
+  background: rgba(53, 224, 161, 0.26);
+  color: var(--text);
 }
 
 /*
@@ -290,11 +329,14 @@ select {
   color: var(--ink);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-bright);
-  /* A faint verdigris halo on hover, so the primary action feels lit rather
-     than just recoloured. Only on devices that actually hover. */
-  box-shadow: 0 6px 24px -8px var(--accent);
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-bright);
+    /* A faint verdigris halo on hover, so the primary action feels lit rather
+       than just recoloured. Only on devices that actually hover — never left
+       stuck under a finger on a touchscreen. */
+    box-shadow: 0 6px 24px -8px var(--accent);
+  }
 }
 
 .btn-primary:disabled {
@@ -308,9 +350,11 @@ select {
   color: var(--text);
 }
 
-.btn-ghost:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) {
+  .btn-ghost:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 /* Focus that is visible on a dark ground without being ugly. */
@@ -324,6 +368,7 @@ select {
 .scroll-x {
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /*
@@ -357,6 +402,22 @@ select {
 
 .story-bar[data-shown="true"] {
   transform: scaleY(1);
+}
+
+/* A small sheet that rises into place, for the install prompt. */
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sheet-up {
+  animation: sheet-up 280ms var(--ease) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
