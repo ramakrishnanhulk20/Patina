@@ -152,6 +152,10 @@ export default async function VerifyPage({
                 >
                   /api/verify/{result.name}
                 </a>
+                . See the{" "}
+                <Link href="/docs" className="text-accent underline underline-offset-4">
+                  integration docs
+                </Link>
                 .
               </p>
             </details>

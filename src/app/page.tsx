@@ -203,6 +203,45 @@ export default function Home() {
         </div>
       </section>
 
+      {/* --------------------------------------------------------- verifiable */}
+      <section className="border-b border-line px-6 py-20 sm:py-28">
+        <div className="mx-auto max-w-6xl">
+          <SectionLabel>Proof you can carry</SectionLabel>
+
+          <div className="mt-8 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
+            <h2 className="t-section text-text">Not a quiz. A signed fact that travels.</h2>
+
+            <div className="space-y-5 text-lg leading-relaxed text-text-2">
+              <p>
+                Every Patina score is cryptographically signed by our key on Vana. Anyone — a person,
+                or another app — can check it is real without trusting us, and carry it anywhere that
+                wants proof of a real history. That is the whole reason to build on Vana instead of
+                behind a login.
+              </p>
+              <p>
+                <Link href="/verify" className="text-accent underline underline-offset-4">
+                  Verify any score
+                </Link>
+                , or{" "}
+                <Link href="/docs" className="text-accent underline underline-offset-4">
+                  wire it into your own app
+                </Link>{" "}
+                in a single request.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-10 overflow-x-auto rounded-lg border border-line bg-ink p-5">
+            <pre className="text-xs leading-relaxed text-text-2 sm:text-sm">
+              <code>{`GET /api/verify/alice  →  {
+  "score": 83, "verdict": "Deeply worn in", "oldestYear": 2013,
+  "attestation": { "app": "0x620d…54A1", "signature": "0x…" }
+}`}</code>
+            </pre>
+          </div>
+        </div>
+      </section>
+
       {/* ------------------------------------------------------------- reward */}
       <section id="reward" className="border-b border-line px-6 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl">
@@ -315,8 +354,8 @@ export default function Home() {
             <Link href="/rewards" className="tap t-label text-text-3 transition hover:text-text">
               Reward terms
             </Link>
-            <Link href="/verify" className="tap t-label text-text-3 transition hover:text-text">
-              Verify
+            <Link href="/docs" className="tap t-label text-text-3 transition hover:text-text">
+              Docs
             </Link>
             <Link href="/privacy" className="tap t-label text-text-3 transition hover:text-text">
               Privacy

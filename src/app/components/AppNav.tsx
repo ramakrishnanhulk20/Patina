@@ -48,18 +48,17 @@ const Coin = (
   </svg>
 );
 
-const Share = (
+const Shield = (
   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 16V3" />
-    <path d="m8 7 4-4 4 4" />
-    <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+    <path d="M12 3 5 6v5c0 4.4 3 7.4 7 9 4-1.6 7-4.6 7-9V6l-7-3Z" />
+    <path d="m9 12 2 2 4-4" />
   </svg>
 );
 
 const ITEMS: Item[] = [
   { href: "/", label: "Home", icon: Rings },
   { href: "/connect", label: "Connect", icon: Plug },
-  { href: "/share", label: "Share", icon: Share },
+  { href: "/verify", label: "Verify", icon: Shield },
   { href: "/standings", label: "Standings", icon: Chart },
   { href: "/rewards", label: "Reward", icon: Coin },
 ];
@@ -82,7 +81,7 @@ export function AppNav() {
           </Link>
 
           <div className="flex items-center gap-1">
-            {ITEMS.filter((item) => item.href !== "/" && item.href !== "/share").map((item) => (
+            {ITEMS.filter((item) => item.href !== "/" && item.href !== "/connect").map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

@@ -1,6 +1,7 @@
 import { evidenceOf, profileByUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildAttestation } from "@/lib/attest";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
       sourcesConnected: score.sourcesConnected,
       components: score.components,
       issuedAt: attestation.issuedAt,
+      docs: siteUrl("/docs"),
       attestation: {
         app: attestation.app,
         message: attestation.message,
