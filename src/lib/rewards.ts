@@ -55,7 +55,7 @@ export function usd(vana: number): string {
   return `$${Math.round(vana * REWARD.vanaUsd).toLocaleString("en-US")}`;
 }
 
-/** VANA per share if Patina finishes in a given position. */
+/** VANA each if the winning pool for a position is split `shares` equal ways. */
 export function perShare(position: "champion" | "runnerUp", shares: number): number {
   const prize = position === "champion" ? REWARD.championPrize : REWARD.runnerUpPrize;
   const pool = prize * REWARD.shareOfWinnings;
@@ -65,9 +65,13 @@ export function perShare(position: "champion" | "runnerUp", shares: number): num
 /**
  * A rough, honest illustration for the page.
  *
- * Assumes every eligible person holds exactly one share, which is the FLOOR:
- * real referrals push the share count up and each individual payout down. The
- * copy has to say so rather than quietly imply these are guarantees.
+ * Everyone who finishes in the top `REWARD.places` by points takes an EQUAL cut
+ * of the pool — one each — so this assumes a full board of `REWARD.places` and
+ * divides evenly. Referrals decide WHO is in those places (each is worth points
+ * on the leaderboard), never how many shares anyone holds, so no invite ever
+ * makes an individual payout bigger. If anything this is a floor: fewer than
+ * `REWARD.places` eligible people would divide the pool fewer ways and make each
+ * cut larger. The copy has to say so rather than imply these are guarantees.
  */
 export const ILLUSTRATION = {
   championPerShare: perShare("champion", REWARD.places),

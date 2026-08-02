@@ -6,7 +6,7 @@ import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
 export const metadata = {
   title: "Reward rules",
   description:
-    "How Patina's reward works: who qualifies, how shares are counted, when it is paid, and what happens if Patina does not place.",
+    "How Patina's reward works: who qualifies, how the pool is split, when it is paid, and what happens if Patina does not place.",
 };
 
 const RULES: { heading: string; body: React.ReactNode }[] = [
@@ -45,17 +45,16 @@ const RULES: { heading: string; body: React.ReactNode }[] = [
     ),
   },
   {
-    heading: "How points and shares work",
+    heading: "How points and the split work",
     body: (
       <>
         Each qualified invite adds <strong className="text-text">10 points</strong> toward the top{" "}
-        {REWARD.places} — that is the climb. Separately, everyone in the top {REWARD.places} holds{" "}
-        <strong className="text-text">one share</strong> of the pool, and every person you invite who
-        connects and scores at least{" "}
-        <strong className="text-text">{REWARD.referralQualifiesAt}</strong> adds{" "}
-        <strong className="text-text">one more share</strong>, whether or not you are in the money
-        yet. Shares only pay if you finish inside the top {REWARD.places} when the Cup closes. The
-        pool is divided by total shares among those places.
+        {REWARD.places}, and that is the whole of what it does — it is the climb. Everyone who
+        finishes inside the top {REWARD.places} takes an{" "}
+        <strong className="text-text">equal share</strong> of the pool, one each, whether they got
+        there on the strength of their own history or by bringing real people in. Inviting more does
+        not buy a bigger slice; it helps you reach a place and hold it. The pool is split evenly
+        between the people in those {REWARD.places} places, and nobody outside them is paid.
       </>
     ),
   },
@@ -72,7 +71,7 @@ const RULES: { heading: string; body: React.ReactNode }[] = [
     ),
   },
   {
-    heading: "One person, one set of shares",
+    heading: "One person, counted once",
     body: (
       <>
         Eligibility is tracked against the underlying accounts you connect, not against a browser or
@@ -172,11 +171,12 @@ export default function RewardsPage() {
       </div>
 
       <p className="mt-4 text-sm leading-relaxed text-text-3">
-        Those figures assume {REWARD.places} people holding one share each. Real referrals add
-        shares, which lowers the amount per share, so treat these as the ceiling rather than a
-        promise. Second place pays a tenth of first place because the Cup prize itself does. Dollar
-        figures use a VANA price of ${REWARD.vanaUsd.toFixed(2)} on {REWARD.priceAsOf} and are shown
-        only to give you a sense of scale. The share itself is paid in VANA, and its price moves.
+        Those figures assume all {REWARD.places} places are filled and the pool is split equally
+        between them, so each is a rough per-person amount rather than a promise; with fewer than{" "}
+        {REWARD.places} eligible people the pool divides fewer ways and each slice is larger. Second
+        place pays a tenth of first place because the Cup prize itself does. Dollar figures use a VANA
+        price of ${REWARD.vanaUsd.toFixed(2)} on {REWARD.priceAsOf} and are shown only to give you a
+        sense of scale. The share itself is paid in VANA, and its price moves.
       </p>
 
       {/*

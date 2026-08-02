@@ -271,10 +271,11 @@ export default function Home() {
               <div className="space-y-5 text-lg leading-relaxed text-text-2">
                 <p>
                   Patina is competing in the Vana Cup, a public contest scored on a live leaderboard.
-                  If it places, half the winnings are split among the{" "}
+                  If it places, half the winnings are split equally among the{" "}
                   <span className="text-text">top {REWARD.places} people by points</span>
-                  — your Patina score plus 10 for every real person you bring. Everyone eligible gets
-                  one share, and every real invite adds another share of the pool.
+                  — your Patina score, plus 10 points for every real person you bring. Those points
+                  are how you climb into the top {REWARD.places} and hold your place; everyone who
+                  finishes there takes an equal share, no matter how many they brought.
                 </p>
                 <p>
                   Paid in VANA by <span className="text-text">{REWARD.paidBy}</span>.
