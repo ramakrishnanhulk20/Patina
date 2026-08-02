@@ -35,6 +35,12 @@ export type SourceSpec = {
    * tappable on a phone, because a phone cannot run the app.
    */
   kind?: "web" | "desktop";
+  /**
+   * Not yet available in Vana (shown there as "coming soon", or not listed at
+   * all). The source stays defined and scored, but is non-connectable until Vana
+   * ships it — at which point this flips off and the connect button returns.
+   */
+  comingSoon?: boolean;
   label: string;
   /** The single scope we read. See the note in vana.ts on why it is one. */
   scopes: string[];
@@ -177,6 +183,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   amazon: {
     id: "amazon",
     kind: "desktop",
+    comingSoon: true,
     label: "Amazon",
     scopes: ["amazon.orders"],
     blurb: "Years of orders — a long, dull, unmistakably human paper trail.",
@@ -190,6 +197,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   uber: {
     id: "uber",
     kind: "desktop",
+    comingSoon: true,
     label: "Uber",
     scopes: ["uber.trips"],
     blurb: "How far back your rides go, and how many.",
@@ -203,6 +211,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   steam: {
     id: "steam",
     kind: "desktop",
+    comingSoon: true,
     label: "Steam",
     scopes: ["steam.profile"],
     blurb: "The day your Steam account was created.",

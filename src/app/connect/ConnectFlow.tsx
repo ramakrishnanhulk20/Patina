@@ -231,20 +231,12 @@ export function ConnectFlow({
         */}
         {desktopSources.length > 0 && (
           <div className="mt-12 border-t border-line pt-8">
-            <h2 className="text-xl font-semibold tracking-tight text-text">Power up on a computer</h2>
+            <h2 className="text-xl font-semibold tracking-tight text-text">Coming soon: more sources</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-2">
-              These come from Vana&apos;s DataConnect app, which runs on a computer, so they carry
-              deeper history but cannot be done on a phone. On a desktop, connect the source in the
-              app, then connect it here. They count toward your score exactly like the rest.
+              More are on the way through Vana — years of orders, rides, and games, all of it deep,
+              timestamped history. Vana is still rolling them out; the moment they are available, you
+              will be able to connect them here, and they will count toward your score like the rest.
             </p>
-            <a
-              href="https://github.com/PDP-Connect/data-connect/releases/latest"
-              target="_blank"
-              rel="noreferrer"
-              className="tap mt-3 inline-block text-sm text-accent underline underline-offset-4"
-            >
-              Get Vana&apos;s DataConnect app
-            </a>
 
             <div className="mt-5 space-y-3">
               {desktopSources.map((source) => (
