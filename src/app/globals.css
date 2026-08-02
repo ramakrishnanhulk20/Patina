@@ -372,12 +372,16 @@ select {
 }
 
 /*
-  STORY
+  SCROLL REVEAL
 
-  Scroll-revealed sections on the story page. Hidden only once JavaScript has
-  taken over — the class is applied on the client — so a reader without JS, or
-  one who prefers reduced motion, gets every section plainly visible rather than
-  a blank page that never fills in.
+  Two callers share this primitive, by different routes, and both keep content
+  from ever being trapped behind the effect:
+  • The story page (StoryView) adds `.reveal` on the client only once motion is
+    on, so a no-JS or reduced-motion reader is never handed the hidden state.
+  • The landing page <Reveal> ships `.reveal` in the server HTML and leans on the
+    <noscript> override in layout.tsx to unhide it if JS never runs.
+  Reduced motion is honoured both by the block at the foot of this file and by
+  <Reveal>'s own matchMedia check, which reveals immediately and skips the delay.
 */
 .reveal {
   opacity: 0;
@@ -402,9 +406,27 @@ select {
   transform: translateY(24px);
 }
 
+/*
+  On phones and tablets the landing sections stack into a single column, so a
+  heading arriving from the left with its text from the right reads as arbitrary
+  — and, worse, a full-width block shifted 36px sideways pushes past the narrow
+  page gutter and lets the body scroll horizontally as it animates in. Below the
+  two-column breakpoint (lg, 1024px) collapse the sideways entrances to the same
+  gentle rise as everything else.
+*/
+@media (max-width: 1023px) {
+  .reveal[data-dir="left"],
+  .reveal[data-dir="right"] {
+    transform: translateY(24px);
+  }
+}
+
+/* Reveal is one-shot, so hand the compositor layer back once it has landed
+   rather than holding will-change on every block for the life of the page. */
 .reveal[data-shown="true"] {
   opacity: 1;
   transform: none;
+  will-change: auto;
 }
 
 /* The growing bar in the year-by-year chart. */

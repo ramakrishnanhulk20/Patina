@@ -23,12 +23,17 @@ export function Reveal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
+  // Reduced-motion reveals immediately AND drops the stagger: the global
+  // reduced-motion rule zeroes transition *duration* but not *delay*, so a
+  // leftover transitionDelay would still make staggered items pop in late.
+  const [instant, setInstant] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setInstant(true);
       setShown(true);
       return;
     }
@@ -54,7 +59,7 @@ export function Reveal({
       className={className ? `reveal ${className}` : "reveal"}
       data-dir={direction}
       data-shown={shown ? "true" : undefined}
-      style={delay ? { transitionDelay: `${delay}ms` } : undefined}
+      style={delay && !instant ? { transitionDelay: `${delay}ms` } : undefined}
     >
       {children}
     </div>
