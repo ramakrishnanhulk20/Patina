@@ -58,6 +58,26 @@ export const SOURCES = {
     scopes: ["spotify.profile"],
     blurb: "A listening life.",
   },
+  // Desktop-only sources (collected via Vana's DataConnect app). They carry
+  // timestamped history, so they score like the rest. See sources.ts.
+  amazon: {
+    id: "amazon",
+    label: "Amazon",
+    scopes: ["amazon.orders"],
+    blurb: "Years of orders you cannot fake.",
+  },
+  uber: {
+    id: "uber",
+    label: "Uber",
+    scopes: ["uber.trips"],
+    blurb: "How far back your rides go.",
+  },
+  steam: {
+    id: "steam",
+    label: "Steam",
+    scopes: ["steam.profile"],
+    blurb: "The day your Steam account was created.",
+  },
 } as const;
 
 export type SourceId = keyof typeof SOURCES;

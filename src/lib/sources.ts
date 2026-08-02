@@ -16,10 +16,25 @@
  * No SDK imports: this file is shared with client components.
  */
 
-export type SourceId = "youtube" | "instagram" | "github" | "spotify" | "linkedin";
+export type SourceId =
+  | "youtube"
+  | "instagram"
+  | "github"
+  | "spotify"
+  | "linkedin"
+  | "amazon"
+  | "uber"
+  | "steam";
 
 export type SourceSpec = {
   id: SourceId;
+  /**
+   * "web" — collected from a public URL by Vana's servers, no app, works on any
+   * phone. "desktop" — collected through Vana's DataConnect app on a computer.
+   * Absent means web. Desktop sources live in their own section and are not
+   * tappable on a phone, because a phone cannot run the app.
+   */
+  kind?: "web" | "desktop";
   label: string;
   /** The single scope we read. See the note in vana.ts on why it is one. */
   scopes: string[];
@@ -46,7 +61,7 @@ export type SourceSpec = {
 };
 
 /** Hosts that count as "this platform" when someone pastes a mobile or bare URL. */
-const PLATFORM_HOSTS: Record<SourceId, string[]> = {
+const PLATFORM_HOSTS: Partial<Record<SourceId, string[]>> = {
   youtube: ["youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"],
   instagram: ["instagram.com", "www.instagram.com", "m.instagram.com"],
   github: ["github.com", "www.github.com"],
@@ -154,9 +169,56 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
       "Come back here and paste it on the Vana page when it asks.",
     ],
   },
+
+  // --- Desktop sources ---------------------------------------------------
+  // Collected through Vana's DataConnect app, not the web path, so they carry
+  // deeper, timestamped history but need a computer. They show in a separate
+  // section and are not tappable on a phone.
+  amazon: {
+    id: "amazon",
+    kind: "desktop",
+    label: "Amazon",
+    scopes: ["amazon.orders"],
+    blurb: "Years of orders — a long, dull, unmistakably human paper trail.",
+    handle: null,
+    findIt: [
+      "On a computer, install Vana's DataConnect app.",
+      "Connect Amazon there and sign in; it reads your own order history.",
+      "Come back to this page on that computer and connect Amazon.",
+    ],
+  },
+  uber: {
+    id: "uber",
+    kind: "desktop",
+    label: "Uber",
+    scopes: ["uber.trips"],
+    blurb: "How far back your rides go, and how many.",
+    handle: null,
+    findIt: [
+      "On a computer, install Vana's DataConnect app.",
+      "Connect Uber there and sign in; it reads your own trip history.",
+      "Come back to this page on that computer and connect Uber.",
+    ],
+  },
+  steam: {
+    id: "steam",
+    kind: "desktop",
+    label: "Steam",
+    scopes: ["steam.profile"],
+    blurb: "The day your Steam account was created.",
+    handle: null,
+    findIt: [
+      "On a computer, install Vana's DataConnect app.",
+      "Connect Steam there and sign in; it reads your account and level.",
+      "Come back to this page on that computer and connect Steam.",
+    ],
+  },
 };
 
 export const SOURCE_ORDER: SourceId[] = ["youtube", "instagram", "github", "linkedin", "spotify"];
+
+/** Desktop-only sources, shown in their own section. */
+export const DESKTOP_ORDER: SourceId[] = ["amazon", "uber", "steam"];
 
 /**
  * The public profile URL Vana will ask for, or an empty string if we cannot

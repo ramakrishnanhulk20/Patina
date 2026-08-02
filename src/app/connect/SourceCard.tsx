@@ -40,6 +40,9 @@ export function SourceCard({
   const errored = mine && phase.type === "error";
   const otherBusy =
     !mine && (phase.type === "starting" || phase.type === "awaiting" || phase.type === "reading");
+  // Desktop sources need Vana's DataConnect app, which a phone cannot run, so
+  // the connect button only appears on larger screens.
+  const desktop = source.kind === "desktop";
 
   return (
     <div
@@ -56,6 +59,9 @@ export function SourceCard({
           <div className="flex items-center gap-2.5">
             <h3 className="text-lg font-semibold text-text">{source.label}</h3>
             {connected && <span className="t-label text-accent">Connected</span>}
+            {!connected && desktop && (
+              <span className="t-label rounded bg-panel-2 px-1.5 py-0.5 text-text-3">Desktop app</span>
+            )}
           </div>
           <p className="mt-1 text-sm leading-relaxed text-text-2">{source.blurb}</p>
         </div>
@@ -66,12 +72,18 @@ export function SourceCard({
             disabled={busy || otherBusy || locked}
             onClick={() => onStart(source.id)}
             title={locked ? "Sign in first so your score follows you, not this browser" : undefined}
-            className="btn btn-primary shrink-0 px-5 py-2.5 text-sm"
+            className={`btn btn-primary shrink-0 px-5 py-2.5 text-sm ${desktop ? "max-sm:hidden" : ""}`}
           >
             {busy ? "Connecting..." : "Connect"}
           </button>
         )}
       </div>
+
+      {desktop && !connected && (
+        <p className="mt-3 text-sm leading-relaxed text-text-3 sm:hidden">
+          Open Patina on a computer with the Vana app to connect this one.
+        </p>
+      )}
 
       {busy && (
         <div className="mt-5 border-t border-line pt-4">

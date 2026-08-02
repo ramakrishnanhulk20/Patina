@@ -24,12 +24,15 @@
  */
 
 import type {
+  AmazonOrders,
   Evidence,
   GitHubProfile,
   InstagramPosts,
   InstagramProfile,
   LinkedInProfile,
   SpotifyProfile,
+  SteamProfile,
+  UberTrips,
   YouTubeProfile,
 } from "./score";
 
@@ -265,6 +268,85 @@ export function normalizeLinkedIn(raw: unknown): LinkedInProfile | undefined {
   };
 }
 
+/** Parse a value that may be an ISO string or a unix timestamp into an ISO date. */
+function toIsoDate(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const ms = value < 1e12 ? value * 1000 : value; // seconds vs milliseconds
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  return undefined;
+}
+
+/** The oldest date across a list of records, trying several field spellings. */
+function earliestIso(items: Json[], keys: string[]): string | undefined {
+  let earliest: number | null = null;
+  for (const item of items) {
+    for (const key of keys) {
+      const iso = toIsoDate(item[key]);
+      if (iso) {
+        const t = new Date(iso).getTime();
+        if (earliest === null || t < earliest) earliest = t;
+      }
+    }
+  }
+  return earliest === null ? undefined : new Date(earliest).toISOString();
+}
+
+/** First non-empty raw value among several field spellings. */
+function firstDefined(source: Json | undefined, keys: string[]): unknown {
+  if (!source) return undefined;
+  for (const key of keys) {
+    if (source[key] !== undefined && source[key] !== null) return source[key];
+  }
+  return undefined;
+}
+
+/**
+ * Amazon, Uber, Steam — desktop-collected. We keep only the derived signals
+ * (oldest date, a count), never the raw orders or trips. Read defensively: the
+ * real payload shape is only truly known once one is captured, exactly as with
+ * the web sources above.
+ */
+export function normalizeAmazonOrders(raw: unknown): AmazonOrders | undefined {
+  const orders = listOf(raw, "orders");
+  if (!orders.length) return undefined;
+  return {
+    earliestOrder: earliestIso(orders, ["orderDate", "order_date", "date"]),
+    orderCount: orders.length,
+  };
+}
+
+export function normalizeUberTrips(raw: unknown): UberTrips | undefined {
+  const trips = listOf(raw, "trips");
+  if (!trips.length) return undefined;
+  return {
+    earliestTrip: earliestIso(trips, ["requestTime", "request_time", "dropoffTime", "date"]),
+    tripCount: trips.length,
+  };
+}
+
+export function normalizeSteam(raw: unknown): SteamProfile | undefined {
+  const p = payloadOf(raw);
+  if (!p) return undefined;
+
+  const steamId = pick(p, ["steamId", "steam_id", "steamid"], isStr);
+  const personaName = pick(p, ["personaName", "persona_name", "personaname"], isStr);
+  const accountCreated = toIsoDate(
+    firstDefined(p, ["accountCreated", "account_created", "timecreated", "created"]),
+  );
+  const steamLevel = pick(p, ["steamLevel", "steam_level", "level"], isNum);
+
+  // Refuse an empty read so it does not claim the slot and block a better one.
+  if (!steamId && !personaName && !accountCreated) return undefined;
+
+  return { steamId, personaName, accountCreated, steamLevel };
+}
+
 /**
  * A stable id for the ACCOUNT behind a read.
  *
@@ -300,6 +382,11 @@ export function identityOf(scope: string, raw: unknown): string | undefined {
     }
     case "spotify.profile":
       return pick(p, ["id"], isStr);
+    case "steam.profile":
+      // steamId is the stable account id. Amazon orders and Uber trips carry no
+      // account id in the payload; they are collected from a real logged-in
+      // account, so there is no externalId to dedup on here (undefined).
+      return pick(p, ["steamId", "steam_id", "steamid"], isStr);
     case "linkedin.profile": {
       const url = pick(p, ["profileUrl", "profile_url", "url"], isStr);
       return linkedInSlug(url) ?? pick(p, ["vanityName", "publicIdentifier", "username"], isStr);
@@ -329,6 +416,12 @@ export function foldRead(evidence: Evidence, scope: string, raw: unknown): Evide
       return { ...evidence, spotify: normalizeSpotify(raw) ?? evidence.spotify };
     case "linkedin.profile":
       return { ...evidence, linkedin: normalizeLinkedIn(raw) ?? evidence.linkedin };
+    case "amazon.orders":
+      return { ...evidence, amazon: normalizeAmazonOrders(raw) ?? evidence.amazon };
+    case "uber.trips":
+      return { ...evidence, uber: normalizeUberTrips(raw) ?? evidence.uber };
+    case "steam.profile":
+      return { ...evidence, steam: normalizeSteam(raw) ?? evidence.steam };
     default:
       return evidence;
   }

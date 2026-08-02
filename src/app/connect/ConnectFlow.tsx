@@ -111,8 +111,11 @@ export function ConnectFlow({
   const { phase, start, dismissError } = useConnect(refresh);
 
   const connectedCount = Object.keys(readAt).length;
-  const remaining = sources.length - connectedCount;
-  const next = nextBestSource(new Set(Object.keys(readAt)), sources);
+  const webSources = sources.filter((source) => source.kind !== "desktop");
+  const desktopSources = sources.filter((source) => source.kind === "desktop");
+  const connectedWeb = webSources.filter((source) => readAt[source.id]).length;
+  const webRemaining = webSources.length - connectedWeb;
+  const next = nextBestSource(new Set(Object.keys(readAt)), webSources);
   const topPct =
     rank !== null && totalScored >= 10
       ? Math.max(1, Math.round((rank / totalScored) * 100))
@@ -122,17 +125,17 @@ export function ConnectFlow({
     <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-14">
       <div>
         <h1 className="t-section text-text">
-          {connectedCount === 0
+          {connectedWeb === 0
             ? "Start with one."
             : "Add another. It counts for more than you think."}
         </h1>
 
         <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
-          {connectedCount === 0
+          {connectedWeb === 0
             ? "Pick whichever you have had the longest. Age is what matters here, not how active you are."
             : `Each account you add is independent proof, and the score weights that heavily. ${
-                remaining > 0
-                  ? `${remaining} left to go.`
+                webRemaining > 0
+                  ? `${webRemaining} left to go.`
                   : "That is all of them. Nothing more to prove."
               }`}
         </p>
@@ -163,7 +166,7 @@ export function ConnectFlow({
           <div className="mt-6 border border-line bg-panel p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="t-label text-text-3">
-                {connectedCount} of {sources.length} connected
+                {connectedWeb} of {webSources.length} connected
               </span>
               {rank !== null && (
                 <span className="t-label text-text-3">
@@ -174,7 +177,7 @@ export function ConnectFlow({
             </div>
 
             <div className="mt-3 flex gap-1.5" aria-hidden="true">
-              {sources.map((source) => (
+              {webSources.map((source) => (
                 <span
                   key={source.id}
                   className={`h-1.5 flex-1 rounded-full ${
@@ -201,7 +204,7 @@ export function ConnectFlow({
         )}
 
         <div className="mt-4 space-y-3">
-          {sources.map((source) => (
+          {webSources.map((source) => (
             <SourceCard
               key={source.id}
               source={source}
@@ -220,6 +223,44 @@ export function ConnectFlow({
           connected. That tab hands the data over; this one collects it. We never see a password,
           and you can revoke access from your Vana account whenever you want.
         </p>
+
+        {/*
+          Desktop connectors, in their own section. They need Vana's DataConnect
+          app on a computer, so on a phone they are shown but not tappable (the
+          connect button hides below sm). They score exactly like the web ones.
+        */}
+        {desktopSources.length > 0 && (
+          <div className="mt-12 border-t border-line pt-8">
+            <h2 className="text-xl font-semibold tracking-tight text-text">Power up on a computer</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-2">
+              These come from Vana&apos;s DataConnect app, which runs on a computer, so they carry
+              deeper history but cannot be done on a phone. On a desktop, connect the source in the
+              app, then connect it here. They count toward your score exactly like the rest.
+            </p>
+            <a
+              href="https://github.com/PDP-Connect/data-connect/releases/latest"
+              target="_blank"
+              rel="noreferrer"
+              className="tap mt-3 inline-block text-sm text-accent underline underline-offset-4"
+            >
+              Get Vana&apos;s DataConnect app
+            </a>
+
+            <div className="mt-5 space-y-3">
+              {desktopSources.map((source) => (
+                <SourceCard
+                  key={source.id}
+                  source={source}
+                  connected={Boolean(readAt[source.id])}
+                  locked={false}
+                  phase={phase}
+                  onStart={start}
+                  onDismissError={dismissError}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-8">

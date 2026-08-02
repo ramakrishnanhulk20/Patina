@@ -14,7 +14,18 @@
  * user, because a score nobody can interrogate is a score nobody should trust.
  */
 
-export type SourceId = "youtube" | "instagram" | "github" | "spotify" | "linkedin";
+export type SourceId =
+  | "youtube"
+  | "instagram"
+  | "github"
+  | "spotify"
+  | "linkedin"
+  // Desktop-only sources, collected through Vana's DataConnect app rather than
+  // the web path. They carry real timestamped history, so they score like the
+  // rest — see the note in sources.ts on why they live in a separate section.
+  | "amazon"
+  | "uber"
+  | "steam";
 
 export type YouTubeProfile = {
   joinedDate?: string | null;
@@ -79,6 +90,32 @@ export type LinkedInProfile = {
   createdAt?: string;
 };
 
+/**
+ * Desktop-collected sources. We keep only the derived signals — the oldest date
+ * and a count — not the raw orders or trips, which would be a lot of personal
+ * data to hold for no scoring benefit. Age comes from the earliest activity,
+ * which is a provable lower bound on how long the account has been in use.
+ */
+export type AmazonOrders = {
+  /** ISO date of the oldest order we can see. */
+  earliestOrder?: string;
+  orderCount?: number;
+};
+
+export type UberTrips = {
+  /** ISO date of the oldest trip we can see. */
+  earliestTrip?: string;
+  tripCount?: number;
+};
+
+export type SteamProfile = {
+  steamId?: string;
+  personaName?: string;
+  /** When the Steam account was created — a real account-opened date. */
+  accountCreated?: string;
+  steamLevel?: number;
+};
+
 export type Evidence = {
   youtube?: YouTubeProfile;
   instagram?: InstagramProfile;
@@ -86,6 +123,9 @@ export type Evidence = {
   github?: GitHubProfile;
   spotify?: SpotifyProfile;
   linkedin?: LinkedInProfile;
+  amazon?: AmazonOrders;
+  uber?: UberTrips;
+  steam?: SteamProfile;
 };
 
 export type Component = {
@@ -150,6 +190,15 @@ function ageComponent(evidence: Evidence): { component: Component; oldest: Patin
     .sort((a, b) => a.getTime() - b.getTime());
   if (postDates[0]) candidates.push({ date: postDates[0], source: "earliest Instagram post" });
 
+  const steamCreated = parseDate(evidence.steam?.accountCreated);
+  if (steamCreated) candidates.push({ date: steamCreated, source: "Steam account opened" });
+
+  const amazonEarliest = parseDate(evidence.amazon?.earliestOrder);
+  if (amazonEarliest) candidates.push({ date: amazonEarliest, source: "first Amazon order" });
+
+  const uberEarliest = parseDate(evidence.uber?.earliestTrip);
+  if (uberEarliest) candidates.push({ date: uberEarliest, source: "first Uber trip" });
+
   if (candidates.length === 0) {
     return {
       component: {
@@ -213,6 +262,9 @@ function corroborationComponent(evidence: Evidence): Component {
       ["GitHub", yearsSince(parseDate(evidence.github?.createdAt))],
       ["LinkedIn", yearsSince(parseDate(evidence.linkedin?.createdAt ?? null))],
       ["Instagram", yearsSince(oldestPost ?? null)],
+      ["Steam", yearsSince(parseDate(evidence.steam?.accountCreated))],
+      ["Amazon", yearsSince(parseDate(evidence.amazon?.earliestOrder))],
+      ["Uber", yearsSince(parseDate(evidence.uber?.earliestTrip))],
     ] as [string, number | null][]
   ).filter((entry): entry is [string, number] => entry[1] !== null);
 
@@ -256,12 +308,16 @@ function depthComponent(evidence: Evidence, connected: number): Component {
   const made =
     instagramPosts +
     (evidence.youtube?.videoCount ?? 0) +
-    (evidence.github?.repositoryCount ?? 0);
+    (evidence.github?.repositoryCount ?? 0) +
+    (evidence.amazon?.orderCount ?? 0) +
+    (evidence.uber?.tripCount ?? 0);
 
   const parts: string[] = [];
   if (instagramPosts) parts.push(`${instagramPosts} posts`);
   if (evidence.youtube?.videoCount) parts.push(`${evidence.youtube.videoCount} videos`);
   if (evidence.github?.repositoryCount) parts.push(`${evidence.github.repositoryCount} repos`);
+  if (evidence.amazon?.orderCount) parts.push(`${evidence.amazon.orderCount} orders`);
+  if (evidence.uber?.tripCount) parts.push(`${evidence.uber.tripCount} trips`);
 
   const detail = parts.length
     ? parts.join(", ") + "."
@@ -355,6 +411,9 @@ export function scorePatina(evidence: Evidence): PatinaScore {
   if (evidence.github) sourcesConnected.push("github");
   if (evidence.spotify) sourcesConnected.push("spotify");
   if (evidence.linkedin) sourcesConnected.push("linkedin");
+  if (evidence.amazon) sourcesConnected.push("amazon");
+  if (evidence.uber) sourcesConnected.push("uber");
+  if (evidence.steam) sourcesConnected.push("steam");
 
   const { component: age, oldest } = ageComponent(evidence);
   const corroboration = corroborationComponent(evidence);

@@ -55,6 +55,9 @@ const SOURCE_LABEL: Record<SourceId, string> = {
   github: "GitHub",
   spotify: "Spotify",
   linkedin: "LinkedIn",
+  amazon: "Amazon",
+  uber: "Uber",
+  steam: "Steam",
 };
 
 function yearOf(value: unknown): number | null {
@@ -85,6 +88,15 @@ export function buildStory(evidence: Evidence, score: PatinaScore, verdict: stri
   if (postYears[0]) {
     timeline.push({ source: "instagram", year: postYears[0], label: "first Instagram post" });
   }
+
+  const steamYear = yearOf(evidence.steam?.accountCreated);
+  if (steamYear) timeline.push({ source: "steam", year: steamYear, label: "created Steam" });
+
+  const amazonYear = yearOf(evidence.amazon?.earliestOrder);
+  if (amazonYear) timeline.push({ source: "amazon", year: amazonYear, label: "first Amazon order" });
+
+  const uberYear = yearOf(evidence.uber?.earliestTrip);
+  if (uberYear) timeline.push({ source: "uber", year: uberYear, label: "first Uber trip" });
 
   timeline.sort((a, b) => a.year - b.year);
 

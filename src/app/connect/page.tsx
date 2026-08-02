@@ -1,7 +1,7 @@
 import { ConnectFlow } from "./ConnectFlow";
 import { NextApps } from "./NextApps";
 import { ecosystemApps } from "@/lib/ecosystem";
-import { SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
+import { DESKTOP_ORDER, SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
 import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, referralTally, resolveProfileId } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
@@ -38,7 +38,7 @@ export default async function ConnectPage({
   const connected = Object.keys(profile?.sources ?? {}).length > 0;
   const nextApps = connected ? await ecosystemApps(4) : [];
 
-  const sources = SOURCE_ORDER.map((id) => SOURCE_SPECS[id]);
+  const sources = [...SOURCE_ORDER, ...DESKTOP_ORDER].map((id) => SOURCE_SPECS[id]);
 
   const signedIn = Boolean(profile?.id.startsWith("g:"));
   const loginError =
