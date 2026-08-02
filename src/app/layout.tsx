@@ -79,6 +79,14 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-text">
+        {/* If JS never runs, never leave scroll-reveal content stuck hidden. */}
+        <noscript>
+          <style
+            dangerouslySetInnerHTML={{
+              __html: ".reveal{opacity:1 !important;transform:none !important}",
+            }}
+          />
+        </noscript>
         {locked ? (
           children
         ) : (

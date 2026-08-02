@@ -388,6 +388,20 @@ select {
   will-change: opacity, transform;
 }
 
+/* Directional entrances for the landing page. Balanced travel — enough to read
+   as movement, not so much that it throws the layout around. */
+.reveal[data-dir="left"] {
+  transform: translateX(-36px);
+}
+
+.reveal[data-dir="right"] {
+  transform: translateX(36px);
+}
+
+.reveal[data-dir="up"] {
+  transform: translateY(24px);
+}
+
 .reveal[data-shown="true"] {
   opacity: 1;
   transform: none;

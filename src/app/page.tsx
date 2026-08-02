@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { RingField } from "./components/RingField";
 import { SectionLabel } from "./components/SectionLabel";
+import { Reveal } from "./components/Reveal";
 import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
 
 const SOURCES = [
@@ -139,35 +140,41 @@ export default function Home() {
           <SectionLabel>The one thing that cannot be bought</SectionLabel>
 
           <div className="mt-8 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <h2 className="t-section text-text">
-              Followers can be bought. Posts can be bulk uploaded. Time cannot.
-            </h2>
+            <Reveal direction="left">
+              <h2 className="t-section text-text">
+                Followers can be bought. Posts can be bulk uploaded. Time cannot.
+              </h2>
+            </Reveal>
 
-            <div className="space-y-5 text-lg leading-relaxed text-text-2">
-              <p>
-                Somebody running a thousand fake accounts can buy every signal the internet normally
-                uses to decide whether you are real. Followers, activity, a filled-in profile. All
-                of it is for sale.
-              </p>
-              <p>
-                What they cannot buy is a decade. So Patina scores the things that only exist
-                because time passed, and treats everything else as nearly worthless until there is
-                real history sitting underneath it.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-16 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
-            {SIGNALS.map((signal) => (
-              <div key={signal.name} className="bg-bg p-6">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-text">{signal.name}</h3>
-                  <span className="t-mono text-sm text-accent">{signal.weight}</span>
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-text-3">{signal.body}</p>
+            <Reveal direction="right">
+              <div className="space-y-5 text-lg leading-relaxed text-text-2">
+                <p>
+                  Somebody running a thousand fake accounts can buy every signal the internet normally
+                  uses to decide whether you are real. Followers, activity, a filled-in profile. All
+                  of it is for sale.
+                </p>
+                <p>
+                  What they cannot buy is a decade. So Patina scores the things that only exist
+                  because time passed, and treats everything else as nearly worthless until there is
+                  real history sitting underneath it.
+                </p>
               </div>
-            ))}
+            </Reveal>
           </div>
+
+          <Reveal direction="up" className="mt-16">
+            <div className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
+              {SIGNALS.map((signal) => (
+                <div key={signal.name} className="bg-bg p-6">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="text-lg font-semibold text-text">{signal.name}</h3>
+                    <span className="t-mono text-sm text-accent">{signal.weight}</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-text-3">{signal.body}</p>
+                </div>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -177,18 +184,20 @@ export default function Home() {
           <SectionLabel>How it works</SectionLabel>
 
           <div className="mt-10 grid gap-10 lg:grid-cols-3 lg:gap-14">
-            {STEPS.map((item) => (
-              <div key={item.step} className="border-t border-line-strong pt-6">
-                <span className="t-mono text-sm text-accent">{item.step}</span>
-                <h3 className="mt-4 text-2xl font-semibold tracking-tight text-text">
-                  {item.title}
-                </h3>
-                <p className="mt-3 leading-relaxed text-text-2">{item.body}</p>
-              </div>
+            {STEPS.map((item, i) => (
+              <Reveal key={item.step} direction="up" delay={i * 90}>
+                <div className="border-t border-line-strong pt-6">
+                  <span className="t-mono text-sm text-accent">{item.step}</span>
+                  <h3 className="mt-4 text-2xl font-semibold tracking-tight text-text">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 leading-relaxed text-text-2">{item.body}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
 
-          <div className="mt-16">
+          <Reveal direction="up" className="mt-16">
             <p className="t-label text-text-3">What it can read today</p>
             <div className="mt-5 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
               {SOURCES.map((source) => (
@@ -199,7 +208,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -209,36 +218,40 @@ export default function Home() {
           <SectionLabel>Proof you can carry</SectionLabel>
 
           <div className="mt-8 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <h2 className="t-section text-text">Not a quiz. A signed fact that travels.</h2>
+            <Reveal direction="left">
+              <h2 className="t-section text-text">Not a quiz. A signed fact that travels.</h2>
+            </Reveal>
 
-            <div className="space-y-5 text-lg leading-relaxed text-text-2">
-              <p>
-                Every Patina score is cryptographically signed by our key on Vana. Anyone — a person,
-                or another app — can check it is real without trusting us, and carry it anywhere that
-                wants proof of a real history. That is the whole reason to build on Vana instead of
-                behind a login.
-              </p>
-              <p>
-                <Link href="/verify" className="text-accent underline underline-offset-4">
-                  Verify any score
-                </Link>
-                , or{" "}
-                <Link href="/docs" className="text-accent underline underline-offset-4">
-                  wire it into your own app
-                </Link>{" "}
-                in a single request.
-              </p>
-            </div>
+            <Reveal direction="right">
+              <div className="space-y-5 text-lg leading-relaxed text-text-2">
+                <p>
+                  Every Patina score is cryptographically signed by our key on Vana. Anyone — a person,
+                  or another app — can check it is real without trusting us, and carry it anywhere that
+                  wants proof of a real history. That is the whole reason to build on Vana instead of
+                  behind a login.
+                </p>
+                <p>
+                  <Link href="/verify" className="text-accent underline underline-offset-4">
+                    Verify any score
+                  </Link>
+                  , or{" "}
+                  <Link href="/docs" className="text-accent underline underline-offset-4">
+                    wire it into your own app
+                  </Link>{" "}
+                  in a single request.
+                </p>
+              </div>
+            </Reveal>
           </div>
 
-          <div className="mt-10 overflow-x-auto rounded-lg border border-line bg-ink p-5">
+          <Reveal direction="up" className="mt-10 overflow-x-auto rounded-lg border border-line bg-ink p-5">
             <pre className="text-xs leading-relaxed text-text-2 sm:text-sm">
               <code>{`GET /api/verify/alice  →  {
   "score": 83, "verdict": "Deeply worn in", "oldestYear": 2013,
   "attestation": { "app": "0x620d…54A1", "signature": "0x…" }
 }`}</code>
             </pre>
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -248,60 +261,66 @@ export default function Home() {
           <SectionLabel>Why there is money in it</SectionLabel>
 
           <div className="mt-8 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <h2 className="t-section text-text">
-              Half of anything Patina wins goes back to the people who made it happen.
-            </h2>
+            <Reveal direction="left">
+              <h2 className="t-section text-text">
+                Half of anything Patina wins goes back to the people who made it happen.
+              </h2>
+            </Reveal>
 
-            <div className="space-y-5 text-lg leading-relaxed text-text-2">
-              <p>
-                Patina is competing in the Vana Cup, a public contest scored on a live leaderboard.
-                If it places, half the winnings are split among the{" "}
-                <span className="text-text">top {REWARD.places} people by points</span>
-                — your Patina score plus 10 for every real person you bring. Everyone eligible gets
-                one share, and every real invite adds another share of the pool.
-              </p>
-              <p>
-                Paid in VANA by <span className="text-text">{REWARD.paidBy}</span>.
-              </p>
-              <p className="text-base text-text-3">
-                Being straight with you: second place pays a tenth of first, and if Patina finishes
-                sixth there is nothing to split at all. The leaderboard is public, so you can check
-                where it stands whenever you like. This is a thing we either pull off together or we
-                do not.
-              </p>
-            </div>
+            <Reveal direction="right">
+              <div className="space-y-5 text-lg leading-relaxed text-text-2">
+                <p>
+                  Patina is competing in the Vana Cup, a public contest scored on a live leaderboard.
+                  If it places, half the winnings are split among the{" "}
+                  <span className="text-text">top {REWARD.places} people by points</span>
+                  — your Patina score plus 10 for every real person you bring. Everyone eligible gets
+                  one share, and every real invite adds another share of the pool.
+                </p>
+                <p>
+                  Paid in VANA by <span className="text-text">{REWARD.paidBy}</span>.
+                </p>
+                <p className="text-base text-text-3">
+                  Being straight with you: second place pays a tenth of first, and if Patina finishes
+                  sixth there is nothing to split at all. The leaderboard is public, so you can check
+                  where it stands whenever you like. This is a thing we either pull off together or we
+                  do not.
+                </p>
+              </div>
+            </Reveal>
           </div>
 
-          <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
-            <div className="bg-bg p-6">
-              <p className="t-label text-text-3">If Patina wins</p>
-              <p className="mt-3 text-2xl font-semibold text-accent">
-                about {usd(ILLUSTRATION.championPerShare)}
-              </p>
-              <p className="t-mono mt-1 text-sm text-text-3">
-                ~{Math.round(ILLUSTRATION.championPerShare)} VANA per share
-              </p>
+          <Reveal direction="up" className="mt-10">
+            <div className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
+              <div className="bg-bg p-6">
+                <p className="t-label text-text-3">If Patina wins</p>
+                <p className="mt-3 text-2xl font-semibold text-accent">
+                  about {usd(ILLUSTRATION.championPerShare)}
+                </p>
+                <p className="t-mono mt-1 text-sm text-text-3">
+                  ~{Math.round(ILLUSTRATION.championPerShare)} VANA per share
+                </p>
+              </div>
+              <div className="bg-bg p-6">
+                <p className="t-label text-text-3">If Patina is 2nd to 5th</p>
+                <p className="mt-3 text-2xl font-semibold text-text">
+                  about {usd(ILLUSTRATION.runnerUpPerShare)}
+                </p>
+                <p className="t-mono mt-1 text-sm text-text-3">
+                  ~{Math.round(ILLUSTRATION.runnerUpPerShare)} VANA per share
+                </p>
+              </div>
+              <div className="bg-bg p-6">
+                <p className="t-label text-text-3">The full rules</p>
+                <Link
+                  href="/rewards"
+                  className="tap mt-3 inline-block text-lg text-accent underline underline-offset-4"
+                >
+                  Read the terms
+                </Link>
+                <p className="mt-1.5 text-sm text-text-3">Including how it can go wrong</p>
+              </div>
             </div>
-            <div className="bg-bg p-6">
-              <p className="t-label text-text-3">If Patina is 2nd to 5th</p>
-              <p className="mt-3 text-2xl font-semibold text-text">
-                about {usd(ILLUSTRATION.runnerUpPerShare)}
-              </p>
-              <p className="t-mono mt-1 text-sm text-text-3">
-                ~{Math.round(ILLUSTRATION.runnerUpPerShare)} VANA per share
-              </p>
-            </div>
-            <div className="bg-bg p-6">
-              <p className="t-label text-text-3">The full rules</p>
-              <Link
-                href="/rewards"
-                className="tap mt-3 inline-block text-lg text-accent underline underline-offset-4"
-              >
-                Read the terms
-              </Link>
-              <p className="mt-1.5 text-sm text-text-3">Including how it can go wrong</p>
-            </div>
-          </div>
+          </Reveal>
 
           <p className="mt-4 text-sm leading-relaxed text-text-4">
             Dollar figures assume {REWARD.places} shares and a VANA price of $
@@ -317,11 +336,13 @@ export default function Home() {
           <SectionLabel>What Patina cannot do</SectionLabel>
 
           <div className="mt-10 grid gap-10 lg:grid-cols-3 lg:gap-14">
-            {LIMITS.map((item) => (
-              <div key={item.title} className="border-t border-line-strong pt-6">
-                <h3 className="text-xl font-semibold tracking-tight text-text">{item.title}</h3>
-                <p className="mt-3 leading-relaxed text-text-2">{item.body}</p>
-              </div>
+            {LIMITS.map((item, i) => (
+              <Reveal key={item.title} direction="up" delay={i * 90}>
+                <div className="border-t border-line-strong pt-6">
+                  <h3 className="text-xl font-semibold tracking-tight text-text">{item.title}</h3>
+                  <p className="mt-3 leading-relaxed text-text-2">{item.body}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -330,14 +351,18 @@ export default function Home() {
       {/* ---------------------------------------------------------------- cta */}
       <section className="px-6 py-24 sm:py-32">
         <div className="mx-auto max-w-6xl text-center">
-          <h2 className="t-section mx-auto max-w-3xl text-text">
-            How far back does your digital life actually go?
-          </h2>
-          <div className="mt-10">
-            <Link href="/connect" className="btn btn-primary px-8 py-4 text-base">
-              Find out
-            </Link>
-          </div>
+          <Reveal direction="up">
+            <h2 className="t-section mx-auto max-w-3xl text-text">
+              How far back does your digital life actually go?
+            </h2>
+          </Reveal>
+          <Reveal direction="up" delay={120}>
+            <div className="mt-10">
+              <Link href="/connect" className="btn btn-primary px-8 py-4 text-base">
+                Find out
+              </Link>
+            </div>
+          </Reveal>
         </div>
       </section>
 
