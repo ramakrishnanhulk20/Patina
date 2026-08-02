@@ -133,6 +133,4 @@ read.
 
 ## Licence
 
-**Proprietary — all rights reserved.** See [LICENSE](LICENSE). You may not use,
-copy, modify, or distribute this code without written permission from the
-copyright holder.
+MIT — see [LICENSE](LICENSE).
