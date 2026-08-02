@@ -36,7 +36,9 @@ export async function POST(request: Request) {
   // answers the SDK's own auth URL with "This app is not registered with Vana".
   //
   // So the gate blocked every connection on the site while offering a sign-in
-  // that could never complete. Identity is solved with a device link instead.
+  // that could never complete. Identity is solved separately and optionally,
+  // with Google sign-in folding this browser into one cross-device profile
+  // (see claimProfile) — connecting itself never requires it.
   const profileId = await resolveProfileId(browserSession);
 
   // Vana sends the user straight back to the connect page, where the pending

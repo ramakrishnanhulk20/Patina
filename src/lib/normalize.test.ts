@@ -190,6 +190,13 @@ test("Instagram posts normalize from a named posts array", () => {
   assert.equal(evidence.instagramPosts?.posts?.length, 2);
   assert.equal(identityOf("instagram.posts", raw), "janedoe");
 
+  // Data minimisation: the raw read carried a caption and a like count, and
+  // neither is scored, so neither must survive into what we store.
+  const first = evidence.instagramPosts?.posts?.[0] as Record<string, unknown>;
+  assert.ok(first.taken_at, "the timestamp is what we keep");
+  assert.equal(first.num_of_likes, undefined, "like counts must not be retained");
+  assert.equal(first.caption, undefined, "captions must not be retained");
+
   // The oldest post is what Age is built from.
   const score = scorePatina(evidence);
   assert.ok(score.sourcesConnected.includes("instagram"));

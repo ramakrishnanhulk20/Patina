@@ -47,7 +47,12 @@ export type InstagramProfile = {
 };
 
 export type InstagramPosts = {
-  posts?: Array<{ taken_at?: string; num_of_likes?: number; caption?: string }>;
+  /**
+   * Only the timestamp is retained — it is all the scorer reads (it feeds Age
+   * and Corroboration). Captions and like counts are dropped in normalize.ts,
+   * not stored, so this type is the shape we actually hold, not the raw read.
+   */
+  posts?: Array<{ taken_at?: string }>;
 };
 
 export type GitHubProfile = {

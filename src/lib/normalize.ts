@@ -204,10 +204,12 @@ export function normalizeInstagramPosts(raw: unknown): InstagramPosts | undefine
   if (!source.length) return undefined;
 
   return {
+    // Only the timestamp is kept, because only the timestamp is scored (Age and
+    // Corroboration). Captions and like counts are deliberately dropped rather
+    // than stored: the scorer never reads them, and holding a person's post text
+    // would be more than "the few signals behind the score" that we promise.
     posts: source.map((post) => ({
       taken_at: pick(post, POST_DATE_KEYS, isStr),
-      num_of_likes: pick(post, ["num_of_likes", "numOfLikes", "like_count", "likes"], isNum),
-      caption: pick(post, ["caption"], isStr),
     })),
   };
 }

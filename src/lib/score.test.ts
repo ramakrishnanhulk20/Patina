@@ -18,7 +18,6 @@ const realPerson: Evidence = {
     // 96 posts scattered across nine years, the way a life actually looks.
     posts: Array.from({ length: 96 }, (_, i) => ({
       taken_at: ago(9 - (i / 96) * 9),
-      num_of_likes: 20 + (i % 30),
     })),
   },
   github: { username: "someone", followers: 24, repositoryCount: 17, organizations: [{ login: "a-co" }] },
@@ -40,7 +39,6 @@ const farmedAccount: Evidence = {
     // 120 posts, all dumped inside the same fortnight.
     posts: Array.from({ length: 120 }, (_, i) => ({
       taken_at: ago(0.03 + (i / 120) * 0.01),
-      num_of_likes: 500,
     })),
   },
   github: { username: "user883021", followers: 900, repositoryCount: 40 },

@@ -135,11 +135,23 @@ export type PendingRequest = {
   result?: unknown;
 };
 
+/**
+ * How long a pending request record lives.
+ *
+ * A request is a short-lived cache of one in-flight connection: it holds the
+ * source and, once read, the result — the latter only to stop a retry from
+ * re-spending escrow. After the read is folded into the profile it serves no
+ * further purpose, so a day (far longer than any approval takes) is ample.
+ * Expiring it also means the cached read cannot outlive the person: a profile
+ * deletion has no back-reference to these keys, so the TTL is what clears them.
+ */
+const REQUEST_TTL_SECONDS = 60 * 60 * 24;
+
 export async function rememberRequest(
   requestId: string,
   pending: PendingRequest,
 ): Promise<void> {
-  await db().set(requestKey(requestId), pending);
+  await db().set(requestKey(requestId), pending, REQUEST_TTL_SECONDS);
 }
 
 export async function getRequest(requestId: string): Promise<PendingRequest | null> {
@@ -150,7 +162,13 @@ export async function getRequest(requestId: string): Promise<PendingRequest | nu
 
 interface Backend {
   get(key: string): Promise<unknown>;
-  set(key: string, value: unknown): Promise<void>;
+  /**
+   * `ttlSeconds`, when given, makes the key expire after that long. Used for the
+   * short-lived request records so a cached read cannot linger in the store
+   * indefinitely (including past a profile deletion, which has no way to find
+   * them). Persistent data — profiles, usernames, codes — is written without it.
+   */
+  set(key: string, value: unknown, ttlSeconds?: number): Promise<void>;
   /**
    * Write only if the key is absent. True when this caller won it.
    *
@@ -174,6 +192,7 @@ let warned = false;
 
 function memoryBackend(): Backend {
   const map = new Map<string, unknown>();
+  const expiries = new Map<string, number>();
   const sets = new Map<string, Set<string>>();
 
   if (!warned) {
@@ -188,10 +207,18 @@ function memoryBackend(): Backend {
 
   return {
     async get(key) {
+      const expiry = expiries.get(key);
+      if (expiry !== undefined && expiry <= Date.now()) {
+        map.delete(key);
+        expiries.delete(key);
+        return null;
+      }
       return map.get(key) ?? null;
     },
-    async set(key, value) {
+    async set(key, value, ttlSeconds) {
       map.set(key, value);
+      if (ttlSeconds) expiries.set(key, Date.now() + ttlSeconds * 1000);
+      else expiries.delete(key);
     },
     async setIfAbsent(key, value) {
       // Single-threaded, so this really is atomic here.
@@ -238,8 +265,9 @@ function redisBackend(redis: Redis): Backend {
     async get(key) {
       return redis.get(key);
     },
-    async set(key, value) {
-      await redis.set(key, value);
+    async set(key, value, ttlSeconds) {
+      if (ttlSeconds) await redis.set(key, value, { ex: ttlSeconds });
+      else await redis.set(key, value);
     },
     async setIfAbsent(key, value) {
       // Redis SET NX is atomic across every instance, which is the whole reason
