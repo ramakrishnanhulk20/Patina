@@ -16,7 +16,13 @@ import { usePathname } from "next/navigation";
  * existed: a section nobody can find is a section nobody reads.
  */
 
-type Item = { href: string; label: string; icon: React.ReactNode };
+type Item = {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** Show in the desktop bar but not the phone bottom bar, which stays at five. */
+  desktopOnly?: boolean;
+};
 
 const Rings = (
   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
@@ -55,12 +61,24 @@ const Shield = (
   </svg>
 );
 
+const Doc = (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 3h8l4 4v14H6V3Z" />
+    <path d="M14 3v4h4" />
+    <path d="M9 13h6M9 16.5h4" />
+  </svg>
+);
+
 const ITEMS: Item[] = [
   { href: "/", label: "Home", icon: Rings },
   { href: "/connect", label: "Connect", icon: Plug },
   { href: "/verify", label: "Verify", icon: Shield },
   { href: "/standings", label: "Standings", icon: Chart },
   { href: "/rewards", label: "Reward", icon: Coin },
+  // Developer docs. Desktop header only: it is for people integrating Patina,
+  // not a core end-user action, and a sixth tab would crowd the phone bottom bar
+  // (it stays reachable there from the footer). See the mobile filter below.
+  { href: "/docs", label: "Docs", icon: Doc, desktopOnly: true },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -110,7 +128,7 @@ export function AppNav() {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <ul className="mx-auto flex max-w-lg">
-          {ITEMS.map((item) => {
+          {ITEMS.filter((item) => !item.desktopOnly).map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <li key={item.href} className="flex-1">
