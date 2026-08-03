@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { Component } from "@/lib/score";
 import { GlowCard3D } from "../components/GlowCard3D";
 import { PlateCard } from "../components/PlateCard";
@@ -13,6 +14,28 @@ export type ScoreView = {
   sourcesConnected: string[];
 };
 
+/**
+ * True only on desktop-width viewports.
+ *
+ * Starts `false` so the server render and the first client render agree (no
+ * hydration mismatch), and phones simply never flip it. This gates the live
+ * WebGL card below — see the note where it is used for why the 3D card must not
+ * mount on phones.
+ */
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    // 640px is Tailwind's `sm` breakpoint, the line the rest of the app already
+    // uses to split phone from desktop.
+    const query = window.matchMedia("(min-width: 640px)");
+    const sync = () => setIsDesktop(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+  return isDesktop;
+}
+
 export function ScorePanel({
   score,
   username,
@@ -25,6 +48,7 @@ export function ScorePanel({
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const name = username && username.trim() ? username : "you";
+  const isDesktop = useIsDesktop();
 
   return (
     <div className="border border-line bg-panel">
@@ -49,9 +73,28 @@ export function ScorePanel({
         // it is the exact object the person will go on to share.
         <div className="border-b border-line p-4 sm:p-5">
           <p className="t-label px-1 pb-3 text-text-3">Your Patina</p>
-          <GlowCard3D username={name} score={score.total} verdict={score.verdict} year={year} years={years}>
-            <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} />
-          </GlowCard3D>
+          {isDesktop ? (
+            <GlowCard3D username={name} score={score.total} verdict={score.verdict} year={year} years={years}>
+              <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} />
+            </GlowCard3D>
+          ) : (
+            // On phones the live WebGL card is deliberately NOT mounted here.
+            //
+            // During a connect this tab sits in the background while the user
+            // approves in the Vana tab. A running WebGL context (three.js + a
+            // live GL surface) makes a phone far more likely to freeze or discard
+            // the backgrounded tab under memory pressure — and a discarded tab
+            // never wakes to pick up the approved data, so the Vana tab hangs on
+            // "waiting for Patina" forever. Keeping this page light is what lets
+            // the background poll survive and finish the connect on its own.
+            //
+            // Nothing is really lost: PlateCard is the same card without the 3D
+            // tilt, and the live WebGL card still renders on the shareable public
+            // profile (/u/[username]), which is not part of the connect flow.
+            <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl sm:aspect-[16/10]">
+              <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} />
+            </div>
+          )}
         </div>
       )}
 
