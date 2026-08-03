@@ -81,7 +81,7 @@ export async function CupStanding() {
       </p>
 
       <Link
-        href="/connect"
+        href="/share"
         className="btn btn-primary mt-5 inline-flex w-full px-5 py-3 text-sm sm:w-auto"
       >
         Share your card

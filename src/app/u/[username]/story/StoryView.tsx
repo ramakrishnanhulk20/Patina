@@ -182,7 +182,7 @@ export function StoryView({ username, story }: { username: string; story: Story 
             and that is the whole game.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
-            <Link href="/connect" className="btn btn-primary px-6 py-3.5 text-base">
+            <Link href="/share" className="btn btn-primary px-6 py-3.5 text-base">
               Share your card
             </Link>
             <Link
