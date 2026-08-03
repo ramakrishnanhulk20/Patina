@@ -1,3 +1,5 @@
+import { CountUp } from "./CountUp";
+
 /**
  * The card as real HTML.
  *
@@ -18,12 +20,19 @@ export function PlateCard({
   verdict,
   year,
   years,
+  animate = false,
 }: {
   username: string;
   score: number;
   verdict: string;
   year: number | null;
   years: number | null;
+  /**
+   * Count the score up on first paint. Only the connect result asks for this —
+   * the moment the number is earned. The shared /u card and the base beneath the
+   * desktop WebGL plate stay static, so a profile view never re-animates.
+   */
+  animate?: boolean;
 }) {
   return (
     <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl border border-line bg-[#0e100e] p-6 sm:p-8">
@@ -55,7 +64,11 @@ export function PlateCard({
         <p className="truncate text-xl font-semibold text-text sm:text-2xl">{username}</p>
 
         <p className="mt-1 flex items-baseline gap-2">
-          <span className="t-display text-accent">{score}</span>
+          {animate ? (
+            <CountUp value={score} className="t-display text-accent" />
+          ) : (
+            <span className="t-display text-accent">{score}</span>
+          )}
           <span className="text-2xl font-semibold text-text-4">/100</span>
         </p>
 

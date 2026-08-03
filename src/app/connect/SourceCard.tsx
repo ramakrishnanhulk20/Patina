@@ -48,7 +48,7 @@ export function SourceCard({
 
   return (
     <div
-      className={`border p-6 transition-colors ${
+      className={`raise border p-6 transition-colors ${
         connected
           ? "border-accent/40 bg-accent-wash"
           : locked

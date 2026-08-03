@@ -163,7 +163,7 @@ export function ConnectFlow({
           is what the score and the leaderboard both reward.
         */}
         {connectedCount > 0 && (
-          <div className="mt-6 border border-line bg-panel p-4">
+          <div className="raise mt-6 border border-line bg-panel p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="t-label text-text-3">
                 {connectedWeb} of {webSources.length} connected
@@ -256,7 +256,7 @@ export function ConnectFlow({
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-8">
-        <ScorePanel score={score} username={username} />
+        <ScorePanel score={score} username={username} rank={rank} totalScored={totalScored} />
 
         {/*
           The story sits right under the score on purpose. It is the payoff for

@@ -5,6 +5,8 @@ import type { Component } from "@/lib/score";
 import { GlowCard3D } from "../components/GlowCard3D";
 import { PlateCard } from "../components/PlateCard";
 import { DigitalRings } from "../components/DigitalRings";
+import { VerifiedSeal } from "../components/VerifiedSeal";
+import { ProvenanceTimeline } from "../components/ProvenanceTimeline";
 
 export type ScoreView = {
   total: number;
@@ -39,19 +41,32 @@ function useIsDesktop(): boolean {
 export function ScorePanel({
   score,
   username,
+  rank = null,
+  totalScored = 0,
 }: {
   score: ScoreView;
   /** Printed on the card. Falls back to a friendly placeholder before naming. */
   username?: string | null;
+  /** Leaderboard position, if known — turns into the "Top X%" standing. */
+  rank?: number | null;
+  /** Size of the field the rank sits in; the percentile is meaningless below a floor. */
+  totalScored?: number;
 }) {
   const empty = score.sourcesConnected.length === 0;
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const name = username && username.trim() ? username : "you";
   const isDesktop = useIsDesktop();
+  // Standing as a percentile, but only once the field is big enough for it to
+  // mean anything. This is leaderboard position (score + people brought), so it
+  // is labelled "Standing", never conflated with the age claim.
+  const topPct =
+    rank !== null && totalScored >= 10
+      ? Math.max(1, Math.round((rank / totalScored) * 100))
+      : null;
 
   return (
-    <div className="border border-line bg-panel">
+    <div className="surface">
       {empty ? (
         // Nothing to render on a card yet, so the panel opens with the plain
         // number and an invitation rather than a lifeless "0" card.
@@ -92,9 +107,53 @@ export function ScorePanel({
             // tilt, and the live WebGL card still renders on the shareable public
             // profile (/u/[username]), which is not part of the connect flow.
             <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl sm:aspect-[16/10]">
-              <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} />
+              <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} animate />
             </div>
           )}
+        </div>
+      )}
+
+      {/*
+        THE CREDENTIAL BLOCK.
+
+        Turns the score from a quiz result into something certified. The struck
+        seal says, plainly, that this is signed and checkable on Vana — the whole
+        reason to build on a protocol rather than behind a login. "Standing" is
+        the leaderboard percentile (kept separate from the age claim), and the
+        provenance line states the age as a measured, archival fact.
+      */}
+      {!empty && (
+        <div className="border-b border-line p-6">
+          <div className="flex items-center gap-4">
+            <VerifiedSeal size={76} className="shrink-0" />
+            <div className="min-w-0">
+              {topPct !== null ? (
+                <>
+                  <p className="t-label text-text-3">Standing</p>
+                  <p className="mt-1 text-2xl font-semibold text-text">
+                    Top <span className="text-accent">{topPct}%</span>
+                  </p>
+                </>
+              ) : (
+                <p className="text-lg font-semibold text-text">A signed credential</p>
+              )}
+              <p className="mt-1.5 text-sm leading-relaxed text-text-3">
+                Every Patina score is cryptographically signed on Vana.{" "}
+                <a href="/verify" className="tap text-accent underline underline-offset-4">
+                  Verify
+                </a>
+              </p>
+            </div>
+          </div>
+
+          {/*
+            The age claim, drawn as a measured line. NOTE FOR REVIEW: the rings
+            block below reads the same fact organically. They are shown together
+            here so the two can be compared — the final design should keep one.
+          */}
+          <div className="mt-6">
+            <ProvenanceTimeline oldestYear={year} years={years} />
+          </div>
         </div>
       )}
 
