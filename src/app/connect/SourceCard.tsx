@@ -1,5 +1,6 @@
 "use client";
 
+import { SourceGlyph } from "../components/SourceGlyph";
 import type { ConnectPhase } from "./useConnect";
 import type { SourceSpec } from "@/lib/sources";
 
@@ -57,18 +58,21 @@ export function SourceCard({
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
-            <h3 className="text-lg font-semibold text-text">{source.label}</h3>
-            {connected && <span className="t-label text-accent">Connected</span>}
-            {!connected && comingSoon && (
-              <span className="t-label rounded bg-panel-2 px-1.5 py-0.5 text-text-4">Coming soon</span>
-            )}
-            {!connected && desktop && !comingSoon && (
-              <span className="t-label rounded bg-panel-2 px-1.5 py-0.5 text-text-3">Desktop app</span>
-            )}
+        <div className="flex min-w-0 items-start gap-3.5">
+          <SourceGlyph id={source.id} connected={connected} muted={comingSoon} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-lg font-semibold text-text">{source.label}</h3>
+              {connected && <span className="t-label text-accent">Connected</span>}
+              {!connected && comingSoon && (
+                <span className="t-label rounded bg-panel-2 px-1.5 py-0.5 text-text-4">Coming soon</span>
+              )}
+              {!connected && desktop && !comingSoon && (
+                <span className="t-label rounded bg-panel-2 px-1.5 py-0.5 text-text-3">Desktop app</span>
+              )}
+            </div>
+            <p className="mt-1 text-sm leading-relaxed text-text-2">{source.blurb}</p>
           </div>
-          <p className="mt-1 text-sm leading-relaxed text-text-2">{source.blurb}</p>
         </div>
 
         {!connected && !comingSoon && (
