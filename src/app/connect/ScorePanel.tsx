@@ -6,7 +6,6 @@ import { GlowCard3D } from "../components/GlowCard3D";
 import { PlateCard } from "../components/PlateCard";
 import { DigitalRings } from "../components/DigitalRings";
 import { VerifiedSeal } from "../components/VerifiedSeal";
-import { ProvenanceTimeline } from "../components/ProvenanceTimeline";
 
 export type ScoreView = {
   total: number;
@@ -68,18 +67,33 @@ export function ScorePanel({
   return (
     <div className="surface">
       {empty ? (
-        // Nothing to render on a card yet, so the panel opens with the plain
-        // number and an invitation rather than a lifeless "0" card.
-        <div className="border-b border-line p-6 sm:p-8">
-          <p className="t-label text-text-3">Your Patina</p>
-          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
+        // Before the first source, the panel still has to earn the connect, so
+        // it previews the outcome rather than showing a lifeless "0 · Nothing
+        // yet": the ring motif the card will carry, the number waiting to move,
+        // and a line about what it becomes.
+        <div className="relative overflow-hidden border-b border-line p-6 sm:p-8">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-10 -top-10 h-48 w-48"
+          >
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span
+                key={i}
+                className="absolute rounded-full border border-accent"
+                style={{ inset: `${i * 18}px`, opacity: 0.05 + i * 0.03 }}
+              />
+            ))}
+          </div>
+          <p className="t-label relative text-text-3">Your Patina</p>
+          <div className="relative mt-4 flex flex-wrap items-end gap-x-5 gap-y-2">
             <span className="t-display text-accent" aria-label={`${score.total} out of 100`}>
               {score.total}
             </span>
-            <span className="pb-2 text-lg text-text-2">Nothing yet</span>
+            <span className="pb-2 text-lg text-text-2">Ready when you are</span>
           </div>
-          <p className="mt-3 text-sm leading-relaxed text-text-3">
-            Connect a source and this turns into your card — the thing you share.
+          <p className="relative mt-3 max-w-xs text-sm leading-relaxed text-text-3">
+            Connect one account and this becomes your card — a signed score of how far back you
+            really go.
           </p>
         </div>
       ) : (
@@ -117,15 +131,15 @@ export function ScorePanel({
         THE CREDENTIAL BLOCK.
 
         Turns the score from a quiz result into something certified. The struck
-        seal says, plainly, that this is signed and checkable on Vana — the whole
-        reason to build on a protocol rather than behind a login. "Standing" is
-        the leaderboard percentile (kept separate from the age claim), and the
-        provenance line states the age as a measured, archival fact.
+        seal — which lands like a stamp the first time it appears — says plainly
+        that this is signed and checkable on Vana, the whole reason to build on a
+        protocol rather than behind a login. "Standing" is the leaderboard
+        percentile, kept separate from the age claim (which the rings below carry).
       */}
       {!empty && (
         <div className="border-b border-line p-6">
           <div className="flex items-center gap-4">
-            <VerifiedSeal size={76} className="shrink-0" />
+            <VerifiedSeal size={76} className="shrink-0 seal-strike" />
             <div className="min-w-0">
               {topPct !== null ? (
                 <>
@@ -145,21 +159,14 @@ export function ScorePanel({
               </p>
             </div>
           </div>
-
-          {/*
-            The age claim, drawn as a measured line. NOTE FOR REVIEW: the rings
-            block below reads the same fact organically. They are shown together
-            here so the two can be compared — the final design should keep one.
-          */}
-          <div className="mt-6">
-            <ProvenanceTimeline oldestYear={year} years={years} />
-          </div>
         </div>
       )}
 
       {years !== null && years >= 1 && (
         <div className="border-b border-line p-6">
-          <DigitalRings years={years} oldestYear={year} />
+          {/* Keyed by years so the rings redraw themselves each time your history
+              grows — the age claim reacting to a new connection. */}
+          <DigitalRings key={years} years={years} oldestYear={year} />
         </div>
       )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
 import type { SourceSpec } from "@/lib/sources";
@@ -110,6 +110,33 @@ export function ConnectFlow({
 
   const { phase, start, dismissError } = useConnect(refresh);
 
+  // A one-shot "this source just connected" flag, so its card can celebrate the
+  // moment rather than silently flipping to a connected state. Captured from the
+  // reading→idle transition (the success path; a failure lands on "error").
+  const [justConnected, setJustConnected] = useState<string | null>(null);
+  const readingSourceRef = useRef<string | null>(null);
+  const prevPhaseTypeRef = useRef(phase.type);
+  useEffect(() => {
+    const prev = prevPhaseTypeRef.current;
+    prevPhaseTypeRef.current = phase.type;
+    if (phase.type === "reading") {
+      readingSourceRef.current = phase.source;
+      return;
+    }
+    if (prev === "reading" && phase.type === "idle" && readingSourceRef.current) {
+      const done = readingSourceRef.current;
+      setJustConnected(done);
+      const timer = setTimeout(
+        () => setJustConnected((current) => (current === done ? null : current)),
+        1600,
+      );
+      return () => clearTimeout(timer);
+    }
+    // Only the phase TYPE matters here; depending on the phase object itself
+    // would re-run this on every tick of the reading counter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.type]);
+
   const connectedCount = Object.keys(readAt).length;
   const webSources = sources.filter((source) => source.kind !== "desktop");
   const desktopSources = sources.filter((source) => source.kind === "desktop");
@@ -213,6 +240,7 @@ export function ConnectFlow({
               phase={phase}
               onStart={start}
               onDismissError={dismissError}
+              justConnected={justConnected === source.id}
             />
           ))}
         </div>
@@ -248,6 +276,7 @@ export function ConnectFlow({
                   phase={phase}
                   onStart={start}
                   onDismissError={dismissError}
+                  justConnected={justConnected === source.id}
                 />
               ))}
             </div>
@@ -255,7 +284,7 @@ export function ConnectFlow({
         )}
       </div>
 
-      <div className="space-y-4 lg:sticky lg:top-8">
+      <div className="space-y-4 lg:sticky lg:top-20">
         <ScorePanel score={score} username={username} rank={rank} totalScored={totalScored} />
 
         {/*

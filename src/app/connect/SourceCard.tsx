@@ -26,6 +26,7 @@ export function SourceCard({
   phase,
   onStart,
   onDismissError,
+  justConnected = false,
 }: {
   source: SourceSpec;
   connected: boolean;
@@ -34,6 +35,8 @@ export function SourceCard({
   phase: ConnectPhase;
   onStart: (source: string) => void;
   onDismissError: () => void;
+  /** True for the one beat right after this source connects — plays the pulse. */
+  justConnected?: boolean;
 }) {
   const mine = phase.type !== "idle" && phase.source === source.id;
   const busy =
@@ -46,10 +49,14 @@ export function SourceCard({
   const desktop = source.kind === "desktop";
   // Not yet available in Vana — shown, but not connectable, until they ship it.
   const comingSoon = source.comingSoon === true;
+  // Only a card you can actually act on should rise to meet the pointer.
+  const canLift = !connected && !comingSoon && !locked;
 
   return (
     <div
-      className={`raise border p-6 transition-colors ${
+      className={`raise border p-6 transition-colors ${canLift ? "lift" : ""} ${
+        justConnected ? "just-connected" : ""
+      } ${
         connected
           ? "border-accent/40 bg-accent-wash"
           : locked
@@ -99,7 +106,7 @@ export function SourceCard({
       ) : null}
 
       {busy && (
-        <div className="mt-5 border-t border-line pt-4">
+        <div className="sheet-up mt-5 border-t border-line pt-4">
           <div className="flex items-center gap-3">
             <span
               className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent"
@@ -164,7 +171,7 @@ export function SourceCard({
       )}
 
       {errored && (
-        <div className="mt-5 border-t border-line pt-4">
+        <div className="sheet-up mt-5 border-t border-line pt-4">
           {phase.code === "SOURCE_EMPTY" ? (
             <>
               <p className="text-sm text-warn">{phase.message}</p>

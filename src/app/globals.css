@@ -231,7 +231,9 @@ body {
     transition:
       transform 240ms var(--ease),
       box-shadow 240ms var(--ease),
-      border-color 200ms var(--ease);
+      border-color 200ms var(--ease),
+      background-color 200ms var(--ease),
+      color 200ms var(--ease);
   }
 
   .lift:hover {
@@ -528,6 +530,57 @@ select {
 
 .sheet-up {
   animation: sheet-up 280ms var(--ease) both;
+}
+
+/*
+  THE STRIKE.
+
+  The hallmark seal lands like a stamp the first time a signed score appears: a
+  quick press-in from slightly oversized, a brief verdigris flash, then settle.
+  It is the payoff made physical — see VerifiedSeal. Reduced motion shows it
+  already struck.
+*/
+@keyframes seal-strike {
+  0% {
+    opacity: 0;
+    transform: scale(1.14);
+    filter: brightness(1.6);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.97);
+    filter: brightness(1.1);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.seal-strike {
+  animation: seal-strike 620ms var(--ease) both;
+}
+
+/*
+  The moment a source connects, its card gives one quiet verdigris pulse and
+  settles — so a connection feels acknowledged, not silently toggled.
+*/
+@keyframes just-connected {
+  0% {
+    box-shadow: 0 0 0 0 rgba(53, 224, 161, 0);
+  }
+  30% {
+    box-shadow:
+      0 0 0 2px var(--accent-wash),
+      0 8px 30px -6px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(53, 224, 161, 0);
+  }
+}
+
+.just-connected {
+  animation: just-connected 1500ms var(--ease) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
