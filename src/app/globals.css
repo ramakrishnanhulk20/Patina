@@ -624,6 +624,51 @@ select {
   animation: scroll-cue 2.4s var(--ease) infinite;
 }
 
+/*
+  THE CLAIM SCENE (landing).
+
+  Each fakeable signal rises into place, then a line strikes through it as it
+  settles — the internet's proofs of a person, crossed off one by one — until
+  the last row, time, stays whole and lit. An IntersectionObserver flips
+  data-shown on each row (see ClaimScene); reduced motion (below) shows every
+  row already resolved and struck.
+*/
+.strike-row {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 520ms var(--ease),
+    transform 520ms var(--ease);
+}
+
+.strike-row[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* A fakeable row settles muted — it was never worth much. */
+.strike-row[data-fakeable][data-shown="true"] {
+  opacity: 0.6;
+}
+
+.strike-line {
+  position: absolute;
+  left: -0.1em;
+  right: -0.1em;
+  top: 55%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text-4);
+  transform: scaleX(0);
+  transform-origin: left;
+  /* Strikes just AFTER the row lands. */
+  transition: transform 460ms var(--ease) 280ms;
+}
+
+.strike-row[data-shown="true"] .strike-line {
+  transform: scaleX(1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

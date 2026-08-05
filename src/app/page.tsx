@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { RingField } from "./components/RingField";
 import { HeroParallax } from "./components/HeroParallax";
+import { ClaimScene } from "./components/ClaimScene";
 import { SectionLabel } from "./components/SectionLabel";
 import { Reveal } from "./components/Reveal";
 import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
@@ -166,30 +167,7 @@ export default function Home() {
       {/* ------------------------------------------------------------ the claim */}
       <section className="border-b border-line px-6 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl">
-          <SectionLabel>The one thing that cannot be bought</SectionLabel>
-
-          <div className="mt-8 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <Reveal direction="left">
-              <h2 className="t-section text-text">
-                Followers can be bought. Posts can be bulk uploaded. Time cannot.
-              </h2>
-            </Reveal>
-
-            <Reveal direction="right">
-              <div className="space-y-5 text-lg leading-relaxed text-text-2">
-                <p>
-                  Somebody running a thousand fake accounts can buy every signal the internet normally
-                  uses to decide whether you are real. Followers, activity, a filled-in profile. All
-                  of it is for sale.
-                </p>
-                <p>
-                  What they cannot buy is a decade. So Patina scores the things that only exist
-                  because time passed, and treats everything else as nearly worthless until there is
-                  real history sitting underneath it.
-                </p>
-              </div>
-            </Reveal>
-          </div>
+          <ClaimScene />
 
           <Reveal direction="up" className="mt-16">
             <div className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
