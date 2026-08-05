@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { RingField } from "./components/RingField";
+import { HeroParallax } from "./components/HeroParallax";
 import { SectionLabel } from "./components/SectionLabel";
 import { Reveal } from "./components/Reveal";
 import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
@@ -85,31 +86,54 @@ export default function Home() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bg/30 via-bg/60 to-bg"
         />
+        {/* A soft cinematic vignette: frames the type and gives the ring field
+            depth, darkening toward the edges so the eye lands centre. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: "radial-gradient(115% 85% at 50% 32%, transparent 42%, var(--bg) 100%)",
+          }}
+        />
 
         {/*
           The hero owns exactly one screen. It used to run past the fold, so a
           first-time visitor met a half-finished sentence and no buttons, which
           is the worst possible opening for a page whose whole job is to earn
           enough trust to hand over an account.
+
+          It opens like a title sequence — each line rises a beat after the last
+          (.hero-rise, pure CSS, reduced-motion-safe) — and the whole block
+          drifts up and fades as you scroll into the page (HeroParallax), so the
+          words lift away rather than merely scrolling off.
         */}
         <div className="relative mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-6xl flex-col px-6 pb-10 pt-6">
-          <div className="flex flex-1 flex-col justify-center py-10">
+          <HeroParallax className="flex flex-1 flex-col justify-center py-10">
             <h1 className="t-hero max-w-[62rem] text-text">
-              Anyone can make a new account.
-              <br />
-              <span className="text-accent">Nobody can make an old one.</span>
+              <span className="hero-rise block" style={{ animationDelay: "60ms" }}>
+                Anyone can make a new account.
+              </span>
+              <span className="hero-rise block text-accent" style={{ animationDelay: "260ms" }}>
+                Nobody can make an old one.
+              </span>
             </h1>
 
             {/* Vertical rhythm scales with the window so a short laptop screen
                 tightens up instead of pushing the buttons out of sight. */}
-            <p className="mt-[clamp(1.25rem,3vh,2rem)] max-w-xl text-lg leading-relaxed text-text-2">
+            <p
+              className="hero-rise mt-[clamp(1.25rem,3vh,2rem)] max-w-xl text-lg leading-relaxed text-text-2"
+              style={{ animationDelay: "440ms" }}
+            >
               Patina reads the history you already have, from accounts you already own, and turns it
               into proof that a real person has been here for years. We never ask for a password or
               keep a copy of your accounts — only your score and the few signals behind it, and you
               can take that back whenever you want.
             </p>
 
-            <div className="mt-[clamp(1.5rem,3.5vh,2.5rem)] flex flex-wrap items-center gap-3">
+            <div
+              className="hero-rise mt-[clamp(1.5rem,3.5vh,2.5rem)] flex flex-wrap items-center gap-3"
+              style={{ animationDelay: "560ms" }}
+            >
               <Link href="/connect" className="btn btn-primary px-6 py-3.5 text-base">
                 See how far back you go
               </Link>
@@ -118,19 +142,24 @@ export default function Home() {
               </Link>
             </div>
 
-            <p className="t-label mt-[clamp(1.25rem,2.5vh,2rem)] text-text-4">
+            <p
+              className="hero-rise t-label mt-[clamp(1.25rem,2.5vh,2rem)] text-text-4"
+              style={{ animationDelay: "680ms" }}
+            >
               Free · Takes about a minute · No wallet needed
             </p>
-          </div>
+          </HeroParallax>
 
           {/* Tells you there is more without shouting about it. */}
-          <Link
-            href="#how"
-            aria-label="Skip to how it works"
-            className="t-label hidden self-start text-text-4 transition hover:text-accent sm:block"
-          >
-            Scroll
-          </Link>
+          <div className="hero-rise hidden self-start sm:block" style={{ animationDelay: "820ms" }}>
+            <Link
+              href="#how"
+              aria-label="Skip to how it works"
+              className="scroll-cue t-label inline-block text-text-4 transition hover:text-accent"
+            >
+              Scroll
+            </Link>
+          </div>
         </div>
       </header>
 
