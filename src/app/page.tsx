@@ -1,17 +1,21 @@
 import Link from "next/link";
-import { RingField } from "./components/RingField";
-import { HeroParallax } from "./components/HeroParallax";
-import { ClaimScene } from "./components/ClaimScene";
-import { SectionLabel } from "./components/SectionLabel";
-import { Reveal } from "./components/Reveal";
+import { Hero } from "./components/Hero";
+import { HeroScene } from "./components/HeroScene";
+import { ScrollReveals } from "./components/ScrollReveals";
+import { SourceGlyph } from "./components/SourceGlyph";
+import { VerifiedSeal } from "./components/VerifiedSeal";
 import { ILLUSTRATION, REWARD, usd } from "@/lib/rewards";
+import type { SourceId } from "@/lib/sources";
 
-const SOURCES = [
-  { name: "YouTube", reads: "The day your account was opened", note: "Google sign-in" },
-  { name: "Instagram", reads: "How much you post, and how many follow you", note: "Profile" },
-  { name: "GitHub", reads: "When you joined and what you have built", note: "Profile" },
-  { name: "LinkedIn", reads: "Another independent account, and who knows you", note: "Profile" },
-  { name: "Spotify", reads: "A listening life", note: "Profile" },
+// The display face, for values and titles inside otherwise-body sections.
+const DISPLAY = "var(--font-display), ui-sans-serif, sans-serif";
+
+const SOURCES: { id: SourceId; name: string; reads: string; note: string }[] = [
+  { id: "youtube", name: "YouTube", reads: "The day your account was opened", note: "Google sign-in" },
+  { id: "instagram", name: "Instagram", reads: "How much you post, and how many follow you", note: "Profile" },
+  { id: "github", name: "GitHub", reads: "When you joined and what you have built", note: "Profile" },
+  { id: "linkedin", name: "LinkedIn", reads: "Another independent account, and who knows you", note: "Profile" },
+  { id: "spotify", name: "Spotify", reads: "A listening life", note: "Profile" },
 ];
 
 const SIGNALS = [
@@ -77,167 +81,145 @@ const LIMITS = [
 
 export default function Home() {
   return (
-    <div className="flex min-h-dvh flex-1 flex-col bg-bg">
-      {/* ---------------------------------------------------------------- hero */}
-      <header className="relative isolate overflow-hidden border-b border-line">
-        <RingField />
+    <div className="relative flex min-h-dvh flex-1 flex-col">
+      {/* The fixed, full-bleed atmosphere the whole page floats over. */}
+      <HeroScene />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background: "radial-gradient(58% 50% at 50% 34%, rgba(53,224,161,0.05), transparent 74%)",
+        }}
+      />
+      <ScrollReveals />
 
-        {/* Keeps the type legible over the brightest part of the ring field. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bg/30 via-bg/60 to-bg"
-        />
-        {/* A soft cinematic vignette: frames the type and gives the ring field
-            depth, darkening toward the edges so the eye lands centre. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background: "radial-gradient(115% 85% at 50% 32%, transparent 42%, var(--bg) 100%)",
-          }}
-        />
+      <div className="relative z-10 flex flex-1 flex-col">
+        <Hero />
 
-        {/*
-          The hero owns exactly one screen. It used to run past the fold, so a
-          first-time visitor met a half-finished sentence and no buttons, which
-          is the worst possible opening for a page whose whole job is to earn
-          enough trust to hand over an account.
-
-          It opens like a title sequence — each line rises a beat after the last
-          (.hero-rise, pure CSS, reduced-motion-safe) — and the whole block
-          drifts up and fades as you scroll into the page (HeroParallax), so the
-          words lift away rather than merely scrolling off.
-        */}
-        <div className="relative mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-6xl flex-col px-6 pb-10 pt-6">
-          <HeroParallax className="flex flex-1 flex-col justify-center py-10">
-            <h1 className="t-hero max-w-[62rem] text-text">
-              <span className="hero-rise block" style={{ animationDelay: "60ms" }}>
-                Anyone can make a new account.
-              </span>
-              <span className="hero-rise block text-accent" style={{ animationDelay: "260ms" }}>
-                Nobody can make an old one.
-              </span>
-            </h1>
-
-            {/* Vertical rhythm scales with the window so a short laptop screen
-                tightens up instead of pushing the buttons out of sight. */}
-            <p
-              className="hero-rise mt-[clamp(1.25rem,3vh,2rem)] max-w-xl text-lg leading-relaxed text-text-2"
-              style={{ animationDelay: "440ms" }}
-            >
-              Patina reads the history you already have, from accounts you already own, and turns it
-              into proof that a real person has been here for years. We never ask for a password or
-              keep a copy of your accounts — only your score and the few signals behind it, and you
-              can take that back whenever you want.
+        {/* ------------------------------------------------------------ 01 claim */}
+        <section className="px-6 py-[15vh]">
+          <div className="mx-auto max-w-6xl">
+            <p data-rise className="t-label flex items-center gap-2.5 text-accent"><span className="rings" aria-hidden="true" />
+              01 / The one thing that cannot be bought
             </p>
+            <h2 data-rise className="t-section mt-8 max-w-[22ch]">
+              Followers can be bought. Posts can be bulk uploaded.{" "}
+              <span className="text-accent">Time cannot.</span>
+            </h2>
+            <p data-rise className="mt-8 max-w-[58ch] text-lg leading-relaxed text-text-2">
+              Somebody running a thousand fake accounts can buy every signal the internet normally
+              uses to decide whether you are real. Followers, activity, a filled-in profile. All of
+              it is for sale. What they cannot buy is a decade, so Patina scores the things that only
+              exist because time passed, and treats everything else as nearly worthless until there
+              is real history sitting underneath it.
+            </p>
+          </div>
+        </section>
 
+        {/* --------------------------------------------------------- 02 spec sheet */}
+        <section className="px-6 py-[15vh]">
+          <div className="mx-auto max-w-6xl">
+            <p data-rise className="t-label flex items-center gap-2.5 text-accent"><span className="rings" aria-hidden="true" />02 / What counts</p>
+            <h2 data-rise className="t-section mt-8 max-w-[20ch]">
+              Weighted toward the things you cannot fake.
+            </h2>
             <div
-              className="hero-rise mt-[clamp(1.5rem,3.5vh,2.5rem)] flex flex-wrap items-center gap-3"
-              style={{ animationDelay: "560ms" }}
+              data-rise
+              className="mt-12 grid grid-cols-1 gap-px border border-line bg-line lg:grid-cols-5"
             >
-              <Link href="/connect" className="btn btn-primary px-6 py-3.5 text-base">
-                See how far back you go
-              </Link>
-              <Link href="#reward" className="btn btn-ghost px-6 py-3.5 text-base">
-                Why there is money in it
-              </Link>
-            </div>
-
-            <p
-              className="hero-rise t-label mt-[clamp(1.25rem,2.5vh,2rem)] text-text-4"
-              style={{ animationDelay: "680ms" }}
-            >
-              Free · Takes about a minute · No wallet needed
-            </p>
-          </HeroParallax>
-
-          {/* Tells you there is more without shouting about it. */}
-          <div className="hero-rise hidden self-start sm:block" style={{ animationDelay: "820ms" }}>
-            <Link
-              href="#how"
-              aria-label="Skip to how it works"
-              className="scroll-cue t-label inline-block text-text-4 transition hover:text-accent"
-            >
-              Scroll
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* ------------------------------------------------------------ the claim */}
-      <section className="border-b border-line px-6 py-20 sm:py-28">
-        <div className="mx-auto max-w-6xl">
-          <ClaimScene />
-
-          <Reveal direction="up" className="mt-16">
-            <div className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
               {SIGNALS.map((signal) => (
-                <div key={signal.name} className="bg-bg p-6">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-text">{signal.name}</h3>
-                    <span className="t-mono text-sm text-accent">{signal.weight}</span>
+                <div key={signal.name} className="bg-bg p-7">
+                  <div className="t-label text-text-4">{signal.name}</div>
+                  <div className="mt-3">
+                    <span className="text-4xl font-semibold text-text" style={{ fontFamily: DISPLAY }}>
+                      {signal.weight}
+                    </span>
+                    <span className="text-lg text-accent"> /100</span>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-text-3">{signal.body}</p>
+                  <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-line">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${signal.weight}%` }}
+                    />
+                  </div>
+                  <p className="mt-5 text-sm leading-relaxed text-text-3">{signal.body}</p>
                 </div>
               ))}
             </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* --------------------------------------------------------------- how */}
-      <section id="how" className="border-b border-line px-6 py-20 sm:py-28">
-        <div className="mx-auto max-w-6xl">
-          <SectionLabel>How it works</SectionLabel>
-
-          <div className="mt-10 grid gap-10 lg:grid-cols-3 lg:gap-14">
-            {STEPS.map((item, i) => (
-              <Reveal key={item.step} direction="up" delay={i * 90}>
-                <div className="border-t border-line-strong pt-6">
-                  <span className="t-mono text-sm text-accent">{item.step}</span>
-                  <h3 className="mt-4 text-2xl font-semibold tracking-tight text-text">
-                    {item.title}
-                  </h3>
-                  <p className="mt-3 leading-relaxed text-text-2">{item.body}</p>
-                </div>
-              </Reveal>
-            ))}
           </div>
+        </section>
 
-          <Reveal direction="up" className="mt-16">
-            <p className="t-label text-text-3">What it can read today</p>
-            <div className="mt-5 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
+        {/* --------------------------------------------------------- 03 cast list */}
+        <section className="px-6 py-[15vh]">
+          <div className="mx-auto max-w-6xl">
+            <p data-rise className="t-label flex items-center gap-2.5 text-accent"><span className="rings" aria-hidden="true" />03 / What it reads today</p>
+            <h2 data-rise className="t-section mt-8 max-w-[20ch]">
+              Five accounts you already own.
+            </h2>
+            <div data-rise className="mt-12 border-t border-line">
               {SOURCES.map((source) => (
-                <div key={source.name} className="bg-bg p-6">
-                  <h4 className="text-base font-semibold text-text">{source.name}</h4>
-                  <p className="mt-2 text-sm leading-relaxed text-text-2">{source.reads}</p>
-                  <p className="t-label mt-4 text-text-4">{source.note}</p>
+                <div
+                  key={source.id}
+                  className="grid grid-cols-[1fr_auto] items-center gap-6 border-b border-line py-6"
+                >
+                  <div className="text-sm leading-relaxed text-text-2 sm:text-base">
+                    {source.reads}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <SourceGlyph id={source.id} />
+                    <span
+                      className="text-2xl font-semibold text-text sm:text-3xl"
+                      style={{ fontFamily: DISPLAY }}
+                    >
+                      {source.name}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
-          </Reveal>
-        </div>
-      </section>
+          </div>
+        </section>
 
-      {/* --------------------------------------------------------- verifiable */}
-      <section className="border-b border-line px-6 py-20 sm:py-28">
-        <div className="mx-auto max-w-6xl">
-          <SectionLabel>Proof you can carry</SectionLabel>
+        {/* ------------------------------------------------------------ 04 how */}
+        <section id="how" className="px-6 py-[15vh]">
+          <div className="mx-auto max-w-6xl">
+            <p data-rise className="t-label flex items-center gap-2.5 text-accent"><span className="rings" aria-hidden="true" />04 / How it works</p>
+            <div className="mt-12 grid gap-10 lg:grid-cols-3 lg:gap-14">
+              {STEPS.map((step) => (
+                <div key={step.step} data-rise className="border-t border-line-strong pt-6">
+                  <span className="t-label text-accent">{step.step}</span>
+                  <h3
+                    className="mt-4 text-2xl font-semibold tracking-tight text-text"
+                    style={{ fontFamily: DISPLAY }}
+                  >
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 leading-relaxed text-text-2">{step.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-          <div className="mt-8 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <Reveal direction="left">
-              <h2 className="t-section text-text">Not a quiz. A signed fact that travels.</h2>
-            </Reveal>
-
-            <Reveal direction="right">
-              <div className="space-y-5 text-lg leading-relaxed text-text-2">
-                <p>
-                  Every Patina score is cryptographically signed by our key on Vana. Anyone — a person,
-                  or another app — can check it is real without trusting us, and carry it anywhere that
+        {/* ----------------------------------------------------------- 05 proof */}
+        <section className="px-6 py-[15vh]">
+          <div className="mx-auto max-w-6xl">
+            <p data-rise className="t-label flex items-center gap-2.5 text-accent"><span className="rings" aria-hidden="true" />05 / Proof you can carry</p>
+            <div className="mt-8 grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-16">
+              <div>
+                <div data-rise>
+                  <VerifiedSeal size={104} />
+                </div>
+                <h2 data-rise className="t-section mt-8">
+                  Not a quiz. A signed fact that travels.
+                </h2>
+                <p data-rise className="mt-8 max-w-[52ch] text-lg leading-relaxed text-text-2">
+                  Every Patina score is cryptographically signed by our key on Vana. Anyone, a person
+                  or another app, can check it is real without trusting us, and carry it anywhere that
                   wants proof of a real history. That is the whole reason to build on Vana instead of
                   behind a login.
                 </p>
-                <p>
+                <p data-rise className="mt-6 text-lg leading-relaxed text-text-2">
                   <Link href="/verify" className="text-accent underline underline-offset-4">
                     Verify any score
                   </Link>
@@ -248,158 +230,136 @@ export default function Home() {
                   in a single request.
                 </p>
               </div>
-            </Reveal>
-          </div>
-
-          <Reveal direction="up" className="mt-10 overflow-x-auto rounded-lg border border-line bg-ink p-5">
-            <pre className="text-xs leading-relaxed text-text-2 sm:text-sm">
-              <code>{`GET /api/verify/alice  →  {
+              <div data-rise className="surface overflow-hidden rounded-xl">
+                <div className="flex items-center gap-2.5 border-b border-line px-5 py-3">
+                  <span className="rings" aria-hidden="true" />
+                  <span className="t-label text-text-3">GET · api/verify</span>
+                  <span className="t-label ml-auto flex items-center gap-1.5 text-accent">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                    Signed
+                  </span>
+                </div>
+                <div className="scroll-x bg-ink px-5 py-5">
+                  <pre className="t-mono text-xs leading-relaxed text-text-2 sm:text-sm">
+                    <code>{`GET /api/verify/alice  ->  {
   "score": 83, "verdict": "Deeply worn in", "oldestYear": 2013,
   "attestation": { "app": "0x620d…54A1", "signature": "0x…" }
 }`}</code>
-            </pre>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------- reward */}
-      <section id="reward" className="border-b border-line px-6 py-20 sm:py-28">
-        <div className="mx-auto max-w-6xl">
-          <SectionLabel>Why there is money in it</SectionLabel>
-
-          <div className="mt-8 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <Reveal direction="left">
-              <h2 className="t-section text-text">
-                Half of anything Patina wins goes back to the people who made it happen.
-              </h2>
-            </Reveal>
-
-            <Reveal direction="right">
-              <div className="space-y-5 text-lg leading-relaxed text-text-2">
-                <p>
-                  Patina is competing in the Vana Cup, a public contest scored on a live leaderboard.
-                  If it places, half the winnings are split equally among the{" "}
-                  <span className="text-text">top {REWARD.places} people by points</span>
-                  — your Patina score, plus 10 points for every real person you bring. Those points
-                  are how you climb into the top {REWARD.places} and hold your place; everyone who
-                  finishes there takes an equal share, no matter how many they brought.
-                </p>
-                <p>
-                  Paid in VANA by <span className="text-text">{REWARD.paidBy}</span>.
-                </p>
-                <p className="text-base text-text-3">
-                  Being straight with you: second place pays a tenth of first, and if Patina finishes
-                  sixth there is nothing to split at all. The leaderboard is public, so you can check
-                  where it stands whenever you like. This is a thing we either pull off together or we
-                  do not.
-                </p>
+                  </pre>
+                </div>
               </div>
-            </Reveal>
+            </div>
           </div>
+        </section>
 
-          <Reveal direction="up" className="mt-10">
-            <div className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
-              <div className="bg-bg p-6">
-                <p className="t-label text-text-3">If Patina wins</p>
-                <p className="mt-3 text-2xl font-semibold text-accent">
+        {/* ---------------------------------------------------------- 06 reward */}
+        <section id="reward" className="px-6 py-[15vh]">
+          <div className="mx-auto max-w-6xl">
+            <p data-rise className="t-label flex items-center gap-2.5 text-accent"><span className="rings" aria-hidden="true" />06 / Why there is money in it</p>
+            <h2 data-rise className="t-section mt-8 max-w-[24ch]">
+              Half of anything Patina wins goes back to the people who made it happen.
+            </h2>
+            <p data-rise className="mt-8 max-w-[58ch] text-lg leading-relaxed text-text-2">
+              Patina is competing in the Vana Cup, a public contest scored on a live leaderboard. If
+              it places, half the winnings are split equally among the top {REWARD.places} people by
+              points: your Patina score, plus 10 for every real person you bring. Paid in VANA by{" "}
+              {REWARD.paidBy}.
+            </p>
+            <div
+              data-rise
+              className="mt-12 grid grid-cols-1 gap-px border border-line bg-line sm:grid-cols-3"
+            >
+              <div className="bg-accent-wash p-7">
+                <div className="t-label text-accent">If Patina wins</div>
+                <div className="mt-3 text-3xl font-semibold text-accent" style={{ fontFamily: DISPLAY }}>
                   about {usd(ILLUSTRATION.championPerShare)}
-                </p>
-                <p className="t-mono mt-1 text-sm text-text-3">
+                </div>
+                <div className="t-mono mt-2 text-sm text-text-3">
                   ~{Math.round(ILLUSTRATION.championPerShare)} VANA per share
-                </p>
+                </div>
               </div>
-              <div className="bg-bg p-6">
-                <p className="t-label text-text-3">If Patina is 2nd to 5th</p>
-                <p className="mt-3 text-2xl font-semibold text-text">
+              <div className="bg-bg p-7">
+                <div className="t-label text-text-4">If Patina is 2nd to 5th</div>
+                <div className="mt-3 text-3xl font-semibold text-text" style={{ fontFamily: DISPLAY }}>
                   about {usd(ILLUSTRATION.runnerUpPerShare)}
-                </p>
-                <p className="t-mono mt-1 text-sm text-text-3">
+                </div>
+                <div className="t-mono mt-2 text-sm text-text-3">
                   ~{Math.round(ILLUSTRATION.runnerUpPerShare)} VANA per share
-                </p>
+                </div>
               </div>
-              <div className="bg-bg p-6">
-                <p className="t-label text-text-3">The full rules</p>
+              <div className="bg-bg p-7">
+                <div className="t-label text-text-4">The full rules</div>
                 <Link
                   href="/rewards"
                   className="tap mt-3 inline-block text-lg text-accent underline underline-offset-4"
                 >
                   Read the terms
                 </Link>
-                <p className="mt-1.5 text-sm text-text-3">Including how it can go wrong</p>
+                <p className="mt-2 text-sm text-text-3">Including how it can go wrong</p>
               </div>
             </div>
-          </Reveal>
+          </div>
+        </section>
 
-          <p className="mt-4 text-sm leading-relaxed text-text-4">
-            Dollar figures assume {REWARD.places} shares and a VANA price of $
-            {REWARD.vanaUsd.toFixed(2)} on {REWARD.priceAsOf}. The reward is paid in VANA and its
-            price moves, so treat these as a sense of scale rather than a quote.
-          </p>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------- limits */}
-      <section className="border-b border-line px-6 py-20 sm:py-28">
-        <div className="mx-auto max-w-6xl">
-          <SectionLabel>What Patina cannot do</SectionLabel>
-
-          <div className="mt-10 grid gap-10 lg:grid-cols-3 lg:gap-14">
-            {LIMITS.map((item, i) => (
-              <Reveal key={item.title} direction="up" delay={i * 90}>
-                <div className="border-t border-line-strong pt-6">
-                  <h3 className="text-xl font-semibold tracking-tight text-text">{item.title}</h3>
+        {/* ---------------------------------------------------------- 07 limits */}
+        <section className="px-6 py-[15vh]">
+          <div className="mx-auto max-w-6xl">
+            <p data-rise className="t-label flex items-center gap-2.5 text-accent"><span className="rings" aria-hidden="true" />07 / What Patina cannot do</p>
+            <div className="mt-12 grid gap-10 lg:grid-cols-3 lg:gap-14">
+              {LIMITS.map((item) => (
+                <div key={item.title} data-rise className="border-t border-line-strong pt-6">
+                  <h3
+                    className="text-xl font-semibold tracking-tight text-text"
+                    style={{ fontFamily: DISPLAY }}
+                  >
+                    {item.title}
+                  </h3>
                   <p className="mt-3 leading-relaxed text-text-2">{item.body}</p>
                 </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- cta */}
-      <section className="px-6 py-24 sm:py-32">
-        <div className="mx-auto max-w-6xl text-center">
-          <Reveal direction="up">
-            <h2 className="t-section mx-auto max-w-3xl text-text">
-              How far back does your digital life actually go?
-            </h2>
-          </Reveal>
-          <Reveal direction="up" delay={120}>
-            <div className="mt-10">
-              <Link href="/connect" className="btn btn-primary px-8 py-4 text-base">
-                Find out
-              </Link>
+              ))}
             </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <footer className="border-t border-line px-6 py-10">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-4">
-          <span className="t-label flex items-center gap-2.5 text-text-3">
-            <span className="rings" aria-hidden="true" />
-            Patina
-          </span>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <Link href="/standings" className="tap t-label text-text-3 transition hover:text-text">
-              Standings
-            </Link>
-            <Link href="/rewards" className="tap t-label text-text-3 transition hover:text-text">
-              Reward terms
-            </Link>
-            <Link href="/docs" className="tap t-label text-text-3 transition hover:text-text">
-              Docs
-            </Link>
-            <Link href="/privacy" className="tap t-label text-text-3 transition hover:text-text">
-              Privacy
-            </Link>
-            <Link href="/terms" className="tap t-label text-text-3 transition hover:text-text">
-              Terms
-            </Link>
-            <p className="t-label text-text-4">Built on Vana · Your data stays yours</p>
           </div>
-        </div>
-      </footer>
+        </section>
+
+        {/* -------------------------------------------------------------- cta */}
+        <section className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
+          <h2 data-rise className="t-section mx-auto max-w-3xl">
+            How far back does your <span className="text-accent">digital life</span> actually go?
+          </h2>
+          <div data-rise className="mt-12">
+            <Link href="/connect" className="btn btn-fill px-10 py-4">
+              <span>Find out</span>
+            </Link>
+          </div>
+        </section>
+
+        <footer className="border-t border-line px-6 py-12">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-4">
+            <span className="t-label flex items-center gap-2.5 text-text-3">
+              <span className="rings" aria-hidden="true" />
+              Patina
+            </span>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <Link href="/standings" className="tap t-label text-text-3 transition hover:text-text">
+                Standings
+              </Link>
+              <Link href="/rewards" className="tap t-label text-text-3 transition hover:text-text">
+                Reward terms
+              </Link>
+              <Link href="/docs" className="tap t-label text-text-3 transition hover:text-text">
+                Docs
+              </Link>
+              <Link href="/privacy" className="tap t-label text-text-3 transition hover:text-text">
+                Privacy
+              </Link>
+              <Link href="/terms" className="tap t-label text-text-3 transition hover:text-text">
+                Terms
+              </Link>
+              <p className="t-label text-text-4">Built on Vana · Your data stays yours</p>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

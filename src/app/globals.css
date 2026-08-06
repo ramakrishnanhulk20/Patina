@@ -283,7 +283,7 @@ body {
 }
 
 .t-label {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-mono-display), var(--font-geist-mono), ui-monospace, monospace;
   font-size: 0.6875rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -291,8 +291,42 @@ body {
 }
 
 .t-mono {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-mono-display), var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+}
+
+/*
+  Display type takes the display face (a grotesk with character); body stays
+  Geist. This is a big part of why a page reads as designed rather than default.
+*/
+.t-hero,
+.t-hero-xl,
+.t-section,
+.t-display {
+  font-family: var(--font-display), var(--font-geist-sans), ui-sans-serif, sans-serif;
+}
+
+/* The dark-3d hero headline: huge, tight, and dominant on the first screen. */
+.t-hero-xl {
+  font-size: clamp(3rem, 8.5vw, 7.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+/*
+  The movie-poster title: the name, huge and struck in caps, revealed letter by
+  letter (see Hero). Its own class because it is bigger and wider-tracked than
+  any other heading on the site.
+*/
+.hero-title {
+  font-family: var(--font-display), var(--font-geist-sans), ui-sans-serif, sans-serif;
+  font-weight: 700;
+  font-size: clamp(3.5rem, 15vw, 11rem);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
 /*
@@ -419,6 +453,46 @@ select {
   .btn-ghost:hover {
     border-color: var(--accent);
     color: var(--accent);
+  }
+}
+
+/*
+  The finale button: a bordered mono control that fills from the bottom on hover,
+  the label flipping to the ground colour. The reference's closing move.
+*/
+.btn-fill {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono-display), ui-monospace, monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  transition: color 0.35s var(--ease);
+}
+
+.btn-fill > span {
+  position: relative;
+  z-index: 2;
+}
+
+.btn-fill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.45s cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+@media (hover: hover) {
+  .btn-fill:hover {
+    color: var(--ink);
+  }
+  .btn-fill:hover::before {
+    transform: scaleY(1);
   }
 }
 
@@ -625,6 +699,50 @@ select {
 }
 
 /*
+  The hero scroll indicator: a hairline track with a bright verdigris segment
+  that falls through it and fades, a quiet "keep going" that reads as light
+  moving down a wire rather than a blinking arrow.
+*/
+.hero-scroll-track {
+  position: relative;
+  width: 1px;
+  height: 2.75rem;
+  overflow: hidden;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--line-strong) 30%,
+    var(--line-strong) 70%,
+    transparent
+  );
+}
+
+.hero-scroll-dot {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 40%;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, transparent, var(--accent));
+  animation: hero-scroll-fall 2.4s var(--ease) infinite;
+}
+
+@keyframes hero-scroll-fall {
+  0% {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, 250%);
+    opacity: 0;
+  }
+}
+
+/*
   THE CLAIM SCENE (landing).
 
   Each fakeable signal rises into place, then a line strikes through it as it
@@ -667,6 +785,52 @@ select {
 
 .strike-row[data-shown="true"] .strike-line {
   transform: scaleX(1);
+}
+
+/*
+  Film grain, laid over the hero. Overlay blend keeps it from lifting the blacks;
+  it just adds the faint tooth that separates a rendered frame from a flat fill.
+*/
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}
+
+/* The faked mobile hallmark floats, so it reads dimensional without WebGL. */
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(1.5deg);
+  }
+}
+
+.hero-float {
+  animation: hero-float 7s ease-in-out infinite;
+}
+
+/*
+  Lenis smooth scroll. Its script sets these classes on <html>; the rules hand
+  scrolling to Lenis so the native smooth-behavior does not fight it.
+*/
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {

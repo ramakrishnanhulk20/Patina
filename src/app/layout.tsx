@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { AppNav } from "./components/AppNav";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { SmoothScroll } from "./components/SmoothScroll";
 import { SITE_URL } from "@/lib/site";
 import { isWipLocked } from "@/lib/wip-server";
 
@@ -14,6 +15,19 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Dark-3d cinematic type: a technical grotesk for the big display, a mono for
+// the eyebrows and specs. Body stays Geist.
+const displayFont = Space_Grotesk({
+  variable: "--font-display",
+  subsets: ["latin"],
+});
+
+const monoDisplay = Space_Mono({
+  variable: "--font-mono-display",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 const DESCRIPTION =
@@ -76,7 +90,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} ${monoDisplay.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-text">
         {/* If JS never runs, never leave scroll-reveal content stuck hidden. */}
@@ -87,6 +101,7 @@ export default async function RootLayout({
             }}
           />
         </noscript>
+        <SmoothScroll />
         {locked ? (
           children
         ) : (

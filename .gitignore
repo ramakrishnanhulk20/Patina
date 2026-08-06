@@ -47,6 +47,8 @@ next-env.d.ts
 
 # local editor/tooling config, kept off the public repo
 CLAUDE.md
+AGENT-RETROS.md
+.claude/
 
 # separate dist dir so verification builds do not corrupt the dev server
 /.next-verify/
