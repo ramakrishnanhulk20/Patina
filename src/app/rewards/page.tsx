@@ -49,7 +49,7 @@ const RULES: { heading: string; body: React.ReactNode }[] = [
     body: (
       <>
         Each qualified invite adds <strong className="text-text">10 points</strong> toward the top{" "}
-        {REWARD.places}, and that is the whole of what it does — it is the climb. Everyone who
+        {REWARD.places}, and that is the whole of what it does, it is the climb. Everyone who
         finishes inside the top {REWARD.places} takes an{" "}
         <strong className="text-text">equal share</strong> of the pool, one each, whether they got
         there on the strength of their own history or by bringing real people in. Inviting more does
@@ -181,7 +181,7 @@ export default function RewardsPage() {
 
       {/*
         None of the above pays out unless Patina places, and the terms promise
-        people can check that whenever they like. Here is that check, live —
+        people can check that whenever they like. Here is that check, live, 
         the honest "where does it actually stand right now".
       */}
       <div className="mt-8">

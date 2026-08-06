@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * Any app can GET this to read someone's live Patina score and the signed
  * attestation behind it, then verify the signature offline against Patina's app
  * address. CORS is open because the whole point is for OTHER apps to consume it
- * — which is also how the Vana Cup's "assist" is earned: your users' data,
+ *. Which is also how the Vana Cup's "assist" is earned: your users' data,
  * helping another app.
  */
 const CORS = {
@@ -59,7 +59,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ use
         message: attestation.message,
         signature: attestation.signature,
         howToVerify:
-          "Recover the EIP-191 signer of `message` from `signature` (e.g. viem recoverMessageAddress, ethers verifyMessage). It equals `app` — Patina's public app address on Vana.",
+          "Recover the EIP-191 signer of `message` from `signature` (e.g. viem recoverMessageAddress, ethers verifyMessage). It equals `app`, Patina's public app address on Vana.",
       },
     },
     { headers: CORS },

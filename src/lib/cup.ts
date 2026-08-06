@@ -4,7 +4,7 @@
  * The reward pitch rests on a public leaderboard nobody could see without
  * leaving the app: the terms say "check where it stands whenever you like", and
  * then gave people nowhere to check. This closes that. It also does the real
- * work of the product's distribution — the Cup is scored by users brought in,
+ * work of the product's distribution. The Cup is scored by users brought in,
  * so a visible "we are 5th, one place from the money" is the thing that turns a
  * reader into a sharer.
  *
@@ -47,7 +47,7 @@ export type CupStanding = {
   users: number;
   /** Inside the places that share the Cup prize. */
   inTheMoney: boolean;
-  /** Holding the LAST paying place — in, but one slip from out. */
+  /** Holding the LAST paying place. In, but one slip from out. */
   onTheBubble: boolean;
   /**
    * The number that creates urgency. When inside, points clear of the first

@@ -185,7 +185,7 @@ export function ConnectFlow({
         </div>
 
         {/*
-          Progress, the best next move, and where they stand — the three things
+          Progress, the best next move, and where they stand, the three things
           that pull somebody from one connected source to a full profile, which
           is what the score and the leaderboard both reward.
         */}
@@ -216,7 +216,7 @@ export function ConnectFlow({
 
             {next && (
               <p className="mt-3 text-sm leading-relaxed text-text-2">
-                Best next: <span className="font-medium text-text">{next.label}</span> — {next.reason}.
+                Best next: <span className="font-medium text-text">{next.label}</span>, {next.reason}.
               </p>
             )}
 
@@ -247,7 +247,7 @@ export function ConnectFlow({
 
         <p className="mt-8 max-w-xl text-sm leading-relaxed text-text-3">
           Each source is approved separately, because Vana asks for one at a time. Approving opens a
-          Vana tab — enter your profile there, approve, and keep both tabs open until it says
+          Vana tab, enter your profile there, approve, and keep both tabs open until it says
           connected. That tab hands the data over; this one collects it. We never see a password,
           and you can revoke access from your Vana account whenever you want.
         </p>
@@ -261,7 +261,7 @@ export function ConnectFlow({
           <div className="mt-12 border-t border-line pt-8">
             <h2 className="text-xl font-semibold tracking-tight text-text">Coming soon: more sources</h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-2">
-              More are on the way through Vana — years of orders, rides, and games, all of it deep,
+              More are on the way through Vana, years of orders, rides, and games, all of it deep,
               timestamped history. Vana is still rolling them out; the moment they are available, you
               will be able to connect them here, and they will count toward your score like the rest.
             </p>

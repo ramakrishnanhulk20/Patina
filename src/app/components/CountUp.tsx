@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * A number that climbs to its value instead of just appearing — the score
+ * A number that climbs to its value instead of just appearing. The score
  * arriving, and reacting each time a new source lifts it.
  *
  * Four things this is careful about:
@@ -12,8 +12,8 @@ import { useEffect, useRef, useState } from "react";
  *   paint, so the markup matches and there is no flash of a wrong number. Only
  *   AFTER mount does it drop to the start and climb, inside an effect.
  *
- *   REACTION. The first run climbs from zero. When the value later CHANGES —
- *   a connect raising the score — it climbs from the number already on screen up
+ *   REACTION. The first run climbs from zero. When the value later CHANGES, 
+ *   a connect raising the score. It climbs from the number already on screen up
  *   to the new one, so the panel visibly reacts rather than resetting.
  *
  *   MOTION. Reduced motion (or no actual change) jumps straight to the value.
@@ -51,7 +51,7 @@ export function CountUp({
     const start = performance.now();
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / durationMs);
-      // easeOutCubic — quick off the mark, soft on the landing.
+      // easeOutCubic. Quick off the mark, soft on the landing.
       const eased = 1 - Math.pow(1 - t, 3);
       setDisplay(Math.round(from + (value - from) * eased));
       if (t < 1) {

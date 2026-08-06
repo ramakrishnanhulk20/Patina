@@ -13,6 +13,13 @@ import Lenis from "lenis";
  */
 export function SmoothScroll() {
   useEffect(() => {
+    // The theme was applied with transitions suppressed (see layout.tsx and the
+    // .theme-sync rule in globals.css) so no colour transition could stick at the
+    // pre-theme value. This effect runs after the first themed paint, so it is
+    // the right moment to let transitions run again. It must sit ahead of the
+    // reduced-motion early return so it always fires, on every page.
+    document.documentElement.classList.remove("theme-sync");
+
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });

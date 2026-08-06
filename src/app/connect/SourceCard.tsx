@@ -35,7 +35,7 @@ export function SourceCard({
   phase: ConnectPhase;
   onStart: (source: string) => void;
   onDismissError: () => void;
-  /** True for the one beat right after this source connects — plays the pulse. */
+  /** True for the one beat right after this source connects. Plays the pulse. */
   justConnected?: boolean;
 }) {
   const mine = phase.type !== "idle" && phase.source === source.id;
@@ -47,7 +47,7 @@ export function SourceCard({
   // Desktop sources need Vana's DataConnect app, which a phone cannot run, so
   // the connect button only appears on larger screens.
   const desktop = source.kind === "desktop";
-  // Not yet available in Vana — shown, but not connectable, until they ship it.
+  // Not yet available in Vana. Shown, but not connectable, until they ship it.
   const comingSoon = source.comingSoon === true;
   // Only a card you can actually act on should rise to meet the pointer.
   const canLift = !connected && !comingSoon && !locked;
@@ -177,7 +177,7 @@ export function SourceCard({
               <p className="text-sm text-warn">{phase.message}</p>
               <p className="mt-2 text-xs leading-relaxed text-text-4">
                 Open your {source.label} source on Vana and take a look. If it is empty or the wrong
-                account, remove it and add the right one — it has to be a public profile — then
+                account, remove it and add the right one, it has to be a public profile, then
                 reconnect here.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-4">

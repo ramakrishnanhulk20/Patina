@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
     // Settle the 402 through the escrow gateway WITH the accessRecord, then read.
     // The SDK's built-in readApprovedData (X-PAYMENT only, Personal Server
-    // settles server-side) does NOT settle on mainnet for this app — the read
+    // settles server-side) does NOT settle on mainnet for this app. The read
     // comes back 402 with registrationOwed. See vana-settle-read.ts.
     const result =
       pending.result ?? (await readApprovedDataSettled(pending.source, requestId));
@@ -60,8 +60,8 @@ export async function GET(request: Request) {
     // the write failed (a Redis blip, a cold instance timing out) the retry would
     // hit the cache, skip recording, and return early. The user had paid, the read
     // had succeeded, and their source was silently lost with no way to recover it.
-    // A read that comes back with no usable data — an empty or wrong account, a
-    // private profile, or a Vana collection that returned nothing — records
+    // A read that comes back with no usable data. An empty or wrong account, a
+    // private profile, or a Vana collection that returned nothing. Records
     // nothing. That must not look like a silent success: tell the user the
     // source is empty so they can fix it, the same as the payment-time case.
     const recorded = await ensureRecorded(pending, result);
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     return Response.json(await withScore(pending.profileId, result, pending.result !== undefined));
   } catch (err) {
     // Without this, Next turns SDK failures into an opaque 500 and the connect
-    // UI can only say "Something went wrong (500)" — which is what users report
+    // UI can only say "Something went wrong (500)". Which is what users report
     // while Vana sits on "waiting for Patina to finish".
     const message = err instanceof Error ? err.message : "Failed to read approved data";
     const code =
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       err && typeof err === "object" && "details" in err ? err.details : undefined;
     console.error("[vana/data]", { requestId, source: pending.source, code, message, details });
     // An empty source is the user's to fix (wrong/empty/private account), not a
-    // server fault — 422 so the connect UI shows guidance instead of a 5xx error.
+    // server fault. 422 so the connect UI shows guidance instead of a 5xx error.
     const status = code === "SOURCE_EMPTY" ? 422 : 502;
     return Response.json({ error: message, code, details }, { status });
   }

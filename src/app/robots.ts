@@ -5,7 +5,7 @@ import { SITE_URL } from "@/lib/site";
  * `/u/*` is deliberately left crawlable.
  *
  * Those pages carry a name somebody chose and a number, and nothing that
- * identifies the accounts underneath — that is enforced in the page itself, not
+ * identifies the accounts underneath. That is enforced in the page itself, not
  * here. They are the pages people share, so keeping them indexable is the point.
  *
  * The API is disallowed because there is nothing there a search engine should

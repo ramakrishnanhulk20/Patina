@@ -164,7 +164,7 @@ test("LinkedIn profile normalizes connections strings and a vanity slug", () => 
 /**
  * Instagram is now read as `instagram.posts` rather than `instagram.profile`,
  * because the profile carries no date and post timestamps feed Age and
- * Corroboration — 60 of the 100 points. These tests pin the shapes that must
+ * Corroboration. 60 of the 100 points. These tests pin the shapes that must
  * keep working, since a silent miss here costs the user most of their score on
  * a read they already paid for.
  */

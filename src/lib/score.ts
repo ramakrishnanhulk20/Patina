@@ -22,7 +22,7 @@ export type SourceId =
   | "linkedin"
   // Desktop-only sources, collected through Vana's DataConnect app rather than
   // the web path. They carry real timestamped history, so they score like the
-  // rest — see the note in sources.ts on why they live in a separate section.
+  // rest. See the note in sources.ts on why they live in a separate section.
   | "amazon"
   | "uber"
   | "steam";
@@ -48,7 +48,7 @@ export type InstagramProfile = {
 
 export type InstagramPosts = {
   /**
-   * Only the timestamp is retained — it is all the scorer reads (it feeds Age
+   * Only the timestamp is retained. It is all the scorer reads (it feeds Age
    * and Corroboration). Captions and like counts are dropped in normalize.ts,
    * not stored, so this type is the shape we actually hold, not the raw read.
    */
@@ -79,7 +79,7 @@ export type SpotifyProfile = {
 };
 
 /**
- * LinkedIn's published web schema has no account-opened date — only profile
+ * LinkedIn's published web schema has no account-opened date. Only profile
  * text and a connections count. So on the web path it feeds Standing and
  * Breadth, not Age. Defensively keep a createdAt slot in case Data Pipe ever
  * returns one the way GitHub does.
@@ -96,8 +96,8 @@ export type LinkedInProfile = {
 };
 
 /**
- * Desktop-collected sources. We keep only the derived signals — the oldest date
- * and a count — not the raw orders or trips, which would be a lot of personal
+ * Desktop-collected sources. We keep only the derived signals. The oldest date
+ * and a count. Not the raw orders or trips, which would be a lot of personal
  * data to hold for no scoring benefit. Age comes from the earliest activity,
  * which is a provable lower bound on how long the account has been in use.
  */
@@ -116,7 +116,7 @@ export type UberTrips = {
 export type SteamProfile = {
   steamId?: string;
   personaName?: string;
-  /** When the Steam account was created — a real account-opened date. */
+  /** When the Steam account was created. A real account-opened date. */
   accountCreated?: string;
   steamLevel?: number;
 };

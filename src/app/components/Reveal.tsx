@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Reveals its children as they scroll into view — a slide in from a direction
+ * Reveals its children as they scroll into view. A slide in from a direction
  * plus a fade. One-shot: it does not re-hide when scrolled back past. Honours
  * reduced motion by showing immediately, and the layout carries a <noscript>
  * rule that shows everything if JS never runs, so content is never trapped

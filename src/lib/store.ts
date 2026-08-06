@@ -98,8 +98,8 @@ const linkKey = (sessionId: string) => `${PREFIX}:link:${sessionId}`;
  *
  * They existed to let somebody carry a profile to a second device by opening a
  * secret link, because the Vana wallet address was not reachable on our path.
- * Google sign-in solved the same problem properly — `sub` is stable across
- * every device a person owns — and the token flow was left behind with no route
+ * Google sign-in solved the same problem properly. `sub` is stable across
+ * every device a person owns. And the token flow was left behind with no route
  * serving it and nothing able to reach `adoptProfile`. Dead code that mints
  * secrets and writes index keys is worse than dead code that does not, so it
  * has been removed rather than kept for a rainy day. Existing profiles in Redis
@@ -139,7 +139,7 @@ export type PendingRequest = {
  * How long a pending request record lives.
  *
  * A request is a short-lived cache of one in-flight connection: it holds the
- * source and, once read, the result — the latter only to stop a retry from
+ * source and, once read, the result. The latter only to stop a retry from
  * re-spending escrow. After the read is folded into the profile it serves no
  * further purpose, so a day (far longer than any approval takes) is ample.
  * Expiring it also means the cached read cannot outlive the person: a profile
@@ -166,7 +166,7 @@ interface Backend {
    * `ttlSeconds`, when given, makes the key expire after that long. Used for the
    * short-lived request records so a cached read cannot linger in the store
    * indefinitely (including past a profile deletion, which has no way to find
-   * them). Persistent data — profiles, usernames, codes — is written without it.
+   * them). Persistent data, profiles, usernames, codes, is written without it.
    */
   set(key: string, value: unknown, ttlSeconds?: number): Promise<void>;
   /**
@@ -422,7 +422,7 @@ export async function saveProfile(profile: Profile): Promise<void> {
 }
 
 /**
- * Erase everything we hold about one profile — the right to be forgotten.
+ * Erase everything we hold about one profile. The right to be forgotten.
  *
  * Removes the profile itself, its public username and referral-code lookups, its
  * place on the leaderboard, and its entries in the per-account identity index,
@@ -430,8 +430,8 @@ export async function saveProfile(profile: Profile): Promise<void> {
  * that could rebuild the person's score or presence.
  *
  * Session links are not chased down (there is no reverse index, and a link that
- * points at a now-deleted profile simply resolves to "no profile" — an empty
- * score — on the next request). The delete route drops the caller's own cookie
+ * points at a now-deleted profile simply resolves to "no profile". An empty
+ * score. On the next request). The delete route drops the caller's own cookie
  * so their browser starts clean regardless.
  */
 export async function deleteProfile(profileId: string): Promise<void> {
@@ -681,8 +681,8 @@ export async function claimProfile(
 /**
  * Look up a profile by the name shown publicly. Null when nobody holds it.
  *
- * Memoised per request. The card page needs the same profile twice — once in
- * `generateMetadata` and once in the page body — and each call is two round
+ * Memoised per request. The card page needs the same profile twice. Once in
+ * `generateMetadata` and once in the page body. And each call is two round
  * trips (name → id, then id → profile). Sharing one result across the request
  * halves the store traffic on the page that receives the most of it, since
  * every chat-app link preview hits it too.
@@ -821,7 +821,7 @@ export async function setUsername(
  * `reconcileRankings` first, on every request. That is one sequential
  * `getProfile` for every ranked profile in the system, on a `force-dynamic`
  * page, for every visitor. At a thousand users that is a thousand round trips
- * to Upstash to render one page — the page times out, and the bill grows with
+ * to Upstash to render one page. The page times out, and the bill grows with
  * views × users rather than with either one. Reconciliation is a migration, so
  * it now runs as one (see `reconcileRankings`).
  */
@@ -894,7 +894,7 @@ export async function standings(
  *
  * THIS IS A MIGRATION, NOT A PAGE HELPER. It touches every profile in the
  * system, one at a time, and writes back the ones that drifted. Calling it to
- * render a page — which the standings page did, on every request — makes the
+ * render a page, which the standings page did, on every request, makes the
  * cost of one page view scale with the size of the whole user base. Run it from
  * `/api/admin/reconcile` after a formula change and not otherwise; the
  * standings page derives its numbers from profiles directly, so it stays

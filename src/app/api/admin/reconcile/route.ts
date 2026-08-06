@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * explicit, occasional, deliberate operation.
  *
  * Guarded by a shared secret compared in constant time. Without ADMIN_TOKEN set
- * the route refuses outright rather than defaulting to open — an endpoint that
+ * the route refuses outright rather than defaulting to open. An endpoint that
  * rewrites every profile in the system must fail closed.
  */
 export async function POST(request: Request) {

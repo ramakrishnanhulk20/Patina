@@ -4,15 +4,15 @@ import type { SourceId } from "@/lib/sources";
  * The brand mark for each connectable source, in a small tile.
  *
  * MONOCHROME on purpose. Patina runs on pure-neutral greys and one accent, and
- * "a second warm colour next to it reads as a mistake" — five full-colour brand
+ * "a second warm colour next to it reads as a mistake". Five full-colour brand
  * logos (YouTube red, Spotify green, an Instagram gradient) would turn the
  * connect list into a generic "sign in with" widget and fight the restraint the
  * rest of the app is built on. So every mark is drawn in `currentColor` and
  * takes its colour from the tile: neutral by default, and verdigris once
- * connected — the logo joining the same "mark that age leaves" language as the
+ * connected. The logo joining the same "mark that age leaves" language as the
  * seal and the rings.
  *
- * The paths are the real brand glyphs (Simple Icons, CC0 — LinkedIn and Amazon
+ * The paths are the real brand glyphs (Simple Icons, CC0. LinkedIn and Amazon
  * from Font Awesome's free brand set, which is why those two carry a 512
  * viewBox), inlined so the app makes no external request and ships no icon
  * dependency for eight small shapes.

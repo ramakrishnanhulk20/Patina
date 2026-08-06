@@ -5,14 +5,14 @@ import { SectionLabel } from "./SectionLabel";
 
 /**
  * The signature scene: everything the internet uses to judge whether you are
- * real is for sale — except time.
+ * real is for sale. Except time.
  *
  * A pinned statement holds one side while, on the other, each fakeable signal
- * rises into place and is struck off as it settles. The last row — a decade of
- * history — stays whole and takes the accent: the one thing left standing.
+ * rises into place and is struck off as it settles. The last row. A decade of
+ * history. Stays whole and takes the accent: the one thing left standing.
  *
  * Mechanics kept robust for a mobile-heavy audience: one IntersectionObserver
- * flips `data-shown` per row (CSS does the rest — see globals.css), each row
+ * flips `data-shown` per row (CSS does the rest. See globals.css), each row
  * fires once, the pin is pure CSS `position: sticky` that simply does not engage
  * on a phone (where the columns stack), and reduced motion resolves every row at
  * once with no movement.
@@ -57,7 +57,7 @@ export function ClaimScene() {
       <SectionLabel>The one thing that cannot be bought</SectionLabel>
 
       <div className="mt-8 grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
-        {/* The pinned claim — it holds while the proof scrolls past it. */}
+        {/* The pinned claim, it holds while the proof scrolls past it. */}
         <div className="lg:sticky lg:top-24 lg:self-start">
           <h2 className="t-section text-text">
             Followers can be bought. Posts can be bulk uploaded. Time cannot.

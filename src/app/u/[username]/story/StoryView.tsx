@@ -8,7 +8,7 @@ import type { Story } from "@/lib/story";
 /**
  * The story, told with movement.
  *
- * Everything renders on the server too — the numbers and the words are real
+ * Everything renders on the server too. The numbers and the words are real
  * HTML, so a crawler and a reader without JavaScript get the whole story, just
  * still. The reveals and the count-ups are enhancement layered on top, and they
  * step aside entirely for anyone who asked for reduced motion.
@@ -149,7 +149,7 @@ export function StoryView({ username, story }: { username: string; story: Story 
           {story.vouches > 0 && (
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
               And {story.vouches} time{story.vouches === 1 ? "" : "s"} an organisation or a badge
-              said, in effect, that you were real — the kind of thing somebody else has to grant you.
+              said, in effect, that you were real, the kind of thing somebody else has to grant you.
             </p>
           )}
         </Section>
@@ -167,7 +167,7 @@ export function StoryView({ username, story }: { username: string; story: Story 
         <p className="mt-4 text-2xl font-semibold text-text">{story.verdict}.</p>
         {story.strongest && (
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
-            Most of it rests on {story.strongest.label.toLowerCase()} — {story.strongest.points} of a
+            Most of it rests on {story.strongest.label.toLowerCase()}, {story.strongest.points} of a
             possible {story.strongest.max}. The full breakdown is on your card, nothing hidden.
           </p>
         )}
@@ -178,7 +178,7 @@ export function StoryView({ username, story }: { username: string; story: Story 
         <div className="mx-auto max-w-3xl">
           <h2 className="t-section text-text">This is proof time passed. Pass it on.</h2>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
-            Every person who follows it back to their own beginning moves Patina up the Vana Cup —
+            Every person who follows it back to their own beginning moves Patina up the Vana Cup, 
             and that is the whole game.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
@@ -195,7 +195,7 @@ export function StoryView({ username, story }: { username: string; story: Story 
 
           <p className="mt-7 max-w-xl text-sm leading-relaxed text-text-3">
             Or make it count double: let another app read the history you already connected, and
-            Patina scores an assist — worth two sign-ups in the Cup.{" "}
+            Patina scores an assist, worth two sign-ups in the Cup.{" "}
             <Link href="/connect" className="text-accent underline underline-offset-4">
               Put your data to work
             </Link>
@@ -278,7 +278,7 @@ function CountUp({ value, motion }: { value: number; motion: boolean }) {
 
   useEffect(() => {
     // Not animating: the initial state already holds the final value, so there
-    // is nothing to set here — which also keeps this effect free of a direct
+    // is nothing to set here. Which also keeps this effect free of a direct
     // state write on every pass.
     if (!motion || !inView) return;
 

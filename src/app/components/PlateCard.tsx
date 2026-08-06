@@ -5,7 +5,7 @@ import { CountUp } from "./CountUp";
  *
  * This is not a placeholder. It renders on the server, it is what a crawler and
  * a screen reader read, and it is what stays on screen for anyone whose browser
- * will not start WebGL — which on this page means every Android WebView with
+ * will not start WebGL. Which on this page means every Android WebView with
  * hardware acceleration off, and both the Instagram and Facebook in-app
  * browsers on a bad day. Those people arrived from a shared link, so they are
  * the exact audience the page exists for.
@@ -28,14 +28,14 @@ export function PlateCard({
   year: number | null;
   years: number | null;
   /**
-   * Count the score up on first paint. Only the connect result asks for this —
+   * Count the score up on first paint. Only the connect result asks for this, 
    * the moment the number is earned. The shared /u card and the base beneath the
    * desktop WebGL plate stay static, so a profile view never re-animates.
    */
   animate?: boolean;
 }) {
   return (
-    <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl border border-line bg-[#0e100e] p-6 sm:p-8">
+    <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl border border-line bg-panel p-6 sm:p-8">
       {/* Growth rings, echoing the favicon and the social card. */}
       <div
         aria-hidden="true"

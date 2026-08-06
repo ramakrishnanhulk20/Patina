@@ -7,7 +7,7 @@ import { useState, useSyncExternalStore } from "react";
  *
  * The shareable asset already exists: the OpenGraph route renders a polished
  * 1200×630 PNG per username. This hands that file to the person directly, which
- * is the piece that was missing — a link unfurls in some apps, but people post
+ * is the piece that was missing. A link unfurls in some apps, but people post
  * IMAGES to X and Instagram, and there was no way to get one out of here.
  *
  * On a phone it uses the Web Share file API, so the PNG goes straight into X,
@@ -49,7 +49,7 @@ export function SaveCard({ username }: { username: string }) {
       const file = await fetchCard();
 
       // Native file share, when the browser will take a file. Anything the user
-      // does inside the sheet — including cancelling — is a success from here.
+      // does inside the sheet, including cancelling, is a success from here.
       if (canShareFiles && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], title: "My Patina card" });

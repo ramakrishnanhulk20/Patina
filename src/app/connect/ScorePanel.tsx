@@ -20,7 +20,7 @@ export type ScoreView = {
  *
  * Starts `false` so the server render and the first client render agree (no
  * hydration mismatch), and phones simply never flip it. This gates the live
- * WebGL card below — see the note where it is used for why the 3D card must not
+ * WebGL card below. See the note where it is used for why the 3D card must not
  * mount on phones.
  */
 function useIsDesktop(): boolean {
@@ -46,7 +46,7 @@ export function ScorePanel({
   score: ScoreView;
   /** Printed on the card. Falls back to a friendly placeholder before naming. */
   username?: string | null;
-  /** Leaderboard position, if known — turns into the "Top X%" standing. */
+  /** Leaderboard position, if known. Turns into the "Top X%" standing. */
   rank?: number | null;
   /** Size of the field the rank sits in; the percentile is meaningless below a floor. */
   totalScored?: number;
@@ -92,13 +92,13 @@ export function ScorePanel({
             <span className="pb-2 text-lg text-text-2">Ready when you are</span>
           </div>
           <p className="relative mt-3 max-w-xs text-sm leading-relaxed text-text-3">
-            Connect one account and this becomes your card — a signed score of how far back you
+            Connect one account and this becomes your card, a signed score of how far back you
             really go.
           </p>
         </div>
       ) : (
         // The live card, in place of a bare number. It carries the score, the
-        // verdict and the year, so nothing is lost by dropping the digits — and
+        // verdict and the year, so nothing is lost by dropping the digits. And
         // it is the exact object the person will go on to share.
         <div className="border-b border-line p-4 sm:p-5">
           <p className="t-label px-1 pb-3 text-text-3">Your Patina</p>
@@ -112,7 +112,7 @@ export function ScorePanel({
             // During a connect this tab sits in the background while the user
             // approves in the Vana tab. A running WebGL context (three.js + a
             // live GL surface) makes a phone far more likely to freeze or discard
-            // the backgrounded tab under memory pressure — and a discarded tab
+            // the backgrounded tab under memory pressure. And a discarded tab
             // never wakes to pick up the approved data, so the Vana tab hangs on
             // "waiting for Patina" forever. Keeping this page light is what lets
             // the background poll survive and finish the connect on its own.
@@ -131,7 +131,7 @@ export function ScorePanel({
         THE CREDENTIAL BLOCK.
 
         Turns the score from a quiz result into something certified. The struck
-        seal — which lands like a stamp the first time it appears — says plainly
+        seal, which lands like a stamp the first time it appears, says plainly
         that this is signed and checkable on Vana, the whole reason to build on a
         protocol rather than behind a login. "Standing" is the leaderboard
         percentile, kept separate from the age claim (which the rings below carry).
@@ -165,7 +165,7 @@ export function ScorePanel({
       {years !== null && years >= 1 && (
         <div className="border-b border-line p-6">
           {/* Keyed by years so the rings redraw themselves each time your history
-              grows — the age claim reacting to a new connection. */}
+              grows, the age claim reacting to a new connection. */}
           <DigitalRings key={years} years={years} oldestYear={year} />
         </div>
       )}

@@ -1,114 +1,179 @@
-"use client";
-
-import { useEffect, useRef } from "react";
 import Link from "next/link";
-import gsap from "gsap";
-
-// Poster-style specs: the product stated like a film's metadata row.
-const SPECS = [
-  { value: "5 sources", label: "it reads" },
-  { value: "On-chain", label: "signed proof" },
-  { value: "~60 sec", label: "to a score" },
-  { value: "Free", label: "no wallet" },
-];
-
-const NAME = "PATINA".split("");
 
 /**
- * The dark-3d, movie-poster hero: a mono eyebrow, the name struck huge in caps
- * and revealed letter by letter, the claim as a tagline, and a specs row. It
- * floats over the full-bleed HeroScene, so the type sits in real light.
+ * The hero, for the institutional-trust register.
  *
- * GSAP drives a single entrance timeline; reduced motion skips it and the markup
- * (already the finished state) simply shows.
+ * The first job of the first screen is to say plainly what Patina is and what
+ * you get, so a stranger understands it in five seconds. The left carries the
+ * claim in plain words and a single primary action; the right shows the actual
+ * product, a Patina credential, so the page demonstrates rather than only
+ * asserts.
+ *
+ * Server-rendered. The gentle rise-in is handled by the shared [data-rise]
+ * reveal (see ScrollReveals), so the hero speaks the same one motion language
+ * as the rest of the page and needs no client JavaScript of its own.
  */
-export function Hero() {
-  const root = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+const TRUST = [
+  "No documents or selfies",
+  "Your accounts stay yours",
+  "Signed and checkable on Vana",
+  "Free, about a minute",
+];
 
-    const ctx = gsap.context(() => {
-      gsap
-        .timeline({ defaults: { ease: "power3.out" } })
-        .from(".hero-eyebrow", { y: 16, opacity: 0, duration: 0.7, delay: 0.15 })
-        .from(".hero-ch", { yPercent: 115, opacity: 0, duration: 0.9, stagger: 0.06 }, "-=0.2")
-        .from(".hero-tagline", { y: 18, opacity: 0, duration: 0.7 }, "-=0.45")
-        .from(".hero-actions > *", { y: 14, opacity: 0, duration: 0.6, stagger: 0.1 }, "-=0.4")
-        .from(".hero-spec", { y: 14, opacity: 0, duration: 0.6, stagger: 0.08 }, "-=0.4")
-        .from(".hero-cue", { opacity: 0, duration: 0.9 }, "-=0.2");
-    }, root);
-
-    return () => ctx.revert();
-  }, []);
-
+function Check({ className = "h-4 w-4" }: { className?: string }) {
   return (
-    <header
-      ref={root}
-      className="relative flex min-h-[100svh] flex-col items-center justify-center px-6 py-28 text-center"
-    >
-      {/* A soft dark bed under the type so it stays legible over the bright orb,
-          while the outer glow, rings and motes stay untouched. */}
+    <svg viewBox="0 0 20 20" aria-hidden="true" className={`shrink-0 text-accent ${className}`}>
+      <circle cx="10" cy="10" r="9" fill="var(--accent-wash)" stroke="var(--accent-line)" />
+      <path
+        d="M6 10.4 8.8 13.2 14 7.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** The tree-ring mark, drawn as fine concentric linework. Quiet, never loud. */
+function RingMark({ size }: { size: number }) {
+  const rings = [0.14, 0.26, 0.4, 0.55, 0.71, 0.88];
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" className="text-accent">
+      {rings.map((r, i) => (
+        <circle
+          key={r}
+          cx="50"
+          cy="50"
+          r={r * 49}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="0.5"
+          opacity={0.14 + i * 0.045}
+        />
+      ))}
+      <circle cx="50" cy="50" r="1.8" fill="currentColor" opacity="0.55" />
+    </svg>
+  );
+}
+
+function Bar({ label, points, max }: { label: string; points: number; max: number }) {
+  const pct = (points / max) * 100;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="font-medium text-text-2">{label}</span>
+        <span className="tabular-nums text-text-3">
+          {points}
+          <span className="text-text-4">/{max}</span>
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-panel-2">
+        <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/** The product, shown. A clean, real Patina credential, not a placeholder. */
+function CredentialCard() {
+  return (
+    <figure className="surface relative mx-auto w-full max-w-md overflow-hidden p-6 sm:p-7">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 opacity-70">
+        <RingMark size={190} />
+      </div>
+
+      <div className="relative flex items-center justify-between gap-4">
+        <span className="t-eyebrow inline-flex items-center gap-2 text-text-3">
+          <span className="rings" aria-hidden="true" />
+          Patina
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-line bg-accent-wash px-2.5 py-1 text-xs font-medium text-accent-ink">
+          <Check className="h-3.5 w-3.5" />
+          Signed on Vana
+        </span>
+      </div>
+
+      <div className="relative mt-7">
+        <p className="text-sm font-medium text-text-3">Your Patina</p>
+        <p className="mt-1 flex items-baseline gap-2">
+          <span className="text-6xl font-semibold tracking-tight text-accent-ink tabular-nums">84</span>
+          <span className="text-2xl font-semibold text-text-4">/100</span>
+        </p>
+        <p className="mt-1 text-lg font-semibold text-text">Deeply worn in</p>
+        <p className="mt-1.5 text-sm text-text-3">Traced back to 2013 &middot; 13 years</p>
+      </div>
+
+      <div className="relative mt-6 space-y-3 border-t border-line pt-5">
+        <Bar label="Age" points={38} max={40} />
+        <Bar label="Corroboration" points={17} max={20} />
+      </div>
+
+      <figcaption className="relative mt-5 text-xs leading-relaxed text-text-4">
+        An example credential. Yours is built from your own history.
+      </figcaption>
+    </figure>
+  );
+}
+
+export function Hero() {
+  return (
+    <header className="relative overflow-hidden border-b border-line">
+      {/* A very faint ring watermark: the brand mark as quiet texture. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 64% 60% at 50% 50%, rgba(6,8,7,0.7) 0%, rgba(6,8,7,0.4) 44%, transparent 80%)",
-        }}
-      />
-
-      <div
-        className="relative z-10 flex w-full flex-col items-center"
-        style={{ textShadow: "0 2px 30px rgba(4,6,5,0.55)" }}
+        className="pointer-events-none absolute -right-48 -top-48 hidden opacity-50 lg:block"
       >
-      <p className="hero-eyebrow t-label flex items-center gap-2.5 text-accent">
-        <span className="rings" aria-hidden="true" />
-        Proof of time · Built on Vana
-      </p>
-
-      <h1 className="hero-title mt-7 overflow-hidden" aria-label="Patina">
-        {NAME.map((char, i) => (
-          <span key={i} className="hero-ch inline-block" aria-hidden="true">
-            {char}
-          </span>
-        ))}
-      </h1>
-
-      <p className="hero-tagline mt-8 max-w-[44ch] text-lg leading-relaxed text-text-2 sm:text-xl">
-        Anyone can make a new account.{" "}
-        <span className="text-accent-bright">Nobody can make an old one.</span>
-      </p>
-
-      <div className="hero-actions mt-10 flex flex-wrap items-center justify-center gap-3">
-        <Link href="/connect" className="btn btn-primary px-7 py-4 text-base">
-          See how far back you go
-        </Link>
-        <Link href="#reward" className="btn btn-ghost px-7 py-4 text-base">
-          Why there is money in it
-        </Link>
+        <RingMark size={640} />
       </div>
 
-      <div className="mt-14 flex flex-wrap items-start justify-center gap-x-10 gap-y-6">
-        {SPECS.map((spec) => (
-          <div key={spec.value} className="hero-spec">
-            <div
-              className="text-lg font-semibold text-text"
-              style={{ fontFamily: "var(--font-display), sans-serif" }}
+      <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 pb-20 pt-14 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-28 lg:pt-24">
+        <div>
+          <p data-rise className="t-eyebrow inline-flex items-center gap-2 text-accent-ink">
+            <span className="rings" aria-hidden="true" />
+            Verified humanity, built on Vana
+          </p>
+
+          <h1 data-rise className="t-hero mt-6 text-text">
+            Proof you are a real person, from accounts you already own.
+          </h1>
+
+          <p data-rise className="mt-6 max-w-xl text-lg leading-relaxed text-text-2">
+            Patina reads the history in the accounts you already have and turns it into a private,
+            verifiable score of how far back your digital life really goes. No documents, no wallet,
+            no selfie.
+          </p>
+
+          <div data-rise className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Link href="/connect" className="btn btn-primary px-7 py-3.5 text-base">
+              Get your score, free
+            </Link>
+            <Link
+              href="#how"
+              className="tap text-base font-medium text-accent-ink underline-offset-4 hover:underline"
             >
-              {spec.value}
-            </div>
-            <div className="t-label mt-1.5 text-text-4">{spec.label}</div>
+              See how it works
+            </Link>
           </div>
-        ))}
-      </div>
-      </div>
 
-      <div className="hero-cue absolute bottom-[5vh] z-10 flex flex-col items-center gap-3 text-text-4">
-        <span className="t-label">Scroll</span>
-        <span className="hero-scroll-track" aria-hidden="true">
-          <span className="hero-scroll-dot" />
-        </span>
+          <ul
+            data-rise
+            className="mt-10 grid max-w-lg grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2"
+          >
+            {TRUST.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-sm leading-relaxed text-text-3">
+                <Check className="mt-0.5 h-4 w-4" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div data-rise className="lg:justify-self-end">
+          <CredentialCard />
+        </div>
       </div>
     </header>
   );

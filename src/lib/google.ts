@@ -10,7 +10,7 @@
  *
  * Deliberately minimal scope: `openid`. We do not ask for an email, a name, a
  * picture, contacts, or anything else. All we need is Google's stable per-user
- * `sub` to tell people apart across devices — an app whose pitch is "your data
+ * `sub` to tell people apart across devices. An app whose pitch is "your data
  * stays yours" has no business collecting more than that.
  */
 

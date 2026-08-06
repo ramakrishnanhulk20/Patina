@@ -128,7 +128,7 @@ export default async function ProfilePage({
         <div>
           <dt className="t-label text-text-3">Rank</dt>
           <dd className="t-mono mt-1 text-xl text-text">
-            {standing.rank !== null ? `#${standing.rank}` : "—"}
+            {standing.rank !== null ? `#${standing.rank}` : ", "}
           </dd>
         </div>
         <div>
@@ -137,7 +137,7 @@ export default async function ProfilePage({
         </div>
         <div>
           <dt className="t-label text-text-3">Since</dt>
-          <dd className="t-mono mt-1 text-xl text-text">{year ?? "—"}</dd>
+          <dd className="t-mono mt-1 text-xl text-text">{year ?? ", "}</dd>
         </div>
         <div>
           <dt className="t-label text-text-3">Of</dt>

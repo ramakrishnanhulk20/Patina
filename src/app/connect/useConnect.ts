@@ -35,7 +35,7 @@ import { useDirectVanaConnect } from "@opendatalabs/vana-sdk/react";
  *  2. Phones DISCARD backgrounded tabs under memory pressure. The SDK keeps the
  *     whole flow (requestId, poll timer) in memory, so a discard erases it: the
  *     user approves in the Vana tab, comes back, and our tab has reloaded to a
- *     blank slate with nothing left polling — stranded after approving, and
+ *     blank slate with nothing left polling. Stranded after approving, and
  *     after paying. So the in-flight request is mirrored into localStorage and,
  *     on reload, we pick it back up and finish the read ourselves.
  */
@@ -242,7 +242,7 @@ export function useConnect(onConnected: () => void | Promise<void>) {
         }
 
         if (!ready) {
-          // Never approved within the window — treat as abandoned, silently.
+          // Never approved within the window. Treat as abandoned, silently.
           clearPending();
           setResume(null);
           setSource(null);
@@ -255,7 +255,7 @@ export function useConnect(onConnected: () => void | Promise<void>) {
         setResume(null);
         setSource(null);
       } catch (err) {
-        // Approved but the read failed — this IS worth showing (e.g. an empty
+        // Approved but the read failed. This IS worth showing (e.g. an empty
         // source returns SOURCE_EMPTY, which becomes "check your source").
         clearPending();
         const e = err as Error & { code?: string };

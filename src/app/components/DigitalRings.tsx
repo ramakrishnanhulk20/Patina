@@ -1,7 +1,7 @@
 /**
  * A digital life, drawn as growth rings.
  *
- * The brand is tree rings — the mark that only forms by lasting — so the score's
+ * The brand is tree rings, the mark that only forms by lasting, so the score's
  * signature visual is the person's history as literal concentric rings, one per
  * year, the oldest at the core. They draw themselves in from the centre out when
  * the page loads (reduced motion just shows them whole). Pure SVG, so it is

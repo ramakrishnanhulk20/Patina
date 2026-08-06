@@ -152,7 +152,7 @@ export default async function Image({ params }: { params: Promise<{ username: st
        * Let the CDN answer the unfurls.
        *
        * Every time this link is pasted into a chat, that app fetches this image
-       * to build a preview — and a link that spreads gets fetched by WhatsApp,
+       * to build a preview. And a link that spreads gets fetched by WhatsApp,
        * Telegram, X and Slack, repeatedly, for one share. Uncached, each of
        * those is a Redis read plus a PNG render, on the request path of the
        * thing we most want to be fast.

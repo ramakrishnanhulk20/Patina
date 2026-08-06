@@ -2,7 +2,7 @@
  * Instant feedback while a page loads.
  *
  * The dynamic pages read from the store before they can render, so on a phone a
- * tap would otherwise sit on the previous screen with nothing happening — the
+ * tap would otherwise sit on the previous screen with nothing happening. The
  * exact moment a web app feels slower than a native one. Next streams this the
  * instant a link is tapped, so every tap is answered at once.
  */

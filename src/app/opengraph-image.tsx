@@ -13,14 +13,14 @@ import { ImageResponse } from "next/og";
  */
 
 export const alt =
-  "Patina — anyone can make a new account, nobody can make an old one";
+  "Patina, anyone can make a new account, nobody can make an old one";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const BG = "#0B0C0B";
-const ACCENT = "#35E0A1";
-const TEXT = "#F3F4F3";
-const MUTED = "#A8ADA8";
+const BG = "#0B100E";
+const ACCENT = "#2FBF90";
+const TEXT = "#EEF2F0";
+const MUTED = "#B4BDB9";
 
 /** The growth-rings motif, redrawn with plain divs. */
 function Rings() {
@@ -142,7 +142,7 @@ export default function Image() {
           <div style={{ color: MUTED, fontSize: 26 }}>
             How far back does your digital life go?
           </div>
-          <div style={{ color: "#444844", fontSize: 26 }}>·</div>
+          <div style={{ color: "#7C8681", fontSize: 26 }}>·</div>
           <div style={{ color: MUTED, fontSize: 26 }}>patinadata.xyz</div>
         </div>
       </div>

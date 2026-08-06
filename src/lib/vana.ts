@@ -2,7 +2,7 @@ import { createDirectDataController } from "@opendatalabs/vana-sdk/server";
 
 // Match Vana's data-app-starter / Career Quest default: mainnet unless moksha
 // is set explicitly. The old inverted default (moksha unless mainnet) was a
-// footgun — EIP-712 payment signs against the wrong chain if the env is missing.
+// footgun. EIP-712 payment signs against the wrong chain if the env is missing.
 const network = process.env.VANA_NETWORK === "moksha" ? "moksha" : "mainnet";
 const env = process.env.VANA_ENV === "dev" ? "dev" : "production";
 

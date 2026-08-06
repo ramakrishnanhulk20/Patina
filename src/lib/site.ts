@@ -2,7 +2,7 @@
  * Where this deployment lives, in one place.
  *
  * Four separate files were deriving this from `VANA_APP_URL` with four
- * different fallbacks — and `/api/vana/request` had none at all, so a missing
+ * different fallbacks. And `/api/vana/request` had none at all, so a missing
  * variable produced the literal return URL `"undefined/connect"` and sent every
  * user who approved a source to a broken page. A single source with one
  * fallback is the whole point of this file.

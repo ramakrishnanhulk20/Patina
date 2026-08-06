@@ -6,13 +6,13 @@ import { cupStanding, CUP_PAYING_PLACES, type CupStanding as Standing } from "@/
  *
  * Its whole job is to convert a reader into a sharer. The Cup is scored by
  * people brought into the network, so "we are 5th, on the last paying place"
- * is not a vanity number — it is the argument for sending the card to one more
+ * is not a vanity number. It is the argument for sending the card to one more
  * person. The status shifts with the rank so the page never feels static:
  * comfortably in, clinging to the cutoff, or a stated number away from it.
  *
  * An async Server Component. It fetches its own data and renders NOTHING when
  * the Cup API is unreachable, so a third party being down can never leave a
- * broken panel on the page — it simply is not there.
+ * broken panel on the page. It simply is not there.
  */
 export async function CupStanding() {
   const standing = await cupStanding();
@@ -73,7 +73,7 @@ export async function CupStanding() {
 
       <p className="mt-5 text-sm leading-relaxed text-text-3">
         {standing.championVana
-          ? `The top ${CUP_PAYING_PLACES} share the Cup prize — about ${Math.round(
+          ? `The top ${CUP_PAYING_PLACES} share the Cup prize, about ${Math.round(
               standing.championVana,
             ).toLocaleString("en-US")} VANA to the winner right now, and it grows with every read.`
           : `The top ${CUP_PAYING_PLACES} share the Cup prize.`}{" "}
@@ -117,7 +117,7 @@ function framing(s: Standing): { pill: string; tone: "good" | "warn" | "out"; li
       pill: `Finished #${s.rank}`,
       tone: s.inTheMoney ? "good" : "out",
       line: s.inTheMoney
-        ? `Patina finished in a paying place — inside the top ${cutoffPlace}.`
+        ? `Patina finished in a paying place, inside the top ${cutoffPlace}.`
         : `Patina finished ${pts(s.margin)} outside the money.`,
     };
   }
@@ -128,7 +128,7 @@ function framing(s: Standing): { pill: string; tone: "good" | "warn" | "out"; li
       tone: "warn",
       line:
         s.margin === 0
-          ? `Holding the last paying place, but level with ${firstOutPlace}th on points — only the tiebreak is keeping Patina in. One more person could settle it.`
+          ? `Holding the last paying place, but level with ${firstOutPlace}th on points, only the tiebreak is keeping Patina in. One more person could settle it.`
           : `Holding the last paying place, ${pts(s.margin)} clear of ${firstOutPlace}th. One good push either way decides it.`,
     };
   }

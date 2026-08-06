@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { buildAttestation, verifyAttestation, attestationSigner } from "./attest.ts";
 
 // A well-known throwaway test key (Hardhat account #0). The attestation module
-// reads the key only when it signs, so setting it here — before any test body
-// runs — is enough.
+// reads the key only when it signs, so setting it here. Before any test body
+// runs. Is enough.
 process.env.VANA_APP_PRIVATE_KEY ??=
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 

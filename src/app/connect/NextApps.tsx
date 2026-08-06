@@ -10,7 +10,7 @@ import type { EcosystemApp } from "@/lib/ecosystem";
  * they do, Patina is credited the assist.
  *
  * So this is not a courtesy link at the bottom of the page any more. It is the
- * highest-leverage move in the whole app, and it is designed like it — with the
+ * highest-leverage move in the whole app, and it is designed like it. With the
  * motive stated plainly, because a recommendation that pays us should say so.
  */
 export function NextApps({ apps }: { apps: EcosystemApp[] }) {
@@ -28,13 +28,13 @@ export function NextApps({ apps }: { apps: EcosystemApp[] }) {
 
         <p className="mt-5 max-w-2xl text-lg leading-relaxed text-text-2">
           Because you connected through Vana, your history is not stuck in Patina. Approve another
-          app and it can read what you already connected — no forms, no re-linking, nothing to do
+          app and it can read what you already connected, no forms, no re-linking, nothing to do
           twice.
         </p>
 
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-text-3">
           And it genuinely helps. When another app reads data you brought in, Patina scores an{" "}
-          <span className="text-text">assist — worth double a sign-up</span> in the Vana Cup, and
+          <span className="text-text">assist, worth double a sign-up</span> in the Vana Cup, and
           the Cup rewards whoever does the most for the rest of the network. So this is the single
           fastest way to push Patina up the board. You get more from your data, they get a user, we
           get the points. Nobody here is paying anybody.

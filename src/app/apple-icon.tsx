@@ -11,7 +11,7 @@ export const contentType = "image/png";
  * section labels and the social card, and generating it here means there is no
  * second binary asset to keep in step with the brand colour.
  *
- * No rounded corners and no padding — iOS applies its own mask and squeeze, and
+ * No rounded corners and no padding. IOS applies its own mask and squeeze, and
  * anticipating them is how an icon ends up looking inset.
  */
 export default function AppleIcon() {
@@ -22,7 +22,7 @@ export default function AppleIcon() {
         width: diameter,
         height: diameter,
         borderRadius: diameter,
-        border: `${width}px solid #35E0A1`,
+        border: `${width}px solid #2FBF90`,
         opacity,
       }}
     />
@@ -37,13 +37,13 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0B0C0B",
+          background: "#0B100E",
         }}
       >
         {ring(130, 0.35, 6)}
         {ring(90, 0.6, 6)}
         {ring(51, 1, 7)}
-        <div style={{ width: 20, height: 20, borderRadius: 20, background: "#35E0A1" }} />
+        <div style={{ width: 20, height: 20, borderRadius: 20, background: "#2FBF90" }} />
       </div>
     ),
     size,

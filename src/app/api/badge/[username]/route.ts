@@ -33,15 +33,15 @@ function badgeSvg(score: number, years: number | null): string {
   const mid = height / 2;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(label)}, verified by Patina">
-  <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="7" fill="#0b0c0b" stroke="#35e0a1" stroke-opacity="0.35"/>
+  <rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" rx="7" fill="#0d1b18" stroke="#2bb98a" stroke-opacity="0.35"/>
   <g transform="translate(${padX + 8} ${mid})">
-    <circle r="7" fill="none" stroke="#35e0a1" stroke-width="1.4" opacity="0.5"/>
-    <circle r="3.1" fill="#35e0a1"/>
+    <circle r="7" fill="none" stroke="#2bb98a" stroke-width="1.4" opacity="0.5"/>
+    <circle r="3.1" fill="#2bb98a"/>
   </g>
   <text x="${textStart}" y="${mid}" dominant-baseline="central" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="12.5" font-weight="600">
-    <tspan fill="#f3f4f3">Patina</tspan><tspan fill="#6c716c"> · </tspan><tspan fill="#35e0a1">${score}</tspan><tspan fill="#6c716c">/100 · </tspan><tspan fill="#f3f4f3">${escapeXml(yr)}</tspan>
+    <tspan fill="#eef2f0">Patina</tspan><tspan fill="#8c968f"> · </tspan><tspan fill="#2bb98a">${score}</tspan><tspan fill="#8c968f">/100 · </tspan><tspan fill="#eef2f0">${escapeXml(yr)}</tspan>
   </text>
-  <g transform="translate(${checkX} ${mid})" stroke="#35e0a1" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(${checkX} ${mid})" stroke="#2bb98a" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <path d="M-4 0 l2.6 2.6 L4.2 -3.2"/>
   </g>
 </svg>`;

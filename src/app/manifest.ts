@@ -11,14 +11,14 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Patina — proof you have been here a while",
+    name: "Patina, proof you have been here a while",
     short_name: "Patina",
     description:
       "Turn the history in accounts you already own into portable proof a real person has been here for years.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0b0c0b",
-    theme_color: "#0b0c0b",
+    background_color: "#f6f8f8",
+    theme_color: "#f6f8f8",
     orientation: "portrait",
     categories: ["productivity", "utilities"],
     icons: [

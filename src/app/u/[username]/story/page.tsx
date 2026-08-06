@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 /**
  * A person's digital life, told as a story.
  *
- * Same data class as the card — dates, counts, years, never the account handles
- * behind them — so a shared story exposes nothing the shared card would not. It
+ * Same data class as the card. Dates, counts, years, never the account handles
+ * behind them. So a shared story exposes nothing the shared card would not. It
  * is the payoff for connecting: the score says how much, this says what.
  */
 export async function generateMetadata({

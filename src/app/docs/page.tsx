@@ -7,7 +7,7 @@ export const metadata = {
     "Integrate Patina: read a verifiable, signed proof of a real human history for any user, in one request.",
 };
 
-/** Patina's public app address on Vana — the key every attestation is signed by. */
+/** Patina's public app address on Vana. The key every attestation is signed by. */
 const APP_ADDRESS = "0x620dDbEceaD28Bbf1b979bfaB8e3a7B893aa54A1";
 
 const EXAMPLE_RESPONSE = `{
@@ -47,9 +47,27 @@ const ETHERS_SNIPPET = `import { verifyMessage } from "ethers";
 const signer = verifyMessage(attestation.message, attestation.signature);
 const genuine = signer.toLowerCase() === attestation.app.toLowerCase();`;
 
+const PRICING = [
+  {
+    name: "Personal",
+    price: "Free",
+    detail: "Your own score, card and story. No wallet, no card, free for good.",
+  },
+  {
+    name: "Developer",
+    price: "Free to start",
+    detail: "Read any public score. No key, CORS-open, generous limits while you build.",
+  },
+  {
+    name: "Business",
+    price: "Usage-based",
+    detail: "Volume reads, uptime commitments and support. Talk to us when you scale.",
+  },
+];
+
 function Code({ children }: { children: string }) {
   return (
-    <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-ink p-4 text-xs leading-relaxed text-text-2">
+    <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-code-bg p-4 text-xs leading-relaxed text-code-text">
       <code>{children}</code>
     </pre>
   );
@@ -63,7 +81,7 @@ export default function DocsPage() {
       <h1 className="t-section mt-5 text-text">Proof of a real human, in one request.</h1>
 
       <p className="mt-6 text-lg leading-relaxed text-text-2">
-        Patina turns the history in accounts a person already owns into a score out of 100 — high only
+        Patina turns the history in accounts a person already owns into a score out of 100, high only
         when there are real years of history behind it. You can read that score, signed and verifiable,
         for anyone with a public Patina profile. No API key, no OAuth, one GET.
       </p>
@@ -73,7 +91,7 @@ export default function DocsPage() {
         <p className="mt-3 leading-relaxed text-text-2">
           Sybil resistance without KYC or biometrics: airdrops, quadratic funding, DAO votes, gated
           betas, one-human-one-vote. A fresh wallet is free; a decade of ordinary digital life is not,
-          and the score is exactly how much of that history it can prove. Use it as a signal or a gate —
+          and the score is exactly how much of that history it can prove. Use it as a signal or a gate, 
           say, only wallets whose owner scores above 40.
         </p>
       </section>
@@ -94,7 +112,7 @@ export default function DocsPage() {
           This is the part that matters: don&apos;t trust our JSON, check the signature. Every response
           carries an <span className="t-mono text-text-3">attestation</span> signed by Patina&apos;s
           app key. Recover the signer from the message and signature and confirm it equals Patina&apos;s
-          public address. If it does, the score is genuinely ours and has not been altered — and you
+          public address. If it does, the score is genuinely ours and has not been altered, and you
           never had to trust this server.
         </p>
 
@@ -111,26 +129,26 @@ export default function DocsPage() {
       <section className="mt-12">
         <h2 className="text-2xl font-semibold tracking-tight text-text">Embed a verified badge</h2>
         <p className="mt-3 leading-relaxed text-text-2">
-          A live SVG badge for any public profile — drop it on a site, a README, or a bio. It reads
+          A live SVG badge for any public profile, drop it on a site, a README, or a bio. It reads
           current and links back to the proof.
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <span className="t-label text-text-3">Looks like</span>
           <svg width="223" height="30" viewBox="0 0 223 30" role="img" aria-label="Example Patina badge">
-            <rect x="0.5" y="0.5" width="222" height="29" rx="7" fill="#0b0c0b" stroke="#35e0a1" strokeOpacity="0.35" />
+            <rect x="0.5" y="0.5" width="222" height="29" rx="7" fill="#0d1b18" stroke="#2bb98a" strokeOpacity="0.35" />
             <g transform="translate(20 15)">
-              <circle r="7" fill="none" stroke="#35e0a1" strokeWidth="1.4" opacity="0.5" />
-              <circle r="3.1" fill="#35e0a1" />
+              <circle r="7" fill="none" stroke="#2bb98a" strokeWidth="1.4" opacity="0.5" />
+              <circle r="3.1" fill="#2bb98a" />
             </g>
             <text x="34" y="15" dominantBaseline="central" fontFamily="ui-sans-serif, system-ui, sans-serif" fontSize="12.5" fontWeight="600">
-              <tspan fill="#f3f4f3">Patina</tspan>
-              <tspan fill="#6c716c"> · </tspan>
-              <tspan fill="#35e0a1">83</tspan>
-              <tspan fill="#6c716c">/100 · </tspan>
-              <tspan fill="#f3f4f3">13yr</tspan>
+              <tspan fill="#eef2f0">Patina</tspan>
+              <tspan fill="#8c968f"> · </tspan>
+              <tspan fill="#2bb98a">83</tspan>
+              <tspan fill="#8c968f">/100 · </tspan>
+              <tspan fill="#eef2f0">13yr</tspan>
             </text>
-            <g transform="translate(199 15)" stroke="#35e0a1" strokeWidth="1.9" fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <g transform="translate(199 15)" stroke="#2bb98a" strokeWidth="1.9" fill="none" strokeLinecap="round" strokeLinejoin="round">
               <path d="M-4 0 l2.6 2.6 L4.2 -3.2" />
             </g>
           </svg>
@@ -164,7 +182,7 @@ export default function DocsPage() {
             <dt className="font-semibold text-text">components</dt>
             <dd className="mt-1 leading-relaxed">
               The breakdown, each with its points, max, and a plain-English reason. Show it, or reduce
-              it to a single number — it is your call.
+              it to a single number, it is your call.
             </dd>
           </div>
           <div>
@@ -177,7 +195,7 @@ export default function DocsPage() {
             <dt className="font-semibold text-text">issuedAt</dt>
             <dd className="mt-1 leading-relaxed">
               When this attestation was signed. Scores rise as people connect more, so an attestation is
-              a snapshot — re-fetch for a fresh one.
+              a snapshot, re-fetch for a fresh one.
             </dd>
           </div>
         </dl>
@@ -186,33 +204,43 @@ export default function DocsPage() {
       <section className="mt-12">
         <h2 className="text-2xl font-semibold tracking-tight text-text">Good to know</h2>
         <ul className="mt-4 space-y-3 leading-relaxed text-text-2">
-          <li>Only people who have chosen a public username are verifiable — the same data as their public card.</li>
+          <li>Only people who have chosen a public username are verifiable, the same data as their public card.</li>
           <li>No key and no rate limit today, but be reasonable; the score changes slowly, so cache it.</li>
           <li>The signature is a plain EIP-191 message, so any Ethereum library verifies it, on-chain or off.</li>
         </ul>
       </section>
 
+      <section className="mt-12">
+        <h2 className="text-2xl font-semibold tracking-tight text-text">Pricing</h2>
+        <p className="mt-3 leading-relaxed text-text-2">
+          Patina is free for individuals and free to start building on. Businesses that verify humans
+          at volume pay for it, and that is how Patina makes money. No card to try it.
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {PRICING.map((tier) => (
+            <div key={tier.name} className="surface p-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-lg font-semibold text-text">{tier.name}</span>
+                <span className="t-label text-accent-ink">{tier.price}</span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-text-3">{tier.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="mt-14 border-t border-line pt-8">
         <p className="leading-relaxed text-text-3">
           Try it live at{" "}
-          <Link href="/verify" className="text-accent underline underline-offset-4">
+          <Link href="/verify" className="text-accent-ink underline underline-offset-4">
             /verify
           </Link>
-          , read the source on{" "}
-          <a
-            href="https://github.com/ramakrishnanhulk20/Patina"
-            target="_blank"
-            rel="noreferrer"
-            className="text-accent underline underline-offset-4"
-          >
-            GitHub
-          </a>
           , or ask in the{" "}
           <a
             href="https://discord.gg/vanaofficial"
             target="_blank"
             rel="noreferrer"
-            className="text-accent underline underline-offset-4"
+            className="text-accent-ink underline underline-offset-4"
           >
             Vana Discord
           </a>

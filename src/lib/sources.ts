@@ -29,8 +29,8 @@ export type SourceId =
 export type SourceSpec = {
   id: SourceId;
   /**
-   * "web" — collected from a public URL by Vana's servers, no app, works on any
-   * phone. "desktop" — collected through Vana's DataConnect app on a computer.
+   * "web". Collected from a public URL by Vana's servers, no app, works on any
+   * phone. "desktop". Collected through Vana's DataConnect app on a computer.
    * Absent means web. Desktop sources live in their own section and are not
    * tappable on a phone, because a phone cannot run the app.
    */
@@ -38,7 +38,7 @@ export type SourceSpec = {
   /**
    * Not yet available in Vana (shown there as "coming soon", or not listed at
    * all). The source stays defined and scored, but is non-connectable until Vana
-   * ships it — at which point this flips off and the connect button returns.
+   * ships it. At which point this flips off and the connect button returns.
    */
   comingSoon?: boolean;
   label: string;
@@ -114,8 +114,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     // Data-Pipe (web) collectable and it carries dates. A live connect proved
     // otherwise: on the web path it demands the Data Connect DESKTOP app, which
     // for this audience means they leave. The docs are unreliable in both
-    // directions — they were wrong about LinkedIn working, and wrong about
-    // posts working — so the only truth is a real connect on a phone.
+    // directions. They were wrong about LinkedIn working, and wrong about
+    // posts working. So the only truth is a real connect on a phone.
     //
     // So the profile it is. It has no date, so Instagram feeds Depth and
     // Standing rather than Age, which is a smaller contribution but a real one
@@ -128,7 +128,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
       prefix: "instagram.com/",
       placeholder: "yourusername or paste profile link",
       urlTemplate: "https://www.instagram.com/{handle}",
-      hint: "Your username, or paste your profile link. Reels/posts links are fine — we trim them.",
+      hint: "Your username, or paste your profile link. Reels/posts links are fine, we trim them.",
     },
     findIt: null,
   },
@@ -149,7 +149,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "linkedin",
     label: "LinkedIn",
     scopes: ["linkedin.profile"],
-    // Web LinkedIn has no join date in the published schema — it mainly adds
+    // Web LinkedIn has no join date in the published schema. It mainly adds
     // breadth and a connections signal. Still worth connecting.
     blurb: "Another independent account, and who is connected to you.",
     handle: {
@@ -186,7 +186,7 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     comingSoon: true,
     label: "Amazon",
     scopes: ["amazon.orders"],
-    blurb: "Years of orders — a long, dull, unmistakably human paper trail.",
+    blurb: "Years of orders, a long, dull, unmistakably human paper trail.",
     handle: null,
     findIt: [
       "On a computer, install Vana's DataConnect app.",
@@ -234,7 +234,7 @@ export const DESKTOP_ORDER: SourceId[] = ["amazon", "uber", "steam"];
  * build one.
  *
  * Two paths. If the person pasted a FULL profile URL for this platform, we
- * preserve their exact path — this is what fixes the widespread "could not
+ * preserve their exact path. This is what fixes the widespread "could not
  * connect this public profile" failures. Reconstructing from a bare handle
  * only knows one URL shape (youtube.com/@handle), but a huge share of real
  * YouTube accounts are youtube.com/channel/UC…, /c/Name or /user/Name, and
@@ -335,7 +335,7 @@ function profilePathFor(id: SourceId, url: URL): string {
   }
 
   if (id === "youtube") {
-    // youtu.be is a video shortlink, not a channel — refuse it.
+    // youtu.be is a video shortlink, not a channel. Refuse it.
     if (bareHost(url.host) === "youtu.be") return "";
 
     const head = parts[0].toLowerCase();
@@ -350,7 +350,7 @@ function profilePathFor(id: SourceId, url: URL): string {
     }
     // /watch, /shorts, /playlist are not profiles.
     if (["watch", "shorts", "playlist", "feed", "results"].includes(head)) return "";
-    // Bare custom path without @ — treat as a handle.
+    // Bare custom path without @. Treat as a handle.
     return `/@${encodeURIComponent(parts[0])}`;
   }
 

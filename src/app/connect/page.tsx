@@ -49,7 +49,7 @@ export default async function ConnectPage({
         : null;
 
   // No hard sign-in gate. A person can connect a source and see their score
-  // first, then be asked to sign in to KEEP it — which converts far better than
+  // first, then be asked to sign in to KEEP it. Which converts far better than
   // a Google wall in front of any value. Signing in still folds this browser's
   // profile into a stable identity (claimProfile), so "one person, one row"
   // holds for everyone who signs in.

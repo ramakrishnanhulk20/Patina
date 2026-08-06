@@ -13,18 +13,18 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     body: (
       <ul className="mt-3 space-y-3">
         <li>
-          <strong className="text-text">A Google account id</strong>, when you sign in — a
+          <strong className="text-text">A Google account id</strong>, when you sign in, a
           random-looking identifier Google gives us, so your score is the same on every device. Not
           your email, not your name.
         </li>
         <li>
           <strong className="text-text">A few signals from each source you connect</strong>: the date
           the account was opened, public counts like posts or followers, and the handle or channel id
-          that account is known by — plus the score worked out from them. Not your posts, not your
+          that account is known by, plus the score worked out from them. Not your posts, not your
           messages, not the contents of the account.
         </li>
         <li>
-          <strong className="text-text">A payout wallet address</strong> — only if you choose to claim
+          <strong className="text-text">A payout wallet address</strong>, only if you choose to claim
           a reward, and only at that point.
         </li>
         <li>
@@ -38,7 +38,7 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "What we never collect",
     body: (
       <>
-        Your passwords — we never see them, because approval happens inside your own Vana account. Your
+        Your passwords, we never see them, because approval happens inside your own Vana account. Your
         email or name. And the actual contents of your accounts: Patina reads the shape of your
         history, not what is in it.
       </>
@@ -48,7 +48,7 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "Why we keep it",
     body: (
       <>
-        To show you your score and keep it across your devices; to keep the reward honest — eligibility
+        To show you your score and keep it across your devices; to keep the reward honest, eligibility
         is counted against the underlying account, so the same person cannot quietly collect several
         shares; and, if Patina places in the Vana Cup, to pay you. That is the whole list.
       </>
@@ -58,7 +58,7 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "Who can see it",
     body: (
       <>
-        The standings are deliberately anonymous — a rank and a score, no names or accounts. Your
+        The standings are deliberately anonymous, a rank and a score, no names or accounts. Your
         shareable card at <span className="t-mono text-text-3">/u/your-name</span> is public only if
         you choose a name and share it. We do not sell your data, and we do not hand it to advertisers.
       </>
@@ -77,7 +77,7 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
         >
           Vana account
         </a>{" "}
-        stops any future read — Vana enforces that, not us. To remove what Patina has already stored,
+        stops any future read, Vana enforces that, not us. To remove what Patina has already stored,
         use the button below. It deletes everything immediately, no email and no waiting.
       </>
     ),

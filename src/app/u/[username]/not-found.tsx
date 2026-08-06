@@ -20,7 +20,7 @@ export default function CardNotFound() {
 
       <p className="mt-5 text-lg leading-relaxed text-text-2">
         The card you were sent has either been renamed, or the link lost a character on the way
-        here. Names are first come, first served — so if that one was yours, it is still free.
+        here. Names are first come, first served, so if that one was yours, it is still free.
       </p>
 
       <div className="mt-9 flex flex-wrap gap-3">

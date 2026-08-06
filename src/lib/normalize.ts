@@ -309,7 +309,7 @@ function firstDefined(source: Json | undefined, keys: string[]): unknown {
 }
 
 /**
- * Amazon, Uber, Steam — desktop-collected. We keep only the derived signals
+ * Amazon, Uber, Steam. Desktop-collected. We keep only the derived signals
  * (oldest date, a count), never the raw orders or trips. Read defensively: the
  * real payload shape is only truly known once one is captured, exactly as with
  * the web sources above.

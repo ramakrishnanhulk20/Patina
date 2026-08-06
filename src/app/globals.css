@@ -20,30 +20,104 @@
 */
 
 :root {
-  /* Ground. Neutral with a whisper of warmth so it does not go blue on OLED. */
-  --ink: #070807;
-  --bg: #0b0c0b;
-  --panel: #121412;
-  --panel-2: #191c19;
-  --line: rgba(255, 255, 255, 0.09);
+  /* Ground. Cool near-white, stepped down in cool grey, never warm. */
+  --paper: #ffffff;
+  --bg: #f6f8f8;
+  --panel: #ffffff;
+  --panel-2: #eef2f1;
+  --ink: #0d1b18; /* darkest; kept for code surfaces and the strongest type */
+  --line: rgba(13, 27, 24, 0.1);
+  --line-strong: rgba(13, 27, 24, 0.17);
+
+  /* Text. Cool near-black steps. Every step, including the lightest, passes
+     WCAG AA on the page ground, so no on-screen copy is a pale ghost. */
+  --text: #0d1b18;
+  --text-2: #37453f;
+  --text-3: #4d5a55;
+  --text-4: #5f6c67;
+
+  /* The mark. A deep, considered verdigris: trust-green, not neon. */
+  --accent: #0c7e60;
+  --accent-ink: #06603f; /* the accent as text or a link on a light ground */
+  --accent-deep: #06603f;
+  --accent-bright: #0f9576;
+  --accent-wash: rgba(12, 126, 96, 0.08);
+  --accent-line: rgba(12, 126, 96, 0.26);
+  --on-accent: #ffffff; /* text or an icon sitting on an accent fill */
+
+  /* Cold, for status only. Never decorative. Darkened to read on white. */
+  --status: #3f6b8f;
+  --warn: #9a5b0f;
+  --bad: #b23a2e;
+
+  /* One radius scale, used everywhere. */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+
+  /* Elevation. On a light ground, soft cool shadows do the lifting. */
+  --shadow-sm: 0 1px 2px rgba(13, 27, 24, 0.05), 0 1px 1px rgba(13, 27, 24, 0.04);
+  --shadow: 0 1px 2px rgba(13, 27, 24, 0.05), 0 10px 26px -14px rgba(13, 27, 24, 0.2);
+  --shadow-lg: 0 2px 6px rgba(13, 27, 24, 0.06), 0 26px 50px -20px rgba(13, 27, 24, 0.22);
+
+  /* Code surfaces stay dark with light text in both themes, the way developer
+     docs read best. Fixed, not theme-flipped. */
+  --code-bg: #0d1b18;
+  --code-text: #d7dee0;
+}
+
+/*
+  DARK MODE.
+
+  Not the old neon-on-black. A calm, premium institutional dark: deep ink with a
+  faint green undertone, one muted verdigris, real contrast. The theme toggle
+  stamps data-theme on <html> (see the no-flash script in layout and
+  ThemeToggle); on a first visit the inline script picks up the system setting.
+*/
+:root[data-theme="dark"] {
+  --paper: #0f1613;
+  --bg: #0b100e;
+  --panel: #131a17;
+  --panel-2: #1b2320;
+  --ink: #060b09;
+  --line: rgba(255, 255, 255, 0.1);
   --line-strong: rgba(255, 255, 255, 0.18);
 
-  /* Text. Pure neutral, four steps, no more. */
-  --text: #f3f4f3;
-  --text-2: #a8ada8;
-  --text-3: #6c716c;
-  --text-4: #444844;
+  --text: #eef2f0;
+  --text-2: #b4bdb9;
+  --text-3: #8c968f;
+  --text-4: #879189;
 
-  /* The mark. Verdigris. */
-  --accent: #35e0a1;
-  --accent-bright: #6affc0;
-  --accent-deep: #128f65;
-  --accent-wash: rgba(53, 224, 161, 0.08);
+  --accent: #2bb98a;
+  --accent-ink: #57d6a6;
+  --accent-deep: #57d6a6;
+  --accent-bright: #45cf9c;
+  --accent-wash: rgba(43, 185, 138, 0.12);
+  --accent-line: rgba(43, 185, 138, 0.3);
+  --on-accent: #06110c;
 
-  /* Cold, for status only. Never decorative. */
-  --status: #7e8ea8;
-  --warn: #d8a657;
-  --bad: #d9615a;
+  --status: #7e9ec0;
+  --warn: #e0a955;
+  --bad: #e0736a;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px -16px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 28px 55px -22px rgba(0, 0, 0, 0.8);
+
+  color-scheme: dark;
+}
+
+/*
+  While the theme is being applied (first load and on toggle) kill transitions,
+  so a colour or background transition cannot get stuck at the pre-theme value.
+  The beforeInteractive script adds .theme-sync alongside data-theme; a script
+  after hydration removes it once the themed paint has landed, and the toggle
+  adds and drops it around each flip. See layout.tsx and ThemeToggle.
+*/
+html.theme-sync *,
+html.theme-sync *::before,
+html.theme-sync *::after {
+  transition: none !important;
 }
 
 @theme inline {
@@ -59,10 +133,16 @@
   --color-text-3: var(--text-3);
   --color-text-4: var(--text-4);
 
+  --color-paper: var(--paper);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
   --color-accent-bright: var(--accent-bright);
   --color-accent-deep: var(--accent-deep);
   --color-accent-wash: var(--accent-wash);
+  --color-accent-line: var(--accent-line);
+  --color-on-accent: var(--on-accent);
+  --color-code-bg: var(--code-bg);
+  --color-code-text: var(--code-text);
 
   --color-status: var(--status);
   --color-warn: var(--warn);
@@ -74,7 +154,7 @@
 
 html {
   background: var(--bg);
-  color-scheme: dark;
+  color-scheme: light;
   /* Anchor jumps glide rather than teleport. The reduced-motion block below
      turns this off for anyone who asked. */
   scroll-behavior: smooth;
@@ -178,7 +258,7 @@ body {
 
 /* Selection in the accent, not the browser's default blue, on a dark ground. */
 ::selection {
-  background: rgba(53, 224, 161, 0.26);
+  background: rgba(12, 126, 96, 0.16);
   color: var(--text);
 }
 
@@ -204,26 +284,20 @@ body {
 .surface {
   background: var(--panel);
   border: 1px solid var(--line);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.045),
-    0 1px 1px 0 rgba(0, 0, 0, 0.35),
-    0 14px 34px -20px rgba(0, 0, 0, 0.75);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 
 .surface-2 {
-  background: var(--panel-2);
+  background: var(--panel);
   border: 1px solid var(--line-strong);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-    0 2px 4px 0 rgba(0, 0, 0, 0.4),
-    0 24px 50px -24px rgba(0, 0, 0, 0.8);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 
 .raise {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
-    0 1px 1px 0 rgba(0, 0, 0, 0.35),
-    0 14px 34px -20px rgba(0, 0, 0, 0.7);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (hover: hover) {
@@ -238,12 +312,8 @@ body {
 
   .lift:hover {
     transform: translateY(-2px);
-    border-color: var(--line-strong);
-    box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-      0 2px 4px 0 rgba(0, 0, 0, 0.4),
-      0 28px 54px -22px rgba(0, 0, 0, 0.85),
-      0 0 0 1px var(--accent-wash);
+    border-color: var(--accent-line);
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -283,16 +353,28 @@ body {
 }
 
 .t-label {
-  font-family: var(--font-mono-display), var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 0.6875rem;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .t-mono {
   font-family: var(--font-mono-display), var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+}
+
+/*
+  Institutional eyebrow: a small, tracked, uppercase sans label. Cleaner and
+  more "infrastructure" than the mono label, which stays for now on the pages
+  not yet converted to the light register.
+*/
+.t-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
 /*
@@ -425,16 +507,16 @@ select {
 
 .btn-primary {
   background: var(--accent);
-  color: var(--ink);
+  color: var(--on-accent);
 }
 
 @media (hover: hover) {
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-bright);
-    /* A faint verdigris halo on hover, so the primary action feels lit rather
-       than just recoloured. Only on devices that actually hover — never left
-       stuck under a finger on a touchscreen. */
-    box-shadow: 0 6px 24px -8px var(--accent);
+    /* A soft lift on hover, so the primary action feels raised rather than only
+       recoloured. Only on devices that actually hover, never left stuck under a
+       finger on a touchscreen. */
+    box-shadow: 0 8px 22px -10px var(--accent);
   }
 }
 
@@ -452,7 +534,7 @@ select {
 @media (hover: hover) {
   .btn-ghost:hover {
     border-color: var(--accent);
-    color: var(--accent);
+    color: var(--accent-ink);
   }
 }
 
@@ -464,7 +546,7 @@ select {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-family: var(--font-mono-display), ui-monospace, monospace;
   font-size: 0.8rem;
   letter-spacing: 0.22em;
@@ -489,7 +571,7 @@ select {
 
 @media (hover: hover) {
   .btn-fill:hover {
-    color: var(--ink);
+    color: var(--on-accent);
   }
   .btn-fill:hover::before {
     transform: scaleY(1);

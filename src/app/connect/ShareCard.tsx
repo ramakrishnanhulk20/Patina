@@ -122,7 +122,7 @@ export function ShareCard({
    *
    * This app's entire distribution is people sending their card to someone.
    * Roughly nine in ten of them are on a phone, where the OS sheet opens on
-   * their actual conversations — the WhatsApp thread they were already in —
+   * their actual conversations, the WhatsApp thread they were already in, 
    * rather than making them pick a network from a row of brand buttons and
    * then pick a person inside it.
    *
@@ -169,7 +169,7 @@ export function ShareCard({
         </div>
         <div className="bg-bg p-4">
           <p className="t-label text-text-3">Rank</p>
-          <p className="t-mono mt-1.5 text-3xl text-text">{rank !== null ? `#${rank}` : "—"}</p>
+          <p className="t-mono mt-1.5 text-3xl text-text">{rank !== null ? `#${rank}` : ", "}</p>
           <p className="mt-1 text-xs leading-relaxed text-text-3">
             each real person you bring = +{POINTS_PER_REFERRAL} points
           </p>
@@ -185,8 +185,8 @@ export function ShareCard({
       {/*
         One obvious action, then the rest.
 
-        This used to be five equal buttons in a two-column grid — WhatsApp,
-        Telegram, X, Copy, View — which on a phone is five decisions to make
+        This used to be five equal buttons in a two-column grid, WhatsApp,
+        Telegram, X, Copy, View, which on a phone is five decisions to make
         before sharing anything, and none of them is the one the phone already
         does better than we can.
       */}

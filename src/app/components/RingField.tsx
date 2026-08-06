@@ -10,14 +10,14 @@ import { useEffect, useRef } from "react";
  * so the background makes it before a word is read.
  *
  * Interaction: the field sits almost invisible, tarnished. Moving the pointer
- * polishes a patch of it — the rings underneath brighten AND clean from a deep,
- * oxidised verdigris toward a bright one — then dim again once you move on.
+ * polishes a patch of it. The rings underneath brighten AND clean from a deep,
+ * oxidised verdigris toward a bright one. Then dim again once you move on.
  * Nothing is clickable and nothing is explained; it just rewards moving.
  *
  * ON A PHONE THERE IS NO POINTER, which once made the whole thing dead for
  * roughly nine in ten visitors. So a device with no pointer gets its own light
- * that drifts across the field, and — this is the part that makes it feel alive
- * in the hand — SCROLLING polishes it: a flick brightens the field and settles.
+ * that drifts across the field. The part that makes it feel alive in the hand:
+ * scrolling polishes it, so a flick brightens the field and settles.
  *
  * The rings themselves are read as tree rings: a new one forms faint at the very
  * centre, sets as it moves out, and fades as it reaches the rim. On desktop each
@@ -45,7 +45,7 @@ export function RingField({ className = "" }: { className?: string }) {
     /**
      * Is there a real pointer to polish with?
      *
-     * `(hover: hover) and (pointer: fine)` is the honest test — a phone answers
+     * `(hover: hover) and (pointer: fine)` is the honest test. A phone answers
      * no, a laptop yes, and a touchscreen laptop yes, which is the right answer
      * because it still has a mouse.
      */
@@ -54,13 +54,16 @@ export function RingField({ className = "" }: { className?: string }) {
     /**
      * The accent ramp, straight from the design system (globals.css): deep is
      * the oxidised verdigris, bright is freshly polished metal. The field lives
-     * entirely on these — no new colour is introduced. Resting rings sit a touch
+     * entirely on these. No new colour is introduced. Resting rings sit a touch
      * toward deep (tarnished); a polished ring cleans up toward bright.
      */
     type RGB = [number, number, number];
-    const DEEP: RGB = [18, 143, 101];
-    const BASE: RGB = [53, 224, 161];
-    const BRIGHT: RGB = [106, 255, 192];
+    // The accent ramp, per theme. On a light ground the rings need a deeper,
+    // more opaque green to read at all; on dark they can glow.
+    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    const DEEP: RGB = dark ? [12, 110, 80] : [7, 94, 70];
+    const BASE: RGB = dark ? [43, 185, 138] : [12, 126, 96];
+    const BRIGHT: RGB = dark ? [120, 240, 190] : [22, 150, 118];
     const mix = (a: RGB, b: RGB, t: number): RGB => [
       a[0] + (b[0] - a[0]) * t,
       a[1] + (b[1] - a[1]) * t,
@@ -71,7 +74,7 @@ export function RingField({ className = "" }: { className?: string }) {
     // Touch runs at 30fps; the interval gate below enforces it. Desktop is left
     // uncapped, where the pointer-polish is felt frame to frame.
     const TOUCH_FRAME_MS = 1000 / 30;
-    // Segments per warped ring. Desktop only — touch strokes plain arcs instead.
+    // Segments per warped ring. Desktop only. Touch strokes plain arcs instead.
     const SEGMENTS = 48;
 
     let width = 0;
@@ -204,7 +207,7 @@ export function RingField({ className = "" }: { className?: string }) {
        *
        * Two sine waves at unrelated periods keep it drifting so the field is
        * never dead, kept off the edges so the bright patch is where the eye is.
-       * On top of that, `scrollBoost` — how hard the page was just flicked —
+       * On top of that, `scrollBoost`, how hard the page was just flicked, 
        * flares the polish and eases off, and scroll position nudges the light up
        * the field as the reader moves into the page. That is what turns a canned
        * loop into something a phone user feels themselves acting on.
@@ -220,7 +223,7 @@ export function RingField({ className = "" }: { className?: string }) {
       // On touch the rings have to survive a phone screen in daylight, so the
       // resting alpha is roughly double. The pointer path keeps the reviewed
       // desktop value untouched.
-      const baseAlpha = hasPointer ? 0.05 : 0.1;
+      const baseAlpha = dark ? (hasPointer ? 0.05 : 0.1) : hasPointer ? 0.1 : 0.16;
 
       for (const seed of seeds) {
         // The growth reading: the innermost ring emerges from the very centre and
@@ -243,7 +246,7 @@ export function RingField({ className = "" }: { className?: string }) {
           const radius = seed.gap * i + grow;
 
           // Born faint at the centre, sets as it moves out, fades as it reaches
-          // the rim — a half-sine envelope over the ring's distance from centre.
+          // the rim. A half-sine envelope over the ring's distance from centre.
           const norm = Math.min(radius / rMax, 1);
           let alpha = baseAlpha * Math.sin(norm * Math.PI);
 
@@ -268,7 +271,7 @@ export function RingField({ className = "" }: { className?: string }) {
           const cr = REST[0] + (BRIGHT[0] - REST[0]) * lit;
           const cg = REST[1] + (BRIGHT[1] - REST[1]) * lit;
           const cb = REST[2] + (BRIGHT[2] - REST[2]) * lit;
-          ctx!.strokeStyle = `rgba(${cr | 0}, ${cg | 0}, ${cb | 0}, ${Math.min(alpha, 0.6)})`;
+          ctx!.strokeStyle = `rgba(${cr | 0}, ${cg | 0}, ${cb | 0}, ${Math.min(alpha, dark ? 0.6 : 0.72)})`;
           ctx!.beginPath();
           ringPath(seed.x, seed.y, radius, seed);
           ctx!.stroke();
@@ -332,7 +335,7 @@ export function RingField({ className = "" }: { className?: string }) {
 
     if (reduced) {
       // The composition, without the motion. No loop, no pointer polish, no
-      // scroll light — one still frame that resizes with the window.
+      // scroll light. One still frame that resizes with the window.
       return () => {
         running = false;
         cancelAnimationFrame(raf);

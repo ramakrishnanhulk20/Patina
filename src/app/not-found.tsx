@@ -8,7 +8,7 @@ export const metadata = { title: "Not found" };
  *
  * Patina's only real distribution is a link somebody pasted into a chat. Those
  * links get truncated, retyped by hand, and go stale when a person changes
- * their name. Every one of those lands here, so this page is not an apology —
+ * their name. Every one of those lands here, so this page is not an apology, 
  * it is the last chance to turn a mistyped URL into a user. Next's default 404
  * is a black page with system type and no way onward, which threw all of them
  * away.
@@ -21,7 +21,7 @@ export default function NotFound() {
       <h1 className="t-section mt-5 text-text">There is nothing at this address.</h1>
 
       <p className="mt-5 text-lg leading-relaxed text-text-2">
-        Either the link was cut short on its way to you — chat apps do that to long ones — or
+        Either the link was cut short on its way to you, chat apps do that to long ones, or
         whoever sent it has since changed their name. Neither is worth your time chasing.
       </p>
 

@@ -7,7 +7,7 @@ import { SITE_URL } from "@/lib/site";
  * Individual `/u/*` cards are left out on purpose even though they are
  * crawlable. There is one per user, they change whenever somebody connects
  * another source, and enumerating them here would mean reading the whole
- * ranked set out of Redis on every crawler visit — the same mistake the
+ * ranked set out of Redis on every crawler visit. The same mistake the
  * standings page was making. They get discovered through shared links, which
  * is how they are meant to be found anyway.
  */

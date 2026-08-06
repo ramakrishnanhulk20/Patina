@@ -19,8 +19,8 @@ export async function GET(request: Request) {
    *
    * The sibling `/data` route has always checked this; this one did not, which
    * left the two halves of the same flow guarded differently for no reason.
-   * A request id is not a secret we control — it travels through Vana's tab and
-   * ends up in a URL — so anyone holding one could watch the progress of
+   * A request id is not a secret we control. It travels through Vana's tab and
+   * ends up in a URL. So anyone holding one could watch the progress of
    * somebody else's connection and learn which source they were connecting.
    *
    * Compared against the RESOLVED profile for the same reason as `/data`:

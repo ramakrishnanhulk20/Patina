@@ -4,7 +4,7 @@
  * The score answers "how much". This answers "what happened": the year it all
  * begins, the accounts opened one after another, the things made across a
  * decade, the people who gathered around them. It is the same data the card is
- * built from — no account handles, nothing the card would not already show —
+ * built from, no account handles, nothing the card would not already show, 
  * arranged as a life rather than a number.
  *
  * Pure and deterministic, so it can be tested without a browser and rendered on
@@ -28,7 +28,7 @@ export type Story = {
   /** Plain-English origin, e.g. "your YouTube account, opened in 2012". */
   origin: string | null;
 
-  /** Every dated source, earliest first — the spine of the timeline. */
+  /** Every dated source, earliest first. The spine of the timeline. */
   timeline: TimelineEntry[];
   /** Sources that carry no date but were still connected. */
   alsoConnected: string[];

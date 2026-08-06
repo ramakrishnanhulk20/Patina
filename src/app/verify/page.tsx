@@ -53,7 +53,7 @@ export default async function VerifyPage({
 
       <p className="mt-5 text-lg leading-relaxed text-text-2">
         A screenshot can say anything. This reads the score live from Patina and shows the signed
-        proof behind it, so another app — or another person — can trust it without taking anyone&apos;s
+        proof behind it, so another app, or another person, can trust it without taking anyone&apos;s
         word for it.
       </p>
 
@@ -123,7 +123,7 @@ export default async function VerifyPage({
             <p className="t-label text-text-3">The signed proof</p>
             <p className="mt-2 text-sm leading-relaxed text-text-2">
               This score is signed by Patina&apos;s app key,{" "}
-              <span className="t-mono break-all text-text-3">{result.attestation.app}</span> — the same
+              <span className="t-mono break-all text-text-3">{result.attestation.app}</span>, the same
               address that pays for reads on Vana. Recover the signer of the message below and you get
               that address back. If it matches, the score is genuinely Patina&apos;s and has not been
               altered.

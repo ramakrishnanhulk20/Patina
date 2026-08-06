@@ -22,7 +22,7 @@ import { controllerFor, SOURCES, type SourceId } from "./vana";
  *
  * The Vana docs say `readApprovedData` handles the 402 automatically by signing
  * an X-PAYMENT header and letting the Personal Server settle server-side. On
- * mainnet, for this app, that path does NOT settle — the read comes back 402
+ * mainnet, for this app, that path does NOT settle. The read comes back 402
  * with `"registrationOwed": true`. The gateway itself tells us what it wants:
  *
  *   POST /v1/escrow/pay -> 400 "accessRecord is required when dataAccessFee > 0"
@@ -36,7 +36,7 @@ import { controllerFor, SOURCES, type SourceId } from "./vana";
  * The one remaining failure is a real one the user can fix: if the source they
  * connected collected EMPTY on Vana's side, the gateway has no data point to
  * charge for and answers "dataPointId ... not found in gateway". That is not a
- * payment fault — it is an empty source — so it is raised as SourceEmptyError
+ * payment fault, it is an empty source, so it is raised as SourceEmptyError
  * and turned into "check your source" guidance rather than a scary error.
  */
 
@@ -49,7 +49,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * The escrow gateway reports a dataPointId as "not found" when the source the
  * user connected collected EMPTY on Vana's side (or has not finished collecting
- * yet). There is no data to charge for, so the read can never settle — this is
+ * yet). There is no data to charge for, so the read can never settle. This is
  * a user-fixable situation, not a payment fault.
  */
 function isDataPointMissing(text: string | undefined): boolean {

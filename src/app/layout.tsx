@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono, Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { AppNav } from "./components/AppNav";
@@ -35,18 +36,18 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Patina — proof you have been here a while",
-    template: "%s — Patina",
+    default: "Patina · proof you have been here a while",
+    template: "%s · Patina",
   },
   description: DESCRIPTION,
   openGraph: {
-    title: "Patina — proof you have been here a while",
+    title: "Patina · proof you have been here a while",
     description: DESCRIPTION,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Patina — proof you have been here a while",
+    title: "Patina · proof you have been here a while",
     description: DESCRIPTION,
   },
   manifest: "/manifest.webmanifest",
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
     // browser chrome, which is most of what makes a web app feel like an app.
     capable: true,
     title: "Patina",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
 };
 
@@ -75,8 +76,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0b0c0b",
-  colorScheme: "dark",
+  themeColor: "#f6f8f8",
+  colorScheme: "light",
 };
 
 export default async function RootLayout({
@@ -89,9 +90,16 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} ${monoDisplay.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-text">
+        {/* Stamp the saved (or system) theme on <html> before first paint, so a
+            dark-mode visitor never sees a white flash on the way in. Next only
+            runs an inline script this early through next/script beforeInteractive. */}
+        <Script id="patina-theme-init" strategy="beforeInteractive">
+          {"(function(){try{var d=document.documentElement;d.classList.add('theme-sync');var t=localStorage.getItem('patina-theme');if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}d.setAttribute('data-theme',t);}catch(e){}})();"}
+        </Script>
         {/* If JS never runs, never leave scroll-reveal content stuck hidden. */}
         <noscript>
           <style

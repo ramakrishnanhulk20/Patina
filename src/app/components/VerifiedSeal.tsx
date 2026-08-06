@@ -2,7 +2,7 @@
  * THE HALLMARK.
  *
  * Old silver is proven real, and dated, by a tiny assay stamp struck into the
- * metal — a mark that is trusted precisely because it is official. A Patina
+ * metal. A mark that is trusted precisely because it is official. A Patina
  * score makes the same claim about a digital life, and every score really is
  * signed by the app's key on Vana, so it earns the same object: a struck seal,
  * not a sticker.
@@ -87,7 +87,7 @@ export function VerifiedSeal({
       <circle cx="60" cy="60" r="53.5" fill="none" stroke="var(--line-strong)" strokeWidth="0.75" />
       <circle cx="60" cy="60" r="40" fill="none" stroke="var(--line)" strokeWidth="0.75" />
 
-      {/* Rim text — mono, letterspaced, the way a stamp is engraved. */}
+      {/* Rim text, mono, letterspaced, the way a stamp is engraved. */}
       <g
         fill="var(--text-3)"
         fontFamily="var(--font-geist-mono), ui-monospace, monospace"
@@ -107,7 +107,7 @@ export function VerifiedSeal({
         </text>
       </g>
 
-      {/* The growth-ring motif at the centre — the mark itself. */}
+      {/* The growth-ring motif at the centre, the mark itself. */}
       <g fill="none" stroke="var(--accent)" strokeWidth="1.5">
         <circle cx="60" cy="60" r="27" opacity="0.35" />
         <circle cx="60" cy="60" r="19" opacity="0.6" />

@@ -38,7 +38,7 @@ export default function Error({
 
       <p className="mt-5 text-lg leading-relaxed text-text-2">
         A problem on our side, not yours.{" "}
-        <span className="text-text">Nothing you connected has been lost</span> — your score is
+        <span className="text-text">Nothing you connected has been lost</span>, your score is
         stored against your account, not against this page.
       </p>
 
@@ -57,7 +57,7 @@ export default function Error({
 
       {error.digest && (
         <p className="t-mono mt-8 text-xs text-text-4">
-          Reference {error.digest} — quote this if you tell us about it.
+          Reference {error.digest}, quote this if you tell us about it.
         </p>
       )}
     </main>

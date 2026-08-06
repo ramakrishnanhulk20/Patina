@@ -24,8 +24,8 @@ export const dynamic = "force-dynamic";
 /**
  * Mobile-only share surface.
  *
- * On phones the share panel used to sit under five source cards on /connect —
- * past the fold, past the score, past the story button — so almost nobody
+ * On phones the share panel used to sit under five source cards on /connect, 
+ * past the fold, past the score, past the story button. So almost nobody
  * reached it. This page is one job: share. Desktop keeps sharing on Connect
  * and is bounced there so we do not maintain two competing layouts.
  */

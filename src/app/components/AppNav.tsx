@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * One navigation, two shapes.
@@ -114,12 +115,23 @@ export function AppNav() {
               </Link>
             ))}
 
+            <ThemeToggle className="ml-2" />
+
             <Link href="/connect" className="btn btn-primary ml-2 px-4 py-2 text-sm">
               Get your score
             </Link>
           </div>
         </nav>
       </header>
+
+      {/* Phones have no top bar, so the theme switch rides top-right, clear of
+          the notch and above the content. */}
+      <div
+        className="fixed right-3 z-40 sm:hidden"
+        style={{ top: "calc(env(safe-area-inset-top) + 0.6rem)" }}
+      >
+        <ThemeToggle />
+      </div>
 
       {/* -------------------------------------------------------- mobile bar */}
       <nav

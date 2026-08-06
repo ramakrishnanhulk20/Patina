@@ -3,7 +3,7 @@
  *
  * They live here rather than in store.ts because CLIENT COMPONENTS NEED THEM.
  * store.ts imports `@upstash/redis`, so anything importing it drags a Redis
- * client into the browser bundle — which is why ShareCard used to carry its own
+ * client into the browser bundle. Which is why ShareCard used to carry its own
  * hand-copied `const POINTS_PER_REFERRAL = 10` under a "keep in sync with
  * store.ts" comment. That comment is an admission that the arrangement will
  * eventually drift, and drift here means the share panel promising a different
@@ -45,7 +45,7 @@ export const POINTS_PER_REFERRAL = 10;
 /** The number the leaderboard ranks on. */
 export function leaguePoints(score: number, qualifiedReferrals: number): number {
   // Coerce hard. Older profiles may lack `referrals`, and Math.max(0, undefined)
-  // is NaN — which would write a broken rank and show as "2 points / 78 score".
+  // is NaN. Which would write a broken rank and show as "2 points / 78 score".
   const safeScore = Number.isFinite(score) ? score : 0;
   const safeRefs = Number.isFinite(qualifiedReferrals) ? Math.max(0, qualifiedReferrals) : 0;
   return Math.round(safeScore + POINTS_PER_REFERRAL * safeRefs);

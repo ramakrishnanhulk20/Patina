@@ -50,7 +50,7 @@ export const REWARD = {
   priceAsOf: "28 July 2026",
 } as const;
 
-/** "$61" — whole dollars, because false precision on an estimate reads as a promise. */
+/** "$61". Whole dollars, because false precision on an estimate reads as a promise. */
 export function usd(vana: number): string {
   return `$${Math.round(vana * REWARD.vanaUsd).toLocaleString("en-US")}`;
 }
@@ -66,7 +66,7 @@ export function perShare(position: "champion" | "runnerUp", shares: number): num
  * A rough, honest illustration for the page.
  *
  * Everyone who finishes in the top `REWARD.places` by points takes an EQUAL cut
- * of the pool — one each — so this assumes a full board of `REWARD.places` and
+ * of the pool, one each, so this assumes a full board of `REWARD.places` and
  * divides evenly. Referrals decide WHO is in those places (each is worth points
  * on the leaderboard), never how many shares anyone holds, so no invite ever
  * makes an individual payout bigger. If anything this is a floor: fewer than

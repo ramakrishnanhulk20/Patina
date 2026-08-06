@@ -13,7 +13,7 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
       <>
         Patina turns the history in accounts you already own into a score that suggests how long a
         real person has been around. It is built on Vana&apos;s data-portability protocol but is an{" "}
-        <strong className="text-text">independent app</strong> — not operated, run, or endorsed by
+        <strong className="text-text">independent app</strong>, not operated, run, or endorsed by
         the Vana Foundation. Patina is an entrant in their Vana Cup, nothing more.
       </>
     ),
@@ -24,7 +24,7 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
       <>
         Connect only accounts that are genuinely yours. No bots, scripts, fabricated or purchased
         accounts, duplicate or Sybil accounts, and no entering as several people. This is not just our
-        rule — it is the Vana Cup&apos;s, and breaking it voids any reward and can get the entries
+        rule, it is the Vana Cup&apos;s, and breaking it voids any reward and can get the entries
         disqualified. Detecting fake history is the entire product, so it would be strange to allow it
         here.
       </>
@@ -49,7 +49,7 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "No guarantees",
     body: (
       <>
-        The score is evidence about the history it can see — not a certificate that you are human, and
+        The score is evidence about the history it can see, not a certificate that you are human, and
         not advice. Patina is provided as-is, may be wrong or unavailable, and may change or stop.
         Parts of it depend on Vana and on the platforms you connect, which we do not control.
       </>

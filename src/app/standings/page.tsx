@@ -10,7 +10,7 @@ import { POINTS_PER_REFERRAL, REFERRAL_QUALIFIES_AT } from "@/lib/store";
 export const metadata = {
   title: "Standings",
   description:
-    "Who has the most points on Patina — Patina score plus what they brought in — and who is currently inside the places that share the reward.",
+    "Who has the most points on Patina, Patina score plus what they brought in, and who is currently inside the places that share the reward.",
 };
 
 export const dynamic = "force-dynamic";
@@ -167,9 +167,9 @@ export default async function StandingsPage() {
                       <td className="t-mono p-4 text-lg text-text">{row.points}</td>
                       <td className="t-mono p-4 text-text-2">{row.score}</td>
                       <td className="t-mono p-4 text-text-2">
-                        {row.referrals > 0 ? row.referrals : "—"}
+                        {row.referrals > 0 ? row.referrals : ", "}
                       </td>
-                      <td className="t-mono p-4 text-text-2">{row.oldestYear ?? "—"}</td>
+                      <td className="t-mono p-4 text-text-2">{row.oldestYear ?? ", "}</td>
                     </tr>
                   );
                 })}

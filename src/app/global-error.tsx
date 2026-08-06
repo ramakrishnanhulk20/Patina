@@ -5,7 +5,7 @@ import { useEffect } from "react";
 /**
  * The last resort: the root layout itself failed.
  *
- * This file REPLACES the document, so it gets none of the app — no globals.css,
+ * This file REPLACES the document, so it gets none of the app. No globals.css,
  * no Geist, no nav. Everything it needs is inlined here. That is not a style
  * choice; anything imported would be a second thing that could fail on the
  * page whose whole job is to work when other things have failed.
@@ -42,7 +42,7 @@ export default function GlobalError({
           WebkitFontSmoothing: "antialiased",
         }}
       >
-        <title>Something broke — Patina</title>
+        <title>Something broke · Patina</title>
 
         <div style={{ maxWidth: "34rem" }}>
           <div
@@ -51,7 +51,7 @@ export default function GlobalError({
               width: 11,
               height: 11,
               borderRadius: 999,
-              border: "1px solid #35e0a1",
+              border: "1px solid #2bb98a",
               position: "relative",
               marginBottom: 24,
             }}
@@ -61,7 +61,7 @@ export default function GlobalError({
                 position: "absolute",
                 inset: 3,
                 borderRadius: 999,
-                background: "#35e0a1",
+                background: "#2bb98a",
                 display: "block",
               }}
             />
@@ -92,7 +92,7 @@ export default function GlobalError({
               padding: "14px 24px",
               borderRadius: 8,
               border: "none",
-              background: "#35e0a1",
+              background: "#2bb98a",
               color: "#070807",
               fontSize: 16,
               fontWeight: 600,
