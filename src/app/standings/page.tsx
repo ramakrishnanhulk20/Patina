@@ -167,9 +167,11 @@ export default async function StandingsPage() {
                       <td className="t-mono p-4 text-lg text-text">{row.points}</td>
                       <td className="t-mono p-4 text-text-2">{row.score}</td>
                       <td className="t-mono p-4 text-text-2">
-                        {row.referrals > 0 ? row.referrals : ", "}
+                        {row.referrals > 0 ? row.referrals : <span className="text-text-4">0</span>}
                       </td>
-                      <td className="t-mono p-4 text-text-2">{row.oldestYear ?? ", "}</td>
+                      <td className="t-mono p-4 text-text-2">
+                        {row.oldestYear ?? <span className="text-text-4">n/a</span>}
+                      </td>
                     </tr>
                   );
                 })}

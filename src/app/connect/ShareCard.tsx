@@ -169,7 +169,9 @@ export function ShareCard({
         </div>
         <div className="bg-bg p-4">
           <p className="t-label text-text-3">Rank</p>
-          <p className="t-mono mt-1.5 text-3xl text-text">{rank !== null ? `#${rank}` : ", "}</p>
+          <p className={`t-mono mt-1.5 ${rank !== null ? "text-3xl text-text" : "text-xl text-text-4"}`}>
+            {rank !== null ? `#${rank}` : "Unranked"}
+          </p>
           <p className="mt-1 text-xs leading-relaxed text-text-3">
             each real person you bring = +{POINTS_PER_REFERRAL} points
           </p>

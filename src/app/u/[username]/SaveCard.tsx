@@ -80,7 +80,7 @@ export function SaveCard({ username }: { username: string }) {
   }
 
   const label = busy
-    ? "Preparing…"
+    ? "Preparing..."
     : done
       ? "Saved"
       : error
