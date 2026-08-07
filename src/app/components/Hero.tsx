@@ -80,7 +80,7 @@ function Bar({ label, points, max }: { label: string; points: number; max: numbe
 /** The product, shown. A clean, real Patina credential, not a placeholder. */
 function CredentialCard() {
   return (
-    <figure className="surface relative mx-auto w-full max-w-md overflow-hidden p-6 sm:p-7">
+    <figure className="surface relative w-full overflow-hidden p-6 sm:p-7">
       <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 opacity-70">
         <RingMark size={190} />
       </div>
@@ -129,7 +129,7 @@ export function Hero() {
         <RingMark size={640} />
       </div>
 
-      <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 pb-20 pt-14 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-28 lg:pt-24">
+      <div className="mx-auto grid max-w-[90rem] items-center gap-12 px-6 pb-16 pt-10 sm:pt-14 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-12">
         <div>
           <p data-rise className="t-eyebrow inline-flex items-center gap-2 text-accent-ink">
             <span className="rings" aria-hidden="true" />
@@ -171,7 +171,7 @@ export function Hero() {
           </ul>
         </div>
 
-        <div data-rise className="lg:justify-self-end">
+        <div data-rise className="w-full lg:max-w-[33rem] lg:justify-self-end">
           <CredentialCard />
         </div>
       </div>

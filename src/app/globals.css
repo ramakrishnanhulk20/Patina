@@ -331,9 +331,12 @@ body {
   window the type gives way rather than the layout breaking.
 */
 .t-hero {
-  font-size: clamp(2.75rem, min(7.6vw, 11.5vh), 6.5rem);
-  line-height: 0.94;
-  letter-spacing: -0.035em;
+  /* Sized to FIT the first screen with the subhead, the buttons and the trust
+     row all above the fold. The old cap (6.5rem) made a nine-word headline eat
+     the whole viewport on its own and pushed the call to action out of sight. */
+  font-size: clamp(2.9rem, 5.2vw, 4.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
   font-weight: 600;
 }
 
@@ -647,6 +650,30 @@ select {
 .reveal[data-shown="true"] {
   opacity: 1;
   transform: none;
+  will-change: auto;
+}
+
+/*
+  LANDING REVEAL (see ScrollReveals).
+
+  The .rise class is added by JS ONLY to elements below the fold at load, so the
+  hero and the first screen are never hidden. .rise-in then fades and lifts each
+  element into place as it scrolls into view.
+*/
+.rise {
+  opacity: 0;
+  transform: translateY(24px);
+  will-change: opacity, transform;
+}
+
+/* The transition lives on the revealed state, so adding .rise hides instantly
+   (no fade-out) and only the reveal itself animates. */
+.rise.rise-in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.7s cubic-bezier(0.2, 0, 0, 1);
   will-change: auto;
 }
 

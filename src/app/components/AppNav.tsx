@@ -93,7 +93,7 @@ export function AppNav() {
     <>
       {/* ------------------------------------------------------- desktop bar */}
       <header className="sticky top-0 z-40 hidden border-b border-line bg-bg/85 backdrop-blur-md sm:block">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
+        <nav className="mx-auto flex h-16 max-w-[90rem] items-center justify-between gap-6 px-6">
           <Link href="/" className="t-label flex items-center gap-2.5 text-text">
             <span className="rings" aria-hidden="true" />
             Patina

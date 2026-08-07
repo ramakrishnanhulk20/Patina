@@ -104,14 +104,14 @@ export default function Home() {
 
         {/* ------------------------------------------------- the core argument */}
         <section className="px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[90rem]">
             <ClaimScene />
           </div>
         </section>
 
         {/* ---------------------------------- the defensible asset, front-loaded */}
         <section className="border-t border-line bg-panel-2/40 px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[90rem]">
             <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-16">
               <div>
                 <div data-rise>
@@ -165,7 +165,7 @@ export default function Home() {
 
         {/* -------------------------------------------------- what it is built on */}
         <section className="border-t border-line px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[90rem]">
             <SectionLabel>What the score is built from</SectionLabel>
             <h2 data-rise className="t-section mt-5 max-w-[20ch] text-text">
               Weighted toward the things you cannot fake.
@@ -207,7 +207,7 @@ export default function Home() {
 
         {/* -------------------------------------------------------- how it works */}
         <section id="how" className="border-t border-line px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[90rem]">
             <SectionLabel>How it works</SectionLabel>
             <h2 data-rise className="t-section mt-5 max-w-[18ch] text-text">
               A minute on your phone. No documents.
@@ -226,7 +226,7 @@ export default function Home() {
 
         {/* ----------------------------------------------------- for developers */}
         <section className="border-t border-line bg-panel-2/40 px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[90rem]">
             <SectionLabel>For developers and business</SectionLabel>
             <h2 data-rise className="t-section mt-5 max-w-[24ch] text-text">
               Sybil resistance without KYC, in one request.
@@ -260,7 +260,7 @@ export default function Home() {
 
         {/* ------------------------------------------------------- what it cannot */}
         <section className="border-t border-line px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-[90rem]">
             <SectionLabel>Where it is honest with you</SectionLabel>
             <h2 data-rise className="t-section mt-5 max-w-[20ch] text-text">
               What Patina does not claim.
@@ -297,7 +297,7 @@ export default function Home() {
         </section>
 
         <footer className="border-t border-line px-6 py-12">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-4">
+          <div className="mx-auto flex max-w-[90rem] flex-wrap items-center justify-between gap-x-6 gap-y-4">
             <span className="t-label flex items-center gap-2.5 text-text-3">
               <span className="rings" aria-hidden="true" />
               Patina
