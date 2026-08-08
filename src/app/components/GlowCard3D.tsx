@@ -8,18 +8,15 @@ type GlowCard3DProps = {
 };
 
 /**
- * Frames the credential card in its aspect box.
+ * A thin frame around the credential card.
  *
- * The tilting WebGL plate that used to live here was dropped in the move to the
- * calmer institutional register: a crisp, still credential reads as more
- * trustworthy than a spinning one, and it costs no three.js on the page a
- * stranger opens from a link in a chat. PlateCard is the real content and
- * renders cleanly in both light and dark.
+ * It used to force a fixed aspect ratio for a tilting WebGL plate. That plate
+ * was dropped in the move to the calmer institutional register, and the leftover
+ * aspect box then quietly CLIPPED the taller text card on desktop: the score,
+ * verdict and year overflowed a 16/10 box at the sidebar width and were cut off.
+ * So it now just carries positioning, and PlateCard sizes to its own content.
+ * PlateCard is the real card and brings its own border, rounding and clipping.
  */
 export function GlowCard3D({ children }: GlowCard3DProps) {
-  return (
-    <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl sm:aspect-[16/10]">
-      {children}
-    </div>
-  );
+  return <div className="relative w-full">{children}</div>;
 }

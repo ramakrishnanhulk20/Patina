@@ -120,7 +120,7 @@ export function ScorePanel({
             // Nothing is really lost: PlateCard is the same card without the 3D
             // tilt, and the live WebGL card still renders on the shareable public
             // profile (/u/[username]), which is not part of the connect flow.
-            <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl sm:aspect-[16/10]">
+            <div className="relative w-full">
               <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} animate />
             </div>
           )}

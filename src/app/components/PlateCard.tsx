@@ -35,7 +35,7 @@ export function PlateCard({
   animate?: boolean;
 }) {
   return (
-    <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl border border-line bg-panel p-6 sm:p-8">
+    <div className="relative flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-panel p-6 sm:p-8">
       {/* Growth rings, echoing the favicon and the social card. */}
       <div
         aria-hidden="true"
