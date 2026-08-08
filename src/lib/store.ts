@@ -541,6 +541,18 @@ export async function recordSource(
 ): Promise<Profile> {
   const profile = await ensureProfile(profileId, referredBy);
 
+  // Bind a referral to a profile that was created before it connected anything.
+  // ensureProfile only stamps referredBy when it CREATES a profile, and signing
+  // in creates one. So a person who signed in first (to keep their score) and
+  // only then connected their first source would arrive here with a profile that
+  // carries no referrer, and their inviter would never be credited below. Attach
+  // it on that first connect only, while no source has been recorded yet, from
+  // the code the caller read off the referral cookie. Never overwrite an existing
+  // one, so nobody can be reassigned to a different referrer.
+  if (!profile.referredBy && referredBy && Object.keys(profile.sources).length === 0) {
+    profile.referredBy = referredBy;
+  }
+
   profile.sources[source] = record;
   profile.updatedAt = new Date().toISOString();
   profile.score = scoreAfter;
@@ -655,6 +667,22 @@ export async function claimProfile(
       }
     }
     if (!profile.referredBy && current.referredBy) profile.referredBy = current.referredBy;
+
+    // Carry the invited person's place in their inviter's qualified set from the
+    // old profile id onto this one. That set is keyed by profile id, and this
+    // merge just gave the same human a new one. Leaving the old id behind would
+    // credit the inviter a SECOND time the moment this person connects another
+    // source (the new id lands in the set alongside the old), and would strand a
+    // member pointing at a profile nothing resolves to. A same-size swap, so the
+    // inviter's cached referral count stays correct.
+    if (profile.referredBy) {
+      const qualified = await db().setMembers(qualifiedKey(profile.referredBy));
+      if (qualified.includes(current.id)) {
+        await db().removeFromSet(qualifiedKey(profile.referredBy), current.id);
+        await db().addToSet(qualifiedKey(profile.referredBy), profile.id);
+      }
+    }
+
     if (!profile.username && current.username) profile.username = current.username;
     if (current.createdAt < profile.createdAt) profile.createdAt = current.createdAt;
 

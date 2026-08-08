@@ -355,6 +355,77 @@ test("a referral code that belongs to nobody credits nobody", async () => {
   assert.equal(tally.qualified, 0, "an unowned code cannot accrue shares");
 });
 
+test("a referral survives signing in before the first source is connected", async () => {
+  const referrer = await ensureProfile(newProfileId());
+  const code = referrer.referralCode;
+
+  // The invited person lands on a referral link (the code sits in a cookie), then
+  // signs in BEFORE connecting anything. Signing in creates their profile, so by
+  // the time they connect there is already a profile with no referrer on it.
+  const session = newProfileId();
+  const identity = "g:signed-in-first";
+  await claimProfile(session, identity, () => 0);
+
+  // Now they connect a real, old account. The code still rides along from the
+  // cookie, exactly as the data route passes it into recordSource.
+  await recordSource(
+    identity,
+    "github",
+    record("veteran", "2012-01-01T00:00:00Z"),
+    REFERRAL_QUALIFIES_AT + 30,
+    code,
+  );
+
+  assert.equal(
+    (await getProfile(identity))?.referredBy,
+    code,
+    "the referral must bind on the first connect, not be lost to an earlier sign-in",
+  );
+  assert.equal((await referralTally(code)).qualified, 1, "the inviter must be credited");
+});
+
+test("connecting again after signing in does not double-count one referral", async () => {
+  const referrer = await ensureProfile(newProfileId());
+  const code = referrer.referralCode;
+
+  // Invited person connects first on a plain browser session (credited once),
+  // then signs in, then adds a second source. Sign-in gives them a new profile
+  // id; without migrating their place in the qualified set, that second connect
+  // would credit the inviter a second time for the same person.
+  const browser = newProfileId();
+  await recordSource(
+    browser,
+    "github",
+    record("realdev", "2012-01-01T00:00:00Z"),
+    REFERRAL_QUALIFIES_AT + 30,
+    code,
+  );
+  assert.equal((await referralTally(code)).qualified, 1, "the first connect credits once");
+
+  const identity = "g:migrates-once";
+  await claimProfile(browser, identity, () => 60);
+
+  await recordSource(
+    identity,
+    "youtube",
+    {
+      scope: "youtube.profile",
+      readAt: new Date().toISOString(),
+      externalId: "veteranyt",
+      evidence: { youtube: { joinedDate: "2011-01-01T00:00:00Z" } },
+    },
+    75,
+    code,
+  );
+
+  assert.equal((await referralTally(code)).qualified, 1, "the same person still counts exactly once");
+  assert.equal(
+    (await getProfile(referrer.id))?.referrals,
+    1,
+    "and the inviter's cached count must agree with the set",
+  );
+});
+
 test("shares counted are qualified ones, never raw visits", async () => {
   const referrer = await ensureProfile(newProfileId());
   const code = referrer.referralCode;
