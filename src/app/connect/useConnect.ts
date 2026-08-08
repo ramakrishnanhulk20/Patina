@@ -111,6 +111,72 @@ function clearPending(): void {
   }
 }
 
+/**
+ * Solve the invisible bot check, if the server has one switched on.
+ *
+ * Fetches a single-use proof-of-work challenge and solves it with plain Web
+ * Crypto (no library, no widget, nothing on screen), then returns the base64
+ * payload to send with the connect request. It is the open-source ALTCHA v1
+ * scheme: find the number whose SHA-256(salt + number) matches the challenge.
+ *
+ * Returns null when ALTCHA is off server-side, or if the challenge cannot be
+ * fetched, and the request then goes without a token. The server decides from
+ * there: with the check on it rejects a missing token, with it off it lets the
+ * request through, so this can never wrongly strand a real person.
+ *
+ * Runs inside the SDK's createRequest, which the SDK calls AFTER it has already
+ * opened the approval tab, so the short solve never costs us the popup.
+ */
+async function solveAltcha(): Promise<string | null> {
+  type Challenge = {
+    algorithm?: string;
+    challenge?: string;
+    salt?: string;
+    signature?: string;
+    maxnumber?: number;
+    configured?: boolean;
+  };
+
+  let ch: Challenge | null = null;
+  for (let attempt = 0; attempt < 2 && !ch; attempt += 1) {
+    if (attempt > 0) await sleep(300);
+    try {
+      const res = await fetch("/api/altcha/challenge", { cache: "no-store" });
+      if (res.ok) ch = (await res.json()) as Challenge;
+    } catch {
+      // A transient network blip. Retry once, then give up and let the server decide.
+    }
+  }
+
+  if (
+    !ch ||
+    ch.configured === false ||
+    typeof ch.challenge !== "string" ||
+    typeof ch.salt !== "string" ||
+    typeof ch.signature !== "string"
+  ) {
+    return null;
+  }
+
+  const { challenge, salt, signature } = ch;
+  const algorithm =
+    ch.algorithm === "SHA-1" || ch.algorithm === "SHA-512" ? ch.algorithm : "SHA-256";
+  const max = typeof ch.maxnumber === "number" ? ch.maxnumber : 1_000_000;
+  const encoder = new TextEncoder();
+
+  for (let n = 0; n <= max; n += 1) {
+    const digest = await crypto.subtle.digest(algorithm, encoder.encode(salt + n));
+    const bytes = new Uint8Array(digest);
+    let hex = "";
+    for (let i = 0; i < bytes.length; i += 1) hex += bytes[i].toString(16).padStart(2, "0");
+    if (hex === challenge) {
+      return btoa(JSON.stringify({ algorithm, challenge, number: n, salt, signature }));
+    }
+  }
+
+  return null;
+}
+
 export function useConnect(onConnected: () => void | Promise<void>) {
   const [source, setSource] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
@@ -142,10 +208,16 @@ export function useConnect(onConnected: () => void | Promise<void>) {
   const sourceRef = useRef<string | null>(null);
 
   const connect = useDirectVanaConnect({
-    createRequest: () =>
-      jsonFetch(`/api/vana/request?source=${encodeURIComponent(sourceRef.current ?? "")}`, {
+    createRequest: async () => {
+      // Solve the invisible bot check before asking the server to start a paid
+      // connection. The approval tab is already open by the time the SDK calls
+      // this, so the sub-second solve is masked by the tab loading Vana.
+      const altcha = await solveAltcha();
+      return jsonFetch(`/api/vana/request?source=${encodeURIComponent(sourceRef.current ?? "")}`, {
         method: "POST",
-      }),
+        headers: altcha ? { "x-altcha": altcha } : undefined,
+      });
+    },
     getStatus: (requestId: string) =>
       jsonFetch(`/api/vana/status?requestId=${encodeURIComponent(requestId)}`),
     readResult: (requestId: string) =>

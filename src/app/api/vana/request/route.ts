@@ -2,6 +2,7 @@ import { controllerFor, isSourceId } from "@/lib/vana";
 import { ensureSessionId, readSessionId } from "@/lib/session";
 import { rememberRequest, resolveProfileId } from "@/lib/store";
 import { checkConnectRate } from "@/lib/ratelimit";
+import { altchaConfigured, verifyAltcha } from "@/lib/altcha";
 import { siteUrl } from "@/lib/site";
 
 export async function POST(request: Request) {
@@ -21,6 +22,21 @@ export async function POST(request: Request) {
       { error: "That is a lot of connections in a short time. Try again a little later." },
       { status: 429, headers: { "retry-after": String(rate.retryAfterSeconds) } },
     );
+  }
+
+  // Invisible bot check. Each paid connection must carry a freshly solved
+  // proof-of-work (see lib/altcha.ts), so a script cannot spend the escrow in a
+  // loop. Skipped entirely when ALTCHA is not configured, so the flow keeps
+  // working before the key is added. The browser solves this without any
+  // interaction; a caller that cannot present a valid solution is not a person.
+  if (altchaConfigured()) {
+    const solved = await verifyAltcha(request.headers.get("x-altcha") ?? "");
+    if (!solved) {
+      return Response.json(
+        { error: "Could not verify your browser. Refresh the page and try again." },
+        { status: 403 },
+      );
+    }
   }
 
   // The read must be recorded against the WALLET profile when the person has

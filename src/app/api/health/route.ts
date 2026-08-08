@@ -1,5 +1,6 @@
 import { isPersistent, storeSelfTest } from "@/lib/store";
 import { appAddress } from "@/lib/vana";
+import { altchaConfigured } from "@/lib/altcha";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,9 @@ export async function GET() {
       network,
       scoresCupPoints: network === "mainnet",
       appAddress: address,
+      // Whether the invisible bot check on the connect endpoint is switched on.
+      // Off until ALTCHA_HMAC_KEY is set; connecting still works either way.
+      botProtection: altchaConfigured(),
       storage: {
         configured: persistent,
         writable: store.ok,
