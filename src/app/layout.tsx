@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono, Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
-import { AppNav } from "./components/AppNav";
+import { SiteChrome } from "./components/SiteChrome";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { SITE_URL } from "@/lib/site";
 import { isWipLocked } from "@/lib/wip-server";
@@ -109,17 +109,7 @@ export default async function RootLayout({
           />
         </noscript>
         <SmoothScroll />
-        {locked ? (
-          children
-        ) : (
-          <>
-            <AppNav />
-            {/* Clears the fixed mobile tab bar so nothing sits underneath it. */}
-            <div className="flex flex-1 flex-col pb-[calc(56px+env(safe-area-inset-bottom))] sm:pb-0">
-              {children}
-            </div>
-          </>
-        )}
+        <SiteChrome locked={locked}>{children}</SiteChrome>
       </body>
     </html>
   );

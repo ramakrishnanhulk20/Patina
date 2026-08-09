@@ -64,6 +64,16 @@
      docs read best. Fixed, not theme-flipped. */
   --code-bg: #0d1b18;
   --code-text: #d7dee0;
+
+  /* BAND. Dark sections dropped into the light page for rhythm (the comparison
+     table, the "why it holds" block, the final CTA). Their own ink steps so text
+     on the dark ground keeps contrast, and a brighter verdigris that reads on it. */
+  --band: #0e1a16;
+  --band-2: #16231e;
+  --band-ink: #eef3f0;
+  --band-ink-2: #9caaa2;
+  --band-line: rgba(255, 255, 255, 0.11);
+  --on-band: #4fdcab;
 }
 
 /*
@@ -104,6 +114,15 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px -16px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.5), 0 28px 55px -22px rgba(0, 0, 0, 0.8);
 
+  /* In dark mode the band is a shade OFF the page rather than near-black, so a
+     dark section still reads as its own plane against the dark ground. */
+  --band: #0c1310;
+  --band-2: #121c18;
+  --band-ink: #eef3f0;
+  --band-ink-2: #9caaa2;
+  --band-line: rgba(255, 255, 255, 0.1);
+  --on-band: #57d6a6;
+
   color-scheme: dark;
 }
 
@@ -143,6 +162,13 @@ html.theme-sync *::after {
   --color-on-accent: var(--on-accent);
   --color-code-bg: var(--code-bg);
   --color-code-text: var(--code-text);
+
+  --color-band: var(--band);
+  --color-band-2: var(--band-2);
+  --color-band-ink: var(--band-ink);
+  --color-band-ink-2: var(--band-ink-2);
+  --color-band-line: var(--band-line);
+  --color-on-band: var(--on-band);
 
   --color-status: var(--status);
   --color-warn: var(--warn);
@@ -940,6 +966,43 @@ html.lenis body {
 
 .lenis.lenis-stopped {
   overflow: hidden;
+}
+
+/*
+  LANDING (relaunch).
+
+  The marketing page reuses the whole system above (tokens, type, buttons, rings,
+  Lenis) and adds only what it alone needs: directional reveals, a frosted nav,
+  and the states the scroll-driven score section toggles. Everything else is
+  Tailwind against the tokens.
+*/
+
+/* Directional entrances layered onto the existing .rise machinery (see
+   ScrollReveals / LandingReveal). .rise-in resets transform for every direction,
+   so only the start offset differs here. */
+.rise[data-dir="left"] {
+  transform: translateX(-34px);
+}
+.rise[data-dir="right"] {
+  transform: translateX(34px);
+}
+/* Below the two-column breakpoint the sections stack, and a full-width block
+   shifted sideways would push past the gutter and scroll the page. Collapse the
+   sideways entrances to the same gentle rise as everything else. */
+@media (max-width: 1023px) {
+  .rise[data-dir="left"],
+  .rise[data-dir="right"] {
+    transform: translateY(24px);
+  }
+}
+
+/* Frosted glass, for the floating nav and any surface that should read as
+   sitting above the page. Falls back to the solid panel where backdrop-filter
+   is unsupported. */
+.glass {
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
 
 @media (prefers-reduced-motion: reduce) {
