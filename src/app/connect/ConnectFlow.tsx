@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
@@ -309,25 +308,21 @@ export function ConnectFlow({
               This is a snapshot taken when you connected, not a live reading, because Vana gives an
               app one look at each source.
             </p>
+            {/*
+              One share surface, at every width. The card used to be desktop
+              only, with a second full-width button below it standing in on
+              phones, which meant two "Share your card" controls stacked on the
+              same page whenever both happened to render.
+            */}
             {code && username && (
-              <div className="hidden sm:block">
-                <ShareCard
-                  score={score}
-                  referralCode={code}
-                  referralCount={invites}
-                  username={username}
-                  points={points}
-                  rank={rank}
-                />
-              </div>
-            )}
-            {code && username && (
-              <Link
-                href="/share"
-                className="btn btn-primary flex w-full px-6 py-3.5 text-base sm:hidden"
-              >
-                Share your card
-              </Link>
+              <ShareCard
+                score={score}
+                referralCode={code}
+                referralCount={invites}
+                username={username}
+                points={points}
+                rank={rank}
+              />
             )}
           </>
         )}
