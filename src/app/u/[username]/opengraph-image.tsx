@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { evidenceOf, profileByUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
+import { SITE_URL } from "@/lib/site";
 
 export const alt = "A Patina score card";
 export const size = { width: 1200, height: 630 };
@@ -33,6 +34,15 @@ export default async function Image({ params }: { params: Promise<{ username: st
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const name = profile?.username ?? "Patina";
+
+  // The card carries the score; this line tells the person holding it that a
+  // whole story sits behind the number, and where to find it, so even a plain
+  // screenshot (no clickable link) points onward. Only when a username exists,
+  // because that is the only case where the story page is real.
+  const host = SITE_URL.replace(/^https?:\/\//, "");
+  const storyPath = profile?.username
+    ? `${host}/u/${profile.username}/story`
+    : null;
 
   /** Stacked rings, each one offset, so the plate reads as having thickness. */
   const ring = (size: number, opacity: number, width: number) => (
@@ -140,8 +150,18 @@ export default async function Image({ params }: { params: Promise<{ username: st
             )}
           </div>
 
-          <div style={{ color: FAINT, fontSize: 24 }}>
-            Anyone can make a new account. Nobody can make an old one.
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ color: FAINT, fontSize: 24 }}>
+              Anyone can make a new account. Nobody can make an old one.
+            </div>
+            {storyPath !== null && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ color: ACCENT, fontSize: 24, fontWeight: 600 }}>
+                  See the whole story →
+                </div>
+                <div style={{ color: MUTED, fontSize: 22 }}>{storyPath}</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
