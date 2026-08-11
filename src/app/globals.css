@@ -793,6 +793,64 @@ select {
 }
 
 /*
+  THE SCORE CARD'S LIVING EDGE.
+
+  A conic gradient rims the card, its start angle driven from 0deg to a full
+  turn so the bright arc travels CLOCKWISE around the border. A second, blurred
+  copy sits beneath it for the glow. The angle is a registered @property so it
+  actually interpolates; where that is unsupported the rim simply sits still,
+  which still reads as a lit edge rather than breaking. The global reduced-motion
+  reset further down freezes the spin for anyone who has asked for less movement.
+
+  The card itself (PlateCard) brings its own opaque background, so only the
+  1.5px the pseudo-elements peek out past its edge is ever visible: the rim.
+*/
+@property --card-spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.card-glow {
+  position: relative;
+  border-radius: var(--radius-lg);
+  isolation: isolate;
+}
+
+.card-glow::before,
+.card-glow::after {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--card-spin),
+    transparent 0deg,
+    var(--accent) 55deg,
+    var(--accent-bright) 90deg,
+    var(--accent) 125deg,
+    transparent 185deg,
+    transparent 360deg
+  );
+  animation: card-spin 4.5s linear infinite;
+  z-index: -1;
+}
+
+/* The soft halo: the same travelling arc, blurred and dimmed, bleeding outward. */
+.card-glow::after {
+  inset: -2px;
+  filter: blur(11px);
+  opacity: 0.5;
+  z-index: -2;
+}
+
+@keyframes card-spin {
+  to {
+    --card-spin: 360deg;
+  }
+}
+
+/*
   CINEMATIC HERO.
 
   The landing opens like a title sequence: each line rises and resolves a beat

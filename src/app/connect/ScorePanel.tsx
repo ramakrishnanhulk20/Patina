@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import type { Component } from "@/lib/score";
-import { GlowCard3D } from "../components/GlowCard3D";
 import { PlateCard } from "../components/PlateCard";
 import { DigitalRings } from "../components/DigitalRings";
 import { VerifiedSeal } from "../components/VerifiedSeal";
@@ -15,28 +13,6 @@ export type ScoreView = {
   oldestSignal: { date: string; years: number; source: string } | null;
   sourcesConnected: string[];
 };
-
-/**
- * True only on desktop-width viewports.
- *
- * Starts `false` so the server render and the first client render agree (no
- * hydration mismatch), and phones simply never flip it. This gates the live
- * WebGL card below. See the note where it is used for why the 3D card must not
- * mount on phones.
- */
-function useIsDesktop(): boolean {
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    // 640px is Tailwind's `sm` breakpoint, the line the rest of the app already
-    // uses to split phone from desktop.
-    const query = window.matchMedia("(min-width: 640px)");
-    const sync = () => setIsDesktop(query.matches);
-    sync();
-    query.addEventListener("change", sync);
-    return () => query.removeEventListener("change", sync);
-  }, []);
-  return isDesktop;
-}
 
 export function ScorePanel({
   score,
@@ -56,7 +32,6 @@ export function ScorePanel({
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const name = username && username.trim() ? username : "you";
-  const isDesktop = useIsDesktop();
   // Standing as a percentile, but only once the field is big enough for it to
   // mean anything. This is leaderboard position (score + people brought), so it
   // is labelled "Standing", never conflated with the age claim.
@@ -101,30 +76,16 @@ export function ScorePanel({
         // The live card, in place of a bare number. It carries the score, the
         // verdict and the year, so nothing is lost by dropping the digits. And
         // it is the exact object the person will go on to share.
+        //
+        // One card for every viewport now. The old desktop/phone split existed
+        // to keep a live WebGL plate off backgrounded phone tabs during a
+        // connect; that plate is long gone (see the deleted GlowCard3D), so both
+        // sizes render the same plain PlateCard, wrapped in the glowing edge.
         <div className="border-b border-line p-4 sm:p-5">
           <p className="t-label px-1 pb-3 text-text-3">Your Patina</p>
-          {isDesktop ? (
-            <GlowCard3D username={name} score={score.total} verdict={score.verdict} year={year} years={years}>
-              <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} />
-            </GlowCard3D>
-          ) : (
-            // On phones the live WebGL card is deliberately NOT mounted here.
-            //
-            // During a connect this tab sits in the background while the user
-            // approves in the Vana tab. A running WebGL context (three.js + a
-            // live GL surface) makes a phone far more likely to freeze or discard
-            // the backgrounded tab under memory pressure. And a discarded tab
-            // never wakes to pick up the approved data, so the Vana tab hangs on
-            // "waiting for Patina" forever. Keeping this page light is what lets
-            // the background poll survive and finish the connect on its own.
-            //
-            // Nothing is really lost: PlateCard is the same card without the 3D
-            // tilt, and the live WebGL card still renders on the shareable public
-            // profile (/u/[username]), which is not part of the connect flow.
-            <div className="relative w-full">
-              <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} animate />
-            </div>
-          )}
+          <div className="card-glow">
+            <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} animate />
+          </div>
 
           {/*
             The story, made part of the card rather than a button floating below

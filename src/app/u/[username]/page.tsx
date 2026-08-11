@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SectionLabel } from "../../components/SectionLabel";
-import { GlowCard3D } from "../../components/GlowCard3D";
 import { PlateCard } from "../../components/PlateCard";
 import { SaveCard } from "./SaveCard";
 import { DigitalRings } from "../../components/DigitalRings";
@@ -80,13 +79,7 @@ export default async function ProfilePage({
       </h1>
 
       <div className="mt-6">
-        <GlowCard3D
-          username={profile.username ?? "anonymous"}
-          score={score.total}
-          verdict={line}
-          year={year}
-          years={years}
-        >
+        <div className="card-glow">
           <PlateCard
             username={profile.username ?? "anonymous"}
             score={score.total}
@@ -94,7 +87,7 @@ export default async function ProfilePage({
             year={year}
             years={years}
           />
-        </GlowCard3D>
+        </div>
       </div>
 
       {/*
