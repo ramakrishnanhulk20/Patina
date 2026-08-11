@@ -95,12 +95,6 @@ export function ShareCard({
   const tweetUrl = link
     ? `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`
     : "";
-  // Farcaster is where the "prove you're not a bot" crowd already is, and the
-  // card link carries a Mini App embed, so a cast renders as a launchable card,
-  // not a bare URL. The compose deep link works on web and in the app.
-  const farcasterUrl = link
-    ? `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(link)}`
-    : "";
   const whatsappUrl = payload
     ? `https://wa.me/?text=${encodeURIComponent(payload)}`
     : "";
@@ -218,20 +212,6 @@ export function ShareCard({
           >
             {copied ? "Link copied" : "Copy your link"}
           </button>
-        )}
-
-        {farcasterUrl && (
-          <a
-            href={farcasterUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-ghost flex w-full items-center justify-center gap-2 px-5 py-3 text-sm"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[18px] w-[18px]" fill="currentColor">
-              <path d="M5 3h14v3.2h-2.1V21h-3.05v-6.6a1.85 1.85 0 0 0-3.7 0V21H7.1V6.2H5V3Z" />
-            </svg>
-            Cast on Farcaster
-          </a>
         )}
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

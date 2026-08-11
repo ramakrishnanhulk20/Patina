@@ -5,11 +5,6 @@ import { LandingReveal } from "./components/landing/LandingReveal";
 import { ScoreScrolly } from "./components/landing/ScoreScrolly";
 import { RingField } from "./components/RingField";
 import { REWARD } from "@/lib/rewards";
-import { homeEmbedTags } from "@/lib/farcaster";
-
-// Cast the bare domain and it renders as a launchable Mini App, not a plain
-// link. Per-card pages carry their own embed; this covers the home URL.
-export const metadata = { other: homeEmbedTags() };
 
 /*
   The landing. Built on the app's own design system (tokens, type, buttons, ring

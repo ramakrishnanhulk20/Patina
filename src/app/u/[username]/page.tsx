@@ -10,7 +10,6 @@ import { evidenceOf, profileByUsername, standingOf } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildAttestation } from "@/lib/attest";
 import { siteUrl } from "@/lib/site";
-import { cardEmbedTags } from "@/lib/farcaster";
 import { REWARD } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
@@ -44,9 +43,6 @@ export async function generateMetadata({
     description,
     openGraph: { title, description, type: "profile" },
     twitter: { card: "summary_large_image", title, description },
-    // Cast this card on Farcaster and it renders as a Mini App embed, a launch
-    // button over the card image, instead of a bare link. See lib/farcaster.
-    other: profile.username ? cardEmbedTags(profile.username) : {},
   };
 }
 
