@@ -23,6 +23,18 @@ const BUTTON_TITLE = "Get your Patina score";
 /** A raster app icon Farcaster can use for the splash and app listing. */
 const ICON_URL = siteUrl("/apple-icon");
 
+/**
+ * Preview-image cache buster.
+ *
+ * Farcaster (and X, WhatsApp, etc.) cache a preview image by its URL and never
+ * re-fetch a URL they have already seen. Our OG image lives at a stable path, so
+ * once a stale copy is cached it sticks. Bumping this number changes the URL,
+ * which forces a fresh fetch on the next scrape. Increment it whenever the
+ * shared preview design changes.
+ */
+const OG_VERSION = "2";
+const ogImage = (path: string) => `${siteUrl(path)}?v=${OG_VERSION}`;
+
 type LaunchType = "launch_miniapp" | "launch_frame";
 
 /**
@@ -61,7 +73,7 @@ function embedTags(imageUrl: string, url: string): Record<string, string> {
 /** The embed a single card carries: its own image, launching its own page. */
 export function cardEmbedTags(username: string): Record<string, string> {
   const u = encodeURIComponent(username);
-  return embedTags(siteUrl(`/u/${u}/opengraph-image`), siteUrl(`/u/${u}`));
+  return embedTags(ogImage(`/u/${u}/opengraph-image`), siteUrl(`/u/${u}`));
 }
 
 /**
@@ -70,7 +82,7 @@ export function cardEmbedTags(username: string): Record<string, string> {
  * "won't show up as a Mini App embed when shared".
  */
 export function homeEmbedTags(): Record<string, string> {
-  return embedTags(siteUrl("/opengraph-image"), SITE_URL);
+  return embedTags(ogImage("/opengraph-image"), SITE_URL);
 }
 
 /**
@@ -93,7 +105,7 @@ export function farcasterManifest() {
     name: APP_NAME,
     iconUrl: ICON_URL,
     homeUrl: SITE_URL,
-    imageUrl: siteUrl("/opengraph-image"),
+    imageUrl: ogImage("/opengraph-image"),
     buttonTitle: BUTTON_TITLE,
     splashImageUrl: ICON_URL,
     splashBackgroundColor: SPLASH_BG,
@@ -108,7 +120,7 @@ export function farcasterManifest() {
     // How the app itself looks when shared (distinct from the per-card embeds).
     ogTitle: "Patina",
     ogDescription: "Anyone can make a new account. Nobody can make an old one.",
-    ogImageUrl: siteUrl("/opengraph-image"),
+    ogImageUrl: ogImage("/opengraph-image"),
   };
 
   return {
