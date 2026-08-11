@@ -1,12 +1,14 @@
 import { controllerFor, isSourceId } from "@/lib/vana";
-import { ensureSessionId, readSessionId } from "@/lib/session";
+import { ensureSessionId, readReferralCode, readSessionId } from "@/lib/session";
 import { rememberRequest, resolveProfileId } from "@/lib/store";
+import { normalizeReferralCode } from "@/lib/referral";
 import { checkConnectRate } from "@/lib/ratelimit";
 import { altchaConfigured, verifyAltcha } from "@/lib/altcha";
 import { siteUrl } from "@/lib/site";
 
 export async function POST(request: Request) {
-  const source = new URL(request.url).searchParams.get("source");
+  const url = new URL(request.url);
+  const source = url.searchParams.get("source");
 
   if (!isSourceId(source)) {
     return Response.json({ error: "Unknown source" }, { status: 400 });
@@ -57,6 +59,18 @@ export async function POST(request: Request) {
   // (see claimProfile). Connecting itself never requires it.
   const profileId = await resolveProfileId(browserSession);
 
+  // Pin the referral code to the request NOW, at the tap, while it is most
+  // reliably in reach. The cookie the proxy parked is authoritative when it is
+  // present (the edge already enforced first-code-wins), so prefer it; the
+  // client also mirrors the code onto this POST as ?ref= from localStorage, for
+  // the in-app browsers that never gave the cookie back. Reading it here instead
+  // of at data-collection time is the fix for phones dropping the cookie across
+  // the Vana approval round trip: by then it may be gone, but the request
+  // remembers who to credit. See referrerFor in the data route.
+  const referredBy =
+    normalizeReferralCode(await readReferralCode()) ??
+    normalizeReferralCode(url.searchParams.get("ref"));
+
   // Vana sends the user straight back to the connect page, where the pending
   // request is picked up from sessionStorage and finished off. A dedicated
   // "you may close this tab" page only makes sense for the popup flow, and we
@@ -71,6 +85,7 @@ export async function POST(request: Request) {
     source,
     profileId,
     createdAt: new Date().toISOString(),
+    ...(referredBy ? { referredBy } : {}),
   });
 
   return Response.json({ ...accessRequest, source });

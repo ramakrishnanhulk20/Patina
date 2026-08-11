@@ -426,6 +426,44 @@ test("connecting again after signing in does not double-count one referral", asy
   );
 });
 
+test("a referral bound on the first read survives a later read that carries no code", async () => {
+  // The mobile hazard this guards, end to end at the store: the code is present
+  // when the FIRST source is recorded (pinned to the request at tap time, so it
+  // rides in even if the cookie is already shaky), but by a later read the phone
+  // has dropped the cookie across the Vana round trip and nothing is passed in.
+  // The binding must already be on the profile, and crossing the bar must still
+  // credit the referrer. If this ever regresses, phones that connect one source
+  // below the bar and a second one above it would silently stop paying out.
+  const referrer = await ensureProfile(newProfileId());
+  const code = referrer.referralCode;
+
+  const invited = newProfileId();
+
+  // First read carries the code but lands below the bar: binds, does not pay.
+  await recordSource(invited, "github", record("realdev", "2015-01-01T00:00:00Z"), 12, code);
+  assert.equal((await getProfile(invited))?.referredBy, code, "the code binds on the first read");
+  assert.equal((await referralTally(code)).qualified, 0, "nothing is owed below the bar yet");
+
+  // Second read crosses the bar but carries NO code, as if the cookie were gone.
+  await recordSource(
+    invited,
+    "youtube",
+    {
+      scope: "youtube.profile",
+      readAt: new Date().toISOString(),
+      externalId: "realchan",
+      evidence: { youtube: { joinedDate: "2013-01-01T00:00:00Z" } },
+    },
+    REFERRAL_QUALIFIES_AT + 25,
+  );
+
+  assert.equal(
+    (await referralTally(code)).qualified,
+    1,
+    "the bound referral still credits once the invited person clears the bar",
+  );
+});
+
 test("shares counted are qualified ones, never raw visits", async () => {
   const referrer = await ensureProfile(newProfileId());
   const code = referrer.referralCode;

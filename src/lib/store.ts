@@ -131,6 +131,16 @@ export type PendingRequest = {
   source: SourceId;
   profileId: string;
   createdAt: string;
+  /**
+   * The referral code to credit, captured when the connect STARTED rather than
+   * when the read finally lands. On a phone those two moments can be minutes and
+   * a tab discard apart (see useConnect), and the httpOnly cookie the code
+   * otherwise lives in is exactly what some in-app browsers drop across that
+   * round trip. Pinning it to the request record here means the credit no longer
+   * depends on the cookie surviving to the end. Absent on desktop and on older
+   * requests, where the data route still falls back to reading the cookie.
+   */
+  referredBy?: string;
   /** Cached read result, so a replayed request id cannot re-spend escrow. */
   result?: unknown;
 };

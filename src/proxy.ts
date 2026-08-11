@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { APP_WIP, WIP_UNLOCK_COOKIE } from "@/lib/wip";
+import { normalizeReferralCode } from "@/lib/referral";
 
 /**
  * Catches a referral code off any page visit and parks it in a cookie.
@@ -17,7 +18,6 @@ import { APP_WIP, WIP_UNLOCK_COOKIE } from "@/lib/wip";
 
 const REF_COOKIE = "patina_ref";
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
-const VALID = /^[a-z2-9]{4,16}$/;
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -29,15 +29,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  const code = request.nextUrl.searchParams.get("r");
+  // Reject anything that is not shaped like one of our codes rather than
+  // writing arbitrary visitor-supplied text into a cookie. The shared validator
+  // is the same one the connect route and the client mirror use, so a code
+  // accepted here can never be rejected when it is read back.
+  const clean = normalizeReferralCode(request.nextUrl.searchParams.get("r"));
   const response = NextResponse.next();
 
-  if (!code) return response;
-
-  const clean = code.toLowerCase();
-  // Reject anything that is not shaped like one of our codes rather than
-  // writing arbitrary visitor-supplied text into a cookie.
-  if (!VALID.test(clean)) return response;
+  if (!clean) return response;
 
   // First code wins. Otherwise anyone could overwrite a friend's credit by
   // sending the same person a second link.

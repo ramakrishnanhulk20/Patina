@@ -12,6 +12,7 @@ import {
   type PendingRequest,
 } from "@/lib/store";
 import { foldRead, identityOf } from "@/lib/normalize";
+import { normalizeReferralCode } from "@/lib/referral";
 import { scorePatina, verdict } from "@/lib/score";
 
 export async function GET(request: Request) {
@@ -122,7 +123,7 @@ async function ensureRecorded(pending: PendingRequest, result: unknown): Promise
       evidence,
     },
     score.total,
-    await referrerFor(pending.profileId),
+    await referrerFor(pending.profileId, pending.referredBy),
   );
 
   return true;
@@ -131,11 +132,16 @@ async function ensureRecorded(pending: PendingRequest, result: unknown): Promise
 /**
  * The referral code to credit, or nothing.
  *
+ * Prefers the code pinned to the request when the connect started: it was read
+ * at the tap, before any tab discard, so it survives the mobile round trip that
+ * can drop the cookie out from under a phone mid-approval. Falls back to the
+ * cookie for the desktop path and for requests made before pinning existed.
+ *
  * Refuses to credit someone for inviting themselves, which is otherwise the
  * first thing anybody tries.
  */
-async function referrerFor(profileId: string): Promise<string | undefined> {
-  const code = await readReferralCode();
+async function referrerFor(profileId: string, pinned?: string): Promise<string | undefined> {
+  const code = normalizeReferralCode(pinned) ?? (await readReferralCode());
   if (!code) return undefined;
 
   const owner = await profileIdForCode(code);
