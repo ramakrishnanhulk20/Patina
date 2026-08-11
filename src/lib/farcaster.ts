@@ -33,11 +33,10 @@ type LaunchType = "launch_miniapp" | "launch_frame";
  * and older Farcaster clients render the card rather than one falling back to a
  * plain link.
  */
-export function cardEmbed(username: string, kind: LaunchType) {
-  const url = siteUrl(`/u/${encodeURIComponent(username)}`);
+function embed(imageUrl: string, url: string, kind: LaunchType) {
   return {
     version: "1",
-    imageUrl: siteUrl(`/u/${encodeURIComponent(username)}/opengraph-image`),
+    imageUrl,
     button: {
       title: BUTTON_TITLE,
       action: {
@@ -51,14 +50,27 @@ export function cardEmbed(username: string, kind: LaunchType) {
   };
 }
 
-/**
- * The two <head> tags a card needs, ready to spread into Next's `other` metadata.
- */
-export function cardEmbedTags(username: string): Record<string, string> {
+/** Both tag names, same embed, ready to spread into Next's `other` metadata. */
+function embedTags(imageUrl: string, url: string): Record<string, string> {
   return {
-    "fc:miniapp": JSON.stringify(cardEmbed(username, "launch_miniapp")),
-    "fc:frame": JSON.stringify(cardEmbed(username, "launch_frame")),
+    "fc:miniapp": JSON.stringify(embed(imageUrl, url, "launch_miniapp")),
+    "fc:frame": JSON.stringify(embed(imageUrl, url, "launch_frame")),
   };
+}
+
+/** The embed a single card carries: its own image, launching its own page. */
+export function cardEmbedTags(username: string): Record<string, string> {
+  const u = encodeURIComponent(username);
+  return embedTags(siteUrl(`/u/${u}/opengraph-image`), siteUrl(`/u/${u}`));
+}
+
+/**
+ * The embed the landing page carries, so the bare domain is itself shareable as
+ * a launchable Mini App. Without it the developer preview flags the home URL as
+ * "won't show up as a Mini App embed when shared".
+ */
+export function homeEmbedTags(): Record<string, string> {
+  return embedTags(siteUrl("/opengraph-image"), SITE_URL);
 }
 
 /**
@@ -85,13 +97,18 @@ export function farcasterManifest() {
     buttonTitle: BUTTON_TITLE,
     splashImageUrl: ICON_URL,
     splashBackgroundColor: SPLASH_BG,
-    // Farcaster caps subtitle at 30 chars and description at 170. Keep both
-    // under, or the manifest fails validation on submit.
+    // Field caps Farcaster enforces on submit: subtitle 30, description 170,
+    // ogTitle 30, ogDescription 100. Keep every string under, or the manifest
+    // fails validation.
     subtitle: "How far back you really go",
     description:
       "Anyone can make a new account. Nobody can make an old one. Patina reads the history you already have and scores how far back you really go.",
     primaryCategory: "social",
     tags: ["identity", "proof-of-personhood", "vana", "reputation"],
+    // How the app itself looks when shared (distinct from the per-card embeds).
+    ogTitle: "Patina",
+    ogDescription: "Anyone can make a new account. Nobody can make an old one.",
+    ogImageUrl: siteUrl("/opengraph-image"),
   };
 
   return {

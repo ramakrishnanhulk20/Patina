@@ -6,28 +6,26 @@ import { useEffect } from "react";
  * Dismiss the Farcaster Mini App splash once the app has painted.
  *
  * When Patina is launched from a card embed inside a Farcaster client, the
- * client shows a splash screen and waits for the app to call `ready()`. Without
- * this, the splash never lifts and the Mini App looks hung. On the open web
- * there is no host to call, so the SDK is only loaded and invoked when we are
- * actually inside a Mini App: the dynamic import keeps it out of the normal web
- * bundle, and `isInMiniApp()` gates the call so nothing runs for regular
- * visitors.
+ * client shows a splash and waits for the app to call `ready()`; without it the
+ * splash never lifts and the Mini App looks hung (the developer preview warns
+ * "Ready not called").
+ *
+ * Called directly, as Farcaster's docs prescribe, NOT behind `isInMiniApp()`:
+ * that gate was returning false in the host and suppressing the call, which is
+ * exactly the hang it was meant to avoid. Outside a Mini App there is simply no
+ * host listening, so the call is a harmless no-op. The SDK is still dynamically
+ * imported so it stays out of the main web bundle.
  */
 export function FarcasterReady() {
   useEffect(() => {
-    let cancelled = false;
     (async () => {
       try {
         const { sdk } = await import("@farcaster/miniapp-sdk");
-        if (cancelled) return;
-        if (await sdk.isInMiniApp()) await sdk.actions.ready();
+        await sdk.actions.ready();
       } catch {
-        // SDK unavailable or not in a Mini App host: nothing to signal.
+        // No Mini App host to signal, or the SDK failed to load: nothing to do.
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   return null;
