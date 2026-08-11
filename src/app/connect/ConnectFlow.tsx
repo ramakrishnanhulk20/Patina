@@ -8,8 +8,10 @@ import type { SourceSpec } from "@/lib/sources";
 import { ShareCard } from "./ShareCard";
 import { Identity } from "./Identity";
 import { SignInPrompt } from "./SignInPrompt";
+import { NextApps } from "./NextApps";
 import { useConnect } from "./useConnect";
 import { REWARD } from "@/lib/rewards";
+import type { EcosystemApp } from "@/lib/ecosystem";
 
 /**
  * The source worth connecting next.
@@ -46,6 +48,7 @@ export function ConnectFlow({
   initialUsername,
   loginAvailable,
   loginError,
+  nextApps,
 }: {
   sources: SourceSpec[];
   initialScore: ScoreView;
@@ -57,6 +60,13 @@ export function ConnectFlow({
   initialUsername: string | null;
   loginAvailable: boolean;
   loginError: string | null;
+  /**
+   * The onward apps for the "counts double" panel. Fetched on the server
+   * unconditionally and handed down so the panel can appear the instant the
+   * first source lands, driven by client state, rather than only after a full
+   * page reload re-ran the server component. Empty when the Cup API is down.
+   */
+  nextApps: EcosystemApp[];
 }) {
   const [score, setScore] = useState(initialScore);
   const [readAt, setReadAt] = useState(initialReadAt);
@@ -149,6 +159,7 @@ export function ConnectFlow({
       : null;
 
   return (
+    <>
     <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-14">
       <div>
         <h1 className="t-section text-text">
@@ -285,27 +296,12 @@ export function ConnectFlow({
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-20">
-        <ScorePanel score={score} username={username} rank={rank} totalScored={totalScored} />
-
         {/*
-          The story sits right under the score on purpose. It is the payoff for
-          connecting, and buried in a text link almost nobody found it. A big
-          button here means every person who reaches a score is told, plainly,
-          that there is a whole page waiting for them.
+          The story now lives INSIDE the score card (see ScorePanel), directly
+          under the plate, so the card carries both the number and the way into
+          the story rather than the two sitting apart.
         */}
-        {connectedCount > 0 && username && (
-          <div>
-            <Link
-              href={`/u/${encodeURIComponent(username)}/story`}
-              className="btn btn-primary w-full px-6 py-3.5 text-base"
-            >
-              See your whole story
-            </Link>
-            <p className="mt-2 text-center text-sm text-text-3">
-              A time machine, built from your history.
-            </p>
-          </div>
-        )}
+        <ScorePanel score={score} username={username} rank={rank} totalScored={totalScored} />
 
         {connectedCount > 0 && (
           <>
@@ -337,5 +333,15 @@ export function ConnectFlow({
         )}
       </div>
     </div>
+
+    {/*
+      The highest-leverage move, and now it appears the moment the first source
+      lands. It used to be rendered by the server page from a connected-at-load
+      snapshot, so it only showed up after a manual refresh; keying it off the
+      live connected count fixes that on phone and desktop alike. `nextApps` is
+      already fetched server-side, so there is nothing to load here.
+    */}
+    {connectedCount > 0 && nextApps.length > 0 && <NextApps apps={nextApps} />}
+    </>
   );
 }

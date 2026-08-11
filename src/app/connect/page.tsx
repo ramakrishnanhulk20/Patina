@@ -1,5 +1,4 @@
 import { ConnectFlow } from "./ConnectFlow";
-import { NextApps } from "./NextApps";
 import { ecosystemApps } from "@/lib/ecosystem";
 import { DESKTOP_ORDER, SOURCE_ORDER, SOURCE_SPECS } from "@/lib/sources";
 import { readSessionId } from "@/lib/session";
@@ -33,10 +32,12 @@ export default async function ConnectPage({
   // the first source.
   const tally = profile ? await referralTally(profile.referralCode) : { qualified: 0 };
 
-  // Only worth fetching once they have something to spend. Before that it is an
-  // advert; after, it is the payoff for having done the setup.
-  const connected = Object.keys(profile?.sources ?? {}).length > 0;
-  const nextApps = connected ? await ecosystemApps(4) : [];
+  // Fetched unconditionally now, and handed to the client so the "counts
+  // double" panel can appear the instant the first source connects rather than
+  // only after a reload. It is cached for an hour and rendered by ConnectFlow
+  // only once there is a connected source, so a first-time visitor with nothing
+  // connected still never sees it: it stays the payoff, not an advert.
+  const nextApps = await ecosystemApps(4);
 
   const sources = [...SOURCE_ORDER, ...DESKTOP_ORDER].map((id) => SOURCE_SPECS[id]);
 
@@ -72,9 +73,8 @@ export default async function ConnectPage({
         initialUsername={profile?.username ?? null}
         loginAvailable={googleConfigured()}
         loginError={loginError}
+        nextApps={nextApps}
       />
-
-      <NextApps apps={nextApps} />
     </main>
   );
 }

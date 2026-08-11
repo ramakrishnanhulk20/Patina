@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Component } from "@/lib/score";
 import { GlowCard3D } from "../components/GlowCard3D";
@@ -122,6 +123,27 @@ export function ScorePanel({
             // profile (/u/[username]), which is not part of the connect flow.
             <div className="relative w-full">
               <PlateCard username={name} score={score.total} verdict={score.verdict} year={year} years={years} animate />
+            </div>
+          )}
+
+          {/*
+            The story, made part of the card rather than a button floating below
+            it. Sitting right under the plate, inside the same block, the card
+            now says both things at once: this is your score, and here is the
+            whole story behind it. Only once a name exists, because the story
+            lives at /u/<name> and there is no page to open without one.
+          */}
+          {username && username.trim() && (
+            <div className="px-1 pt-4">
+              <Link
+                href={`/u/${encodeURIComponent(username)}/story`}
+                className="btn btn-primary flex w-full px-6 py-3.5 text-base"
+              >
+                See your whole story
+              </Link>
+              <p className="mt-2 text-center text-sm text-text-3">
+                A time machine, built from your history.
+              </p>
             </div>
           )}
         </div>
