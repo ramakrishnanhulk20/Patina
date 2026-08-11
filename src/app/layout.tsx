@@ -32,23 +32,23 @@ const monoDisplay = Space_Mono({
 });
 
 const DESCRIPTION =
-  "Anyone can make a new account. Nobody can make an old one. Patina reads the history you already have and turns it into proof a real person has been here for years.";
+  "Proof you're a real person. Patina reads the history already sitting in accounts you own and turns it into portable evidence a real human has been here for years. No documents, no face scan.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Patina · proof you have been here a while",
+    default: "Patina · proof you're a real person",
     template: "%s · Patina",
   },
   description: DESCRIPTION,
   openGraph: {
-    title: "Patina · proof you have been here a while",
+    title: "Patina · proof you're a real person",
     description: DESCRIPTION,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Patina · proof you have been here a while",
+    title: "Patina · proof you're a real person",
     description: DESCRIPTION,
   },
   manifest: "/manifest.webmanifest",

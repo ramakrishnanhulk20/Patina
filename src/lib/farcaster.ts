@@ -32,7 +32,7 @@ const ICON_URL = siteUrl("/apple-icon");
  * which forces a fresh fetch on the next scrape. Increment it whenever the
  * shared preview design changes.
  */
-const OG_VERSION = "2";
+const OG_VERSION = "3";
 const ogImage = (path: string) => `${siteUrl(path)}?v=${OG_VERSION}`;
 
 type LaunchType = "launch_miniapp" | "launch_frame";
@@ -112,14 +112,14 @@ export function farcasterManifest() {
     // Field caps Farcaster enforces on submit: subtitle 30, description 170,
     // ogTitle 30, ogDescription 100. Keep every string under, or the manifest
     // fails validation.
-    subtitle: "How far back you really go",
+    subtitle: "Proof you're a real person",
     description:
-      "Anyone can make a new account. Nobody can make an old one. Patina reads the history you already have and scores how far back you really go.",
+      "Patina turns the history in accounts you already own into portable proof a real human has been here for years. No documents, no face scan.",
     primaryCategory: "social",
     tags: ["identity", "proof-of-personhood", "vana", "reputation"],
     // How the app itself looks when shared (distinct from the per-card embeds).
-    ogTitle: "Patina",
-    ogDescription: "Anyone can make a new account. Nobody can make an old one.",
+    ogTitle: "Proof you're a real person",
+    ogDescription: "From the accounts you already have. No documents, no face scan.",
     ogImageUrl: ogImage("/opengraph-image"),
   };
 

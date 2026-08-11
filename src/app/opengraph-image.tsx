@@ -13,7 +13,7 @@ import { ImageResponse } from "next/og";
  */
 
 export const alt =
-  "Patina, anyone can make a new account, nobody can make an old one";
+  "Patina — proof you're a real person, from the accounts you already have";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -113,34 +113,34 @@ export default function Image() {
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", maxWidth: 780 }}>
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: 820 }}>
           <div
             style={{
               color: TEXT,
-              fontSize: 68,
+              fontSize: 78,
               lineHeight: 1.05,
               letterSpacing: -2,
               fontWeight: 700,
             }}
           >
-            Anyone can make a new account.
+            {"Proof you're"}
           </div>
           <div
             style={{
               color: ACCENT,
-              fontSize: 68,
+              fontSize: 78,
               lineHeight: 1.05,
               letterSpacing: -2,
               fontWeight: 700,
             }}
           >
-            Nobody can make an old one.
+            a real person.
           </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ color: MUTED, fontSize: 26 }}>
-            How far back does your digital life go?
+            From accounts you already have. No documents.
           </div>
           <div style={{ color: "#7C8681", fontSize: 26 }}>·</div>
           <div style={{ color: MUTED, fontSize: 26 }}>patinadata.xyz</div>
