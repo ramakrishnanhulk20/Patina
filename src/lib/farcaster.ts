@@ -85,7 +85,9 @@ export function farcasterManifest() {
     buttonTitle: BUTTON_TITLE,
     splashImageUrl: ICON_URL,
     splashBackgroundColor: SPLASH_BG,
-    subtitle: "Proof you have been here a while",
+    // Farcaster caps subtitle at 30 chars and description at 170. Keep both
+    // under, or the manifest fails validation on submit.
+    subtitle: "How far back you really go",
     description:
       "Anyone can make a new account. Nobody can make an old one. Patina reads the history you already have and scores how far back you really go.",
     primaryCategory: "social",
