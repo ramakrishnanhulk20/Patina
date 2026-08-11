@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 /**
  * Dismiss the Farcaster Mini App splash once the app has painted.
@@ -10,22 +11,20 @@ import { useEffect } from "react";
  * splash never lifts and the Mini App looks hung (the developer preview warns
  * "Ready not called").
  *
- * Called directly, as Farcaster's docs prescribe, NOT behind `isInMiniApp()`:
- * that gate was returning false in the host and suppressing the call, which is
- * exactly the hang it was meant to avoid. Outside a Mini App there is simply no
- * host listening, so the call is a harmless no-op. The SDK is still dynamically
- * imported so it stays out of the main web bundle.
+ * The SDK is imported STATICALLY, on purpose. The earlier version loaded it with
+ * a dynamic import() inside the effect; if that chunk was slow or failed to load
+ * in the Farcaster webview, the call was delayed past the host's check or never
+ * happened at all, so the splash hung. A static import is already in the bundle,
+ * so `ready()` fires immediately with nothing to fetch first. The SDK is
+ * SSR-safe (it touches no browser globals at module load), so this does not
+ * break the server render. Outside a Mini App there is no host listening, which
+ * is why the call is fired and forgotten rather than awaited.
  */
 export function FarcasterReady() {
   useEffect(() => {
-    (async () => {
-      try {
-        const { sdk } = await import("@farcaster/miniapp-sdk");
-        await sdk.actions.ready();
-      } catch {
-        // No Mini App host to signal, or the SDK failed to load: nothing to do.
-      }
-    })();
+    sdk.actions.ready().catch(() => {
+      // No Mini App host to signal (e.g. the open web): nothing to do.
+    });
   }, []);
 
   return null;
