@@ -4,9 +4,13 @@ import type { Metadata } from "next";
 import { SectionLabel } from "../../components/SectionLabel";
 import { PlateCard } from "../../components/PlateCard";
 import { SaveCard } from "./SaveCard";
+import { SignedProof } from "./SignedProof";
 import { DigitalRings } from "../../components/DigitalRings";
 import { evidenceOf, profileByUsername, standingOf } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
+import { buildAttestation } from "@/lib/attest";
+import { siteUrl } from "@/lib/site";
+import { cardEmbedTags } from "@/lib/farcaster";
 import { REWARD } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +44,9 @@ export async function generateMetadata({
     description,
     openGraph: { title, description, type: "profile" },
     twitter: { card: "summary_large_image", title, description },
+    // Cast this card on Farcaster and it renders as a Mini App embed, a launch
+    // button over the card image, instead of a bare link. See lib/farcaster.
+    other: profile.username ? cardEmbedTags(profile.username) : {},
   };
 }
 
@@ -62,6 +69,20 @@ export default async function ProfilePage({
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const line = verdict(score);
+
+  // The signed attestation, built for the card page itself so the proof is on
+  // the page a skeptic actually lands on, not one link away. Guarded: if the
+  // app key is missing the card must still render, just without the proof block,
+  // rather than 500 on every shared link.
+  const proof = profile.username
+    ? await buildAttestation({
+        username: profile.username,
+        score: score.total,
+        verdict: line,
+        oldestYear: year,
+        sources: score.sourcesConnected.length,
+      }).catch(() => null)
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-5 py-10 sm:px-6 sm:py-14">
@@ -138,15 +159,27 @@ export default async function ProfilePage({
         </div>
       </dl>
 
-      {/* Screenshots lie; a signed attestation does not. Let a skeptic check. */}
-      <p className="mt-4 text-center text-sm text-text-3">
-        <Link
-          href={`/verify?u=${encodeURIComponent(profile.username ?? "")}`}
-          className="tap text-accent underline underline-offset-4"
-        >
-          Independently verify this score
-        </Link>
-      </p>
+      {/* Screenshots lie; a signed attestation does not. Put the proof on the page. */}
+      {proof ? (
+        <SignedProof
+          username={profile.username ?? ""}
+          app={proof.app}
+          message={proof.message}
+          signature={proof.signature}
+          issuedAt={proof.issuedAt}
+          verifyUrl={siteUrl(`/api/verify/${encodeURIComponent(profile.username ?? "")}`)}
+          apiPath={`/api/verify/${encodeURIComponent(profile.username ?? "")}`}
+        />
+      ) : (
+        <p className="mt-4 text-center text-sm text-text-3">
+          <Link
+            href={`/verify?u=${encodeURIComponent(profile.username ?? "")}`}
+            className="tap text-accent underline underline-offset-4"
+          >
+            Independently verify this score
+          </Link>
+        </p>
+      )}
 
       {years !== null && years >= 1 && (
         <div className="mt-8 border border-line bg-panel p-8">
