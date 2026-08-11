@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SectionLabel } from "../components/SectionLabel";
 import { CupStanding } from "../components/CupStanding";
+import { YourStanding } from "./YourStanding";
 import { readSessionId } from "@/lib/session";
 import { resolveProfileId, scoredProfileCount, standings } from "@/lib/store";
 import { scorePatina } from "@/lib/score";
@@ -32,7 +33,16 @@ export default async function StandingsPage() {
 
       <h1 className="t-section mt-5 text-text">The most worn-in people here.</h1>
 
-      <p className="mt-5 max-w-2xl text-lg leading-relaxed text-text-2">
+      {/*
+        The viewer's own standing, first. Everything below is context for it:
+        what points mean, where Patina sits in the Cup, and who else is on the
+        board. See YourStanding for the signed-out and not-yet-connected states.
+      */}
+      <div className="mt-6">
+        <YourStanding profileId={mine} rows={rows} total={total} />
+      </div>
+
+      <p className="mt-8 max-w-2xl text-lg leading-relaxed text-text-2">
         Ranked by <span className="text-text">points</span>, which are your Patina score plus{" "}
         {POINTS_PER_REFERRAL} for every real person you bring. The top {REWARD.places} share the
         reward if Patina places in the Vana Cup.
