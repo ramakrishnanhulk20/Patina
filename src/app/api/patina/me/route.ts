@@ -39,7 +39,7 @@ export async function GET() {
   // Resolved, so a signed-in person sees one profile no matter which device
   // they happen to be holding.
   const profileId = await resolveProfileId(sessionId);
-  const profile = await getProfile(profileId);
+  const profile = profileId ? await getProfile(profileId) : null;
 
   if (!profile) {
     return Response.json(EMPTY());

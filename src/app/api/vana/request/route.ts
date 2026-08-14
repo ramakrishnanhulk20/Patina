@@ -1,6 +1,6 @@
 import { controllerFor, isSourceId } from "@/lib/vana";
 import { ensureSessionId, readReferralCode, readSessionId } from "@/lib/session";
-import { rememberRequest, resolveProfileId } from "@/lib/store";
+import { ensureProfileId, rememberRequest } from "@/lib/store";
 import { normalizeReferralCode } from "@/lib/referral";
 import { checkConnectRate } from "@/lib/ratelimit";
 import { altchaConfigured, verifyAltcha } from "@/lib/altcha";
@@ -57,7 +57,10 @@ export async function POST(request: Request) {
   // that could never complete. Identity is solved separately and optionally,
   // with Google sign-in folding this browser into one cross-device profile
   // (see claimProfile). Connecting itself never requires it.
-  const profileId = await resolveProfileId(browserSession);
+  // Mints and binds a profile the first time this browser connects anything.
+  // The id is generated independently of the session token, so neither value
+  // can be derived from the other and a published id is not a credential.
+  const profileId = await ensureProfileId(browserSession);
 
   // Pin the referral code to the request NOW, at the tap, while it is most
   // reliably in reach. The cookie the proxy parked is authoritative when it is

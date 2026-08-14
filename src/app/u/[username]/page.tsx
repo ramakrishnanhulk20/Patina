@@ -6,11 +6,10 @@ import { PlateCard } from "../../components/PlateCard";
 import { SaveCard } from "./SaveCard";
 import { SignedProof } from "./SignedProof";
 import { DigitalRings } from "../../components/DigitalRings";
-import { evidenceOf, profileByUsername, standingOf } from "@/lib/store";
+import { evidenceOf, profileByUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildAttestation } from "@/lib/attest";
 import { siteUrl } from "@/lib/site";
-import { REWARD } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -56,12 +55,20 @@ export default async function ProfilePage({
   if (!profile) notFound();
 
   const score = scorePatina(evidenceOf(profile));
-  const standing = await standingOf(profile.id, REWARD.places);
-  // A rarity flex, but only once there are enough people for it to mean anything.
-  const topPct =
-    standing.rank !== null && standing.total >= 10
-      ? Math.max(1, Math.round((standing.rank / standing.total) * 100))
-      : null;
+  /**
+   * No rank, and no "top N%", on purpose.
+   *
+   * This page is public and keyed by a name anybody can guess, so anything
+   * positional shown here can be collected one name at a time and reassembled
+   * into the ranked list that was taken off the standings page. Removing the
+   * list while leaving each person's place on their own card would have moved
+   * the leak rather than closed it.
+   *
+   * What stays is everything about the person in isolation: their score, how
+   * far their history goes back, how many platforms corroborate it, and the
+   * signed proof. None of that says anything about anybody else, which is the
+   * line this page now holds.
+   */
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const line = verdict(score);
@@ -126,20 +133,10 @@ export default async function ProfilePage({
         <SaveCard username={profile.username ?? "anonymous"} />
       </div>
 
-      {topPct !== null && (
-        <p className="mt-5 text-center text-base text-text-2">
-          <span className="rings mr-2 align-middle" aria-hidden="true" />
-          In the <span className="font-semibold text-accent">top {topPct}%</span> of everyone on
-          Patina
-        </p>
-      )}
-
-      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border border-line bg-panel p-5 sm:grid-cols-4">
+      <dl className="mt-8 grid grid-cols-3 gap-x-6 gap-y-4 border border-line bg-panel p-5">
         <div>
-          <dt className="t-label text-text-3">Rank</dt>
-          <dd className="t-mono mt-1 text-xl text-text">
-            {standing.rank !== null ? `#${standing.rank}` : <span className="text-text-4">Unranked</span>}
-          </dd>
+          <dt className="t-label text-text-3">Score</dt>
+          <dd className="t-mono mt-1 text-xl text-text">{score.total}</dd>
         </div>
         <div>
           <dt className="t-label text-text-3">Sources</dt>
@@ -148,10 +145,6 @@ export default async function ProfilePage({
         <div>
           <dt className="t-label text-text-3">Since</dt>
           <dd className="t-mono mt-1 text-xl text-text">{year ?? <span className="text-text-4">n/a</span>}</dd>
-        </div>
-        <div>
-          <dt className="t-label text-text-3">Of</dt>
-          <dd className="t-mono mt-1 text-xl text-text">{standing.total}</dd>
         </div>
       </dl>
 

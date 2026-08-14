@@ -9,6 +9,7 @@ import {
   claimProfile,
   setUsername,
   newProfileId,
+  ensureProfileId,
   resolveProfileId,
   profileIdForCode,
   profilesClaiming,
@@ -227,8 +228,12 @@ test("evidence from every source is merged for scoring", async () => {
  */
 test("signing in on a second device merges into one profile", async () => {
   const identity = "g:1234567890";
-  const phone = newProfileId();
-  const laptop = newProfileId();
+  // A session token and the profile it is bound to are now separate values, so
+  // the test carries both, exactly as the connect route does.
+  const phoneSession = "s1.phone";
+  const laptopSession = "s1.laptop";
+  const phone = await ensureProfileId(phoneSession);
+  const laptop = await ensureProfileId(laptopSession);
 
   await recordSource(phone, "youtube", {
     scope: "youtube.profile",
@@ -236,13 +241,13 @@ test("signing in on a second device merges into one profile", async () => {
     externalId: "chan",
     evidence: { youtube: { joinedDate: "2012-04-01T00:00:00Z" } },
   }, 40);
-  await claimProfile(phone, identity, () => 40);
+  await claimProfile(phoneSession, identity, () => 40);
 
   await recordSource(laptop, "github", record("dev", "2013-01-01T00:00:00Z"), 30);
-  await claimProfile(laptop, identity, () => 70);
+  await claimProfile(laptopSession, identity, () => 70);
 
-  assert.equal(await resolveProfileId(phone), identity);
-  assert.equal(await resolveProfileId(laptop), identity);
+  assert.equal(await resolveProfileId(phoneSession), identity);
+  assert.equal(await resolveProfileId(laptopSession), identity);
 
   const merged = await getProfile(identity);
   assert.ok(merged?.sources.youtube, "the phone's source survived");
@@ -252,6 +257,41 @@ test("signing in on a second device merges into one profile", async () => {
   assert.ok(!board.some((r) => r.id === phone), "the phone's old profile leaves the standings");
   assert.ok(!board.some((r) => r.id === laptop), "so does the laptop's");
   assert.equal(board.filter((r) => r.id === identity).length, 1, "exactly one row remains");
+});
+
+/**
+ * The regression test for the account takeover.
+ *
+ * A session token used to double as the profile id, so resolveProfileId fell
+ * back to returning whatever it was handed. Profile ids are not secret (they
+ * are database keys, and the standings page rendered them as React keys, which
+ * React ships to every browser), so anyone who read one could present it as a
+ * cookie and be served that profile: read it, rename it, delete it.
+ *
+ * The property that has to hold forever is that knowing a profile id gets you
+ * nothing. If someone reintroduces the fallback, this fails.
+ */
+test("a profile id is not a session credential", async () => {
+  const session = "s1.legitimate";
+  const profileId = await ensureProfileId(session);
+  await recordSource(profileId, "github", record("victim", "2012-01-01T00:00:00Z"), 60);
+
+  assert.equal(
+    await resolveProfileId(profileId),
+    null,
+    "presenting a profile id as a session must resolve to nothing",
+  );
+  assert.equal(
+    await resolveProfileId("s1.never-issued"),
+    null,
+    "and so must a token this server never issued",
+  );
+  assert.equal(
+    await resolveProfileId(session),
+    profileId,
+    "while the session that was actually issued still works",
+  );
+  assert.notEqual(session, profileId, "the two values must never be the same string");
 });
 
 test("a username is claimed first come, first served", async () => {
@@ -392,7 +432,8 @@ test("connecting again after signing in does not double-count one referral", asy
   // then signs in, then adds a second source. Sign-in gives them a new profile
   // id; without migrating their place in the qualified set, that second connect
   // would credit the inviter a second time for the same person.
-  const browser = newProfileId();
+  const browserSession = "s1.invited-browser";
+  const browser = await ensureProfileId(browserSession);
   await recordSource(
     browser,
     "github",
@@ -403,7 +444,7 @@ test("connecting again after signing in does not double-count one referral", asy
   assert.equal((await referralTally(code)).qualified, 1, "the first connect credits once");
 
   const identity = "g:migrates-once";
-  await claimProfile(browser, identity, () => 60);
+  await claimProfile(browserSession, identity, () => 60);
 
   await recordSource(
     identity,

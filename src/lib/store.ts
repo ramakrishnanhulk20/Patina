@@ -90,6 +90,11 @@ const RANK_KEY = `${PREFIX}:ranking`;
  * and a laptop into two people: two profiles, two partial scores, two rows in
  * the standings, and two claims on a single reward share. This map is how that
  * gets undone, by pointing a second browser at a profile it did not create.
+ *
+ * It is now also the ONLY route from a session to a profile. It used to be a
+ * override on top of a default where the session token WAS the profile id, and
+ * that default is what turned every published profile id into a usable
+ * credential. See the note in session.ts.
  */
 const linkKey = (sessionId: string) => `${PREFIX}:link:${sessionId}`;
 
@@ -109,10 +114,47 @@ const linkKey = (sessionId: string) => `${PREFIX}:link:${sessionId}`;
 /** Usernames are claimed first-come and held here so two people cannot share one. */
 const usernameKey = (name: string) => `${PREFIX}:username:${name.toLowerCase()}`;
 
-/** The profile this browser session should read and write. */
-export async function resolveProfileId(sessionId: string): Promise<string> {
+/**
+ * The profile this browser session should read and write, or null when the
+ * session has not been bound to one yet.
+ *
+ * NEVER falls back to returning the session token. That fallback is what made
+ * the profile id and the credential the same string: knowing an id was enough
+ * to be treated as its owner, and ids are not secret. Callers that genuinely
+ * need a profile to exist use `ensureProfileId`; every other caller treats null
+ * as "this browser has no profile", which is a normal state.
+ */
+export async function resolveProfileId(sessionId: string): Promise<string | null> {
   const linked = await db().get(linkKey(sessionId));
-  return typeof linked === "string" ? linked : sessionId;
+  return typeof linked === "string" ? linked : null;
+}
+
+/**
+ * The profile for this session, minting and binding one if it has none.
+ *
+ * The profile id is generated independently of the session token, so the two
+ * are unrelated values and neither can be derived from the other. Only the
+ * connect route needs this: everything else reads what is already bound.
+ */
+export async function ensureProfileId(sessionId: string): Promise<string> {
+  const linked = await resolveProfileId(sessionId);
+  if (linked) return linked;
+
+  const profileId = newProfileId();
+  await db().set(linkKey(sessionId), profileId);
+  return profileId;
+}
+
+/**
+ * Forget which profile a session points at.
+ *
+ * Called when someone deletes their data, so the link does not survive the
+ * profile it referred to. There is no reverse index from a profile back to its
+ * sessions, so this only clears the caller's own, which is the one that matters:
+ * their browser must not resolve to a profile that no longer exists.
+ */
+export async function unlinkSession(sessionId: string): Promise<void> {
+  await db().remove(linkKey(sessionId));
 }
 
 const invitedKey = (code: string) => `${PREFIX}:invited:${code.toLowerCase()}`;
@@ -653,7 +695,13 @@ export async function claimProfile(
   const currentId = await resolveProfileId(sessionId);
   const [existing, current] = await Promise.all([
     getProfile(identityId),
-    currentId === identityId ? Promise.resolve(null) : getProfile(currentId),
+    // Null when this browser has never been bound to a profile, which is now
+    // the normal state for a first-time visitor and for anyone whose old
+    // pre-`s1.` cookie stopped being honoured. There is simply nothing to
+    // absorb, so sign-in lands them straight on their identity profile.
+    currentId === null || currentId === identityId
+      ? Promise.resolve(null)
+      : getProfile(currentId),
   ]);
 
   const now = new Date().toISOString();
@@ -1004,6 +1052,48 @@ export async function standingOf(
   const rank = index === -1 ? null : index + 1;
 
   return { rank, inTheMoney: rank !== null && rank <= places, total };
+}
+
+/**
+ * One person's own place on the board, and nothing about anybody else.
+ *
+ * This is what the standings PAGE is allowed to know. It exists because the
+ * page used to receive the full ranked list, ids and all, and render it: the
+ * ids travelled to the browser as React keys and were, at the time, working
+ * session credentials. Handing a page only the numbers it displays means there
+ * is no longer a list on the page to leak, and no id for a future edit to put
+ * back into the markup by accident.
+ *
+ * `rank` and `cutoffPoints` are derived from the same re-scored ordering the
+ * reward is settled against, so the number a person is shown is the number they
+ * actually hold. Returns primitives only. Deliberately.
+ */
+export async function standingFor(
+  profileId: string | null,
+  places: number,
+  rescore?: (evidence: Evidence) => number,
+): Promise<{
+  rank: number | null;
+  total: number;
+  inTheMoney: boolean;
+  /** Points held by the last paying place, so a gap can be stated concretely. */
+  cutoffPoints: number | null;
+}> {
+  const [rows, total] = await Promise.all([standings(places, rescore), scoredProfileCount()]);
+
+  const cutoffPoints = rows.length >= places ? rows[places - 1].points : null;
+
+  if (!profileId) return { rank: null, total, inTheMoney: false, cutoffPoints };
+
+  const index = rows.findIndex((row) => row.id === profileId);
+  if (index !== -1) {
+    const rank = index + 1;
+    return { rank, total, inTheMoney: rank <= places, cutoffPoints };
+  }
+
+  // Below the re-scored cut, so fall back to the ranking index for a number.
+  const outside = await standingOf(profileId, places);
+  return { rank: outside.rank, total, inTheMoney: outside.inTheMoney, cutoffPoints };
 }
 
 /** Merge every stored source into the single evidence object the scorer wants. */

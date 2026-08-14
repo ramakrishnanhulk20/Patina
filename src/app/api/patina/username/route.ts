@@ -28,6 +28,10 @@ export async function POST(request: Request) {
   }
 
   const profileId = await resolveProfileId(sessionId);
+  if (!profileId) {
+    return Response.json({ ok: false, reason: "Connect a source first." }, { status: 400 });
+  }
+
   const result = await setUsername(profileId, name);
 
   // A taken name is not a server error: it is a normal thing to type.

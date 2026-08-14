@@ -1,41 +1,35 @@
 import Link from "next/link";
 import { ShareCard } from "../connect/ShareCard";
-import {
-  evidenceOf,
-  getProfile,
-  leaguePoints,
-  referralTally,
-  standingOf,
-  POINTS_PER_REFERRAL,
-} from "@/lib/store";
+import { evidenceOf, getProfile, leaguePoints, referralTally, POINTS_PER_REFERRAL } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { REWARD } from "@/lib/rewards";
 
 /**
- * The viewer's own line on the board, put first.
+ * The viewer's own line on the board, and now the whole of it.
  *
- * The standings used to open on Patina-the-org's Cup position and the global
- * list, leaving a person to hunt the page for their own highlighted row. That
- * is backwards: the first question anyone brings to a leaderboard is "where am
- * I, and how do I move up". This answers both, and then hands over the exact
- * thing that moves them up, their shareable card, so the answer and the action
- * sit together.
+ * The first question anyone brings to a competition is "where am I, and how do
+ * I move up". This answers both, and then hands over the exact thing that moves
+ * them up, their shareable card, so the answer and the action sit together.
  *
- * A server component. It locates the viewer's rank inside the same re-scored
- * list the page renders (so the number here can never disagree with the row
- * they scroll to), falling back to the ranking index only for people below the
- * shown cut.
+ * A server component. It is handed its position as plain numbers rather than
+ * the ranked list it used to search through, because that list carried other
+ * people's profile ids into a page that renders in a browser. Nothing about
+ * anybody else reaches this component now, so nothing about anybody else can
+ * leak out of it.
  */
 export async function YourStanding({
   profileId,
-  rows,
+  rank,
   total,
+  cutoffPoints,
 }: {
   profileId: string | null;
-  /** The already-fetched, already-sorted top rows, reused to place the viewer. */
-  rows: { id: string; points: number }[];
+  /** The viewer's place, or null when they are below the ranked cut. */
+  rank: number | null;
   /** Everyone with a score, for the "of N" denominator. */
   total: number;
+  /** Points held by the last paying place, so a gap can be stated concretely. */
+  cutoffPoints: number | null;
 }) {
   const profile = profileId ? await getProfile(profileId) : null;
   const connected = profile ? Object.keys(profile.sources).length > 0 : false;
@@ -63,24 +57,9 @@ export async function YourStanding({
 
   const score = scorePatina(evidenceOf(profile));
   const points = leaguePoints(score.total, profile.referrals ?? 0);
+  const tally = await referralTally(profile.referralCode);
 
-  // Prefer the viewer's spot in the list the page already computed, so their
-  // rank matches the row they can scroll to exactly. Only reach for the ranking
-  // index when they sit below the shown cut.
-  const listIndex = rows.findIndex((row) => row.id === profile.id);
-  const inList = listIndex !== -1;
-  const [tally, standing] = await Promise.all([
-    referralTally(profile.referralCode),
-    inList ? Promise.resolve(null) : standingOf(profile.id, REWARD.places),
-  ]);
-  const rank = inList ? listIndex + 1 : standing!.rank;
   const inMoney = rank !== null && rank <= REWARD.places;
-
-  // The points held by the last paying place, so an outside push can be stated
-  // as a concrete number rather than a vague "climb". Null when the board is not
-  // even full, in which case there is still room and everyone ranked is inside.
-  const cutoffPoints =
-    rows.length >= REWARD.places ? rows[REWARD.places - 1].points : null;
   const gap =
     !inMoney && cutoffPoints !== null ? Math.max(1, cutoffPoints - points + 1) : null;
 
@@ -97,9 +76,7 @@ export async function YourStanding({
       <div className="rounded-2xl border border-accent/40 bg-gradient-to-b from-accent-wash to-panel p-5 sm:p-6">
         <p className="t-label text-text-3">Your position</p>
         <p className="mt-2 flex items-end gap-2">
-          <span className="t-display text-accent">
-            {rank !== null ? `#${rank}` : "Unranked"}
-          </span>
+          <span className="t-display text-accent">{rank !== null ? `#${rank}` : "Unranked"}</span>
           {rank !== null && <span className="pb-2 text-lg text-text-3">of {total}</span>}
         </p>
         <p className="mt-3 max-w-xl text-base leading-relaxed text-text-2">{climb}</p>

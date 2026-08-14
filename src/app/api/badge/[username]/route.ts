@@ -1,5 +1,6 @@
 import { evidenceOf, profileByUsername } from "@/lib/store";
 import { scorePatina } from "@/lib/score";
+import { checkLookupRate } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,17 @@ function badgeSvg(score: number, years: number | null): string {
 </svg>`;
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ username: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ username: string }> }) {
+  // Same reasoning as /api/verify: fine one badge at a time, not as a way to
+  // walk a name list and find out who exists.
+  const rate = await checkLookupRate(request);
+  if (!rate.allowed) {
+    return new Response("Too many lookups", {
+      status: 429,
+      headers: { "retry-after": String(rate.retryAfterSeconds) },
+    });
+  }
+
   const { username } = await params;
   const name = decodeURIComponent(username).replace(/\.svg$/i, "");
   const profile = await profileByUsername(name);

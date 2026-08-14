@@ -58,9 +58,12 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "Who can see it",
     body: (
       <>
-        The standings are deliberately anonymous, a rank and a score, no names or accounts. Your
-        shareable card at <span className="t-mono text-text-3">/u/your-name</span> is public only if
-        you choose a name and share it. We do not sell your data, and we do not hand it to advertisers.
+        Patina does not publish a list of who is here. The standings page shows you your own
+        position and nothing about anybody else, so there is nowhere on this site that pairs a set
+        of names with a set of scores. Your shareable card at{" "}
+        <span className="t-mono text-text-3">/u/your-name</span> is public only if you choose a name
+        and share it, and it shows your score and how far your history goes back, never the accounts
+        underneath. We do not sell your data, and we do not hand it to advertisers.
       </>
     ),
   },

@@ -1,6 +1,7 @@
 import { evidenceOf, profileByUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildAttestation } from "@/lib/attest";
+import { checkLookupRate } from "@/lib/ratelimit";
 import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,18 @@ const CORS = {
   "cache-control": "no-store",
 };
 
-export async function GET(_request: Request, { params }: { params: Promise<{ username: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ username: string }> }) {
+  // Open, but not for bulk use. One name at a time is the contract; a wordlist
+  // run against this rebuilds the directory of who is on Patina, which is what
+  // taking the public list off the standings page was for.
+  const rate = await checkLookupRate(request);
+  if (!rate.allowed) {
+    return Response.json(
+      { error: "Too many lookups. Slow down." },
+      { status: 429, headers: { ...CORS, "retry-after": String(rate.retryAfterSeconds) } },
+    );
+  }
+
   const { username } = await params;
   const profile = await profileByUsername(decodeURIComponent(username));
 
