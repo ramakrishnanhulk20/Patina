@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SectionLabel } from "../components/SectionLabel";
+import { PATINA_APP_ADDRESS } from "@/lib/patina-address";
 
 export const metadata = {
   title: "Developer docs",
@@ -8,7 +9,7 @@ export const metadata = {
 };
 
 /** Patina's public app address on Vana. The key every attestation is signed by. */
-const APP_ADDRESS = "0x620dDbEceaD28Bbf1b979bfaB8e3a7B893aa54A1";
+const APP_ADDRESS = PATINA_APP_ADDRESS;
 
 const EXAMPLE_RESPONSE = `{
   "username": "alice",
@@ -124,6 +125,14 @@ export default function DocsPage() {
 
         <p className="t-label mt-6 text-text-3">ethers</p>
         <Code>{ETHERS_SNIPPET}</Code>
+
+        <p className="mt-6 leading-relaxed text-text-2">
+          Prefer to see it work before you write any code? The{" "}
+          <Link href="/verify/offline" className="text-accent underline underline-offset-4">
+            standalone checker
+          </Link>{" "}
+          runs the same recovery in your browser, with no call back to Patina.
+        </p>
       </section>
 
       <section className="mt-12">
@@ -208,6 +217,24 @@ export default function DocsPage() {
           <li>No key and no rate limit today, but be reasonable; the score changes slowly, so cache it.</li>
           <li>The signature is a plain EIP-191 message, so any Ethereum library verifies it, on-chain or off.</li>
         </ul>
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-2xl font-semibold tracking-tight text-text">From an AI agent</h2>
+        <p className="mt-3 leading-relaxed text-text-2">
+          Patina runs an MCP server, so Claude, ChatGPT and anything else that speaks the protocol
+          can read a score mid-conversation. Same data as the endpoint above, same lack of an API
+          key, with tools for the two questions an agent actually asks: what is this person&apos;s
+          score, and do they clear a bar.
+        </p>
+        <Code>{`https://patinadata.xyz/api/mcp`}</Code>
+        <p className="mt-4 leading-relaxed text-text-2">
+          Setup for each client, and what the tools do and deliberately do not return, is on{" "}
+          <Link href="/mcp" className="text-accent underline underline-offset-4">
+            the MCP page
+          </Link>
+          .
+        </p>
       </section>
 
       <section className="mt-12">

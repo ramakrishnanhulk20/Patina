@@ -42,6 +42,33 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
+
+  /**
+   * Serve the MCP server from its own subdomain.
+   *
+   * `mcp.patinadata.xyz` is a nicer thing to paste into a client than
+   * `patinadata.xyz/api/mcp`, and it means the server can move later without
+   * every client that saved the URL breaking.
+   *
+   * This rewrite does nothing until `mcp.patinadata.xyz` is added as a domain
+   * on the Vercel project and its DNS resolves. Until then the canonical URL is
+   * the /api/mcp path, which is what the /mcp page tells people to use. Adding
+   * the rewrite ahead of the domain is harmless: no request arrives with that
+   * Host header, so the rule never matches.
+   *
+   * The catch-all source is deliberate. MCP clients are inconsistent about
+   * whether they append a trailing path, so every path on the subdomain lands
+   * on the one handler rather than 404ing on a stray slash.
+   */
+  async rewrites() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "mcp.patinadata.xyz" }],
+        destination: "/api/mcp",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

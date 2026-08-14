@@ -15,15 +15,18 @@
     "register:mainnet": "node scripts/register-app.mjs mainnet"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
     "@opendatalabs/connect": "^0.14.0",
     "@opendatalabs/vana-sdk": "3.13.4-pr.184.b3b57a3",
     "@upstash/redis": "^1.38.0",
     "altcha-lib": "^2.3.2",
     "lenis": "^1.3.26",
+    "mcp-handler": "^2.1.0",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "viem": "^2.55.10"
+    "viem": "^2.55.10",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
