@@ -59,7 +59,7 @@ export function Identity({
         <>
           <label className="block">
             <span className="font-semibold text-text">
-              {username ? "Change your name" : "Pick a name for the standings"}
+              {username ? "Change your name" : "Pick a public name"}
             </span>
             <span className="mt-1 block text-sm leading-relaxed text-text-2">
               This is the only thing shown publicly next to your score.

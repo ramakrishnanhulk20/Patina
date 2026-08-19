@@ -152,8 +152,7 @@ export function ShareCard({
 
       <p className="mt-3 text-sm leading-relaxed text-text-2">
         Your card shows how far back you go. Every real person who opens it and connects adds{" "}
-        {POINTS_PER_REFERRAL} points to your standings. Points are what put you in the top 50 that
-        share the reward if Patina places.
+        {POINTS_PER_REFERRAL} points to your total.
       </p>
 
       <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line">
@@ -300,7 +299,7 @@ export function ShareCard({
         href="/rewards"
         className="tap t-label mt-4 inline-block text-text-4 underline-offset-4 transition hover:text-accent hover:underline"
       >
-        How the reward works
+        Claim your share
       </Link>
     </div>
   );

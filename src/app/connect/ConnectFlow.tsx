@@ -9,7 +9,6 @@ import { Identity } from "./Identity";
 import { SignInPrompt } from "./SignInPrompt";
 import { NextApps } from "./NextApps";
 import { useConnect } from "./useConnect";
-import { REWARD } from "@/lib/rewards";
 import type { EcosystemApp } from "@/lib/ecosystem";
 
 /**
@@ -232,9 +231,7 @@ export function ConnectFlow({
 
             {rank !== null && (
               <p className="mt-2 text-sm leading-relaxed text-text-3">
-                {rank > REWARD.places
-                  ? `The top ${REWARD.places} split the reward. Every real friend you bring adds 10 points and moves you up.`
-                  : `You are inside the paying top ${REWARD.places}. Bringing real friends helps you hold it.`}
+                Every real person you bring adds 10 points and moves you up.
               </p>
             )}
           </div>

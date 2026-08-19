@@ -14,7 +14,8 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
         Patina turns the history in accounts you already own into a score that suggests how long a
         real person has been around. It is built on Vana&apos;s data-portability protocol but is an{" "}
         <strong className="text-text">independent app</strong>, not operated, run, or endorsed by
-        the Vana Foundation. Patina is an entrant in their Vana Cup, nothing more.
+        the Vana Foundation. Patina won their Vana Cup in August 2026, which is a competition
+        result and not an endorsement.
       </>
     ),
   },
@@ -23,25 +24,24 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     body: (
       <>
         Connect only accounts that are genuinely yours. No bots, scripts, fabricated or purchased
-        accounts, duplicate or Sybil accounts, and no entering as several people. This is not just our
-        rule, it is the Vana Cup&apos;s, and breaking it voids any reward and can get the entries
-        disqualified. Detecting fake history is the entire product, so it would be strange to allow it
-        here.
+        accounts, duplicate or Sybil accounts, and no signing up as several people. Breaking this voids
+        any share of the reward. Detecting fake history is the entire product, so it would be
+        strange to allow it here.
       </>
     ),
   },
   {
-    heading: "The reward is our promise, not Vana&apos;s",
+    heading: "The reward is our promise, not Vana's",
     body: (
       <>
-        The offer to share winnings is made by Patina, not by the Vana Foundation. It is governed by
-        the{" "}
+        The offer to share winnings is made by Patina, not by the Vana Foundation. Patina placed
+        first, so the share is now owed rather than conditional. Who qualifies was fixed when the
+        standings froze on 18 August 2026, and how to claim is set out on the{" "}
         <Link href="/rewards" className="text-accent underline underline-offset-4">
-          reward rules
-        </Link>{" "}
-        and depends entirely on Patina placing in the Vana Cup. It is paid in VANA, whose value moves,
-        and <strong className="text-text">if Patina does not place, there is nothing to pay</strong>.
-        Patina will never ask you for a private key, a seed phrase, or any payment.
+          claim page
+        </Link>
+        . It is paid in VANA, whose value moves. Patina will never ask you for a private key, a seed
+        phrase, or any payment.
       </>
     ),
   },

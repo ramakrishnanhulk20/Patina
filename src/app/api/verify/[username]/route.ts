@@ -24,7 +24,7 @@ const CORS = {
 export async function GET(request: Request, { params }: { params: Promise<{ username: string }> }) {
   // Open, but not for bulk use. One name at a time is the contract; a wordlist
   // run against this rebuilds the directory of who is on Patina, which is what
-  // taking the public list off the standings page was for.
+  // never publishing a public list of who is here was for.
   const rate = await checkLookupRate(request);
   if (!rate.allowed) {
     return Response.json(

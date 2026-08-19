@@ -6,7 +6,7 @@ import { useEffect } from "react";
  * When something server-side falls over.
  *
  * The realistic cause is Redis: every page that shows a score, a rank or the
- * standings reads from it, and a blip there used to surface as Next's stock
+ * the connect page reads from it, and a blip there used to surface as Next's stock
  * error page. Somebody who had just connected an account would conclude their
  * data had gone, which is precisely the fear this product exists to answer.
  *

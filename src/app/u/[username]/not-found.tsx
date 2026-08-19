@@ -27,8 +27,8 @@ export default function CardNotFound() {
         <Link href="/connect" className="btn btn-primary px-6 py-3.5 text-base">
           Claim it and get a score
         </Link>
-        <Link href="/standings" className="btn btn-ghost px-6 py-3.5 text-base">
-          See the standings
+        <Link href="/verify" className="btn btn-ghost px-6 py-3.5 text-base">
+          Verify someone else
         </Link>
       </div>
     </main>

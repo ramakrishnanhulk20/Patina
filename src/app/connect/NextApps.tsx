@@ -1,17 +1,19 @@
 import type { EcosystemApp } from "@/lib/ecosystem";
 
 /**
- * The assist play, made a real step instead of a footnote.
+ * Portability, made a real step instead of a footnote.
  *
- * In the Vana Cup a sign-up scores one point; DATA A USER BROUGHT being read by
- * another app scores two, and almost nobody is chasing that second one. Patina
- * can, because connecting through Vana leaves the data portable: a person who
- * connected here can approve another app to read it with no setup, and when
- * they do, Patina is credited the assist.
+ * This was built for the Vana Cup, where a sign-up scored one point and data a
+ * user BROUGHT being read by another app scored two. Almost nobody chased the
+ * second one. Patina could, because connecting through Vana leaves the data
+ * portable, and that strategy is what won the Cup: third on sign-ups, first on
+ * assists by three times the runner-up.
  *
- * So this is not a courtesy link at the bottom of the page any more. It is the
- * highest-leverage move in the whole app, and it is designed like it. With the
- * motive stated plainly, because a recommendation that pays us should say so.
+ * The competition is over and the scoring is gone, but the reason this section
+ * exists never depended on it. Portable data is the entire promise Patina makes
+ * on its landing page, and this is the one place a person can actually watch it
+ * happen: approve a second app, and the history they just connected is already
+ * there. Deleting it would remove the proof of the pitch.
  */
 export function NextApps({ apps }: { apps: EcosystemApp[] }) {
   if (apps.length === 0) return null;
@@ -21,7 +23,7 @@ export function NextApps({ apps }: { apps: EcosystemApp[] }) {
       <div className="border-b border-line/60 p-6 sm:p-8">
         <p className="t-label flex items-center gap-2.5 text-accent">
           <span className="rings" aria-hidden="true" />
-          The move that counts double
+          Your data is already portable
         </p>
 
         <h2 className="mt-5 t-section text-text">You&apos;ve proved it. Now put it to work.</h2>
@@ -33,11 +35,10 @@ export function NextApps({ apps }: { apps: EcosystemApp[] }) {
         </p>
 
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-text-3">
-          And it genuinely helps. When another app reads data you brought in, Patina scores an{" "}
-          <span className="text-text">assist, worth double a sign-up</span> in the Vana Cup, and
-          the Cup rewards whoever does the most for the rest of the network. So this is the single
-          fastest way to push Patina up the board. You get more from your data, they get a user, we
-          get the points. Nobody here is paying anybody.
+          This is the part worth seeing for yourself. Everywhere else on the internet, connecting an
+          account to one service does nothing for the next one. Here it already did. Nobody is
+          paying anybody, and none of these apps get anything from Patina beyond a user who arrives
+          with their history already in hand.
         </p>
       </div>
 

@@ -10,14 +10,16 @@ import { SITE_URL } from "@/lib/site";
  *
  * The API is disallowed because there is nothing there a search engine should
  * spend a crawl budget on, and `/api/login` in particular would have crawlers
- * repeatedly starting OAuth flows.
+ * repeatedly starting OAuth flows. `/admin` is disallowed because it lists real
+ * people; it is password gated regardless, but an operator console has no
+ * business in a search index.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/"],
+      disallow: ["/api/", "/admin"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,

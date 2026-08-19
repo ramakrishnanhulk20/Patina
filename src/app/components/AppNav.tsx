@@ -41,12 +41,6 @@ const Plug = (
   </svg>
 );
 
-const Chart = (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 20V12M12 20V5M19 20v-5" />
-  </svg>
-);
-
 const Coin = (
   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="8.5" />
@@ -74,8 +68,7 @@ const ITEMS: Item[] = [
   { href: "/", label: "Home", icon: Rings },
   { href: "/connect", label: "Connect", icon: Plug },
   { href: "/verify", label: "Verify", icon: Shield },
-  { href: "/standings", label: "Standings", icon: Chart },
-  { href: "/rewards", label: "Reward", icon: Coin },
+  { href: "/rewards", label: "Claim", icon: Coin },
   // Developer docs. Desktop header only: it is for people integrating Patina,
   // not a core end-user action, and a sixth tab would crowd the phone bottom bar
   // (it stays reachable there from the footer). See the mobile filter below.

@@ -1,25 +1,21 @@
 /**
  * Other apps a person can spend their connected data on.
  *
- * Why this exists, plainly: an assist is worth double a goal in the Vana Cup,
- * and it pays out when data WE brought into the network gets read by someone
- * else's app. So sending our users onward is worth more to us than keeping them
- * here. It is also the thing the Cup says it rewards, in as many words: "the
- * champion is the builder who did the most for everyone else."
+ * Built for the Vana Cup, where data WE brought into the network being read by
+ * someone else's app scored double a sign-up. Sending our users onward was
+ * therefore worth more than keeping them, and chasing that is what won it.
  *
- * That incentive is disclosed to the user on the page rather than hidden. A
- * recommendation with a motive behind it should say so, and there is nothing
- * here we would be embarrassed to explain.
- *
- * The rules prohibit collusion between apps a single entrant CONTROLS. These
- * are independent builders competing against us, which is the opposite.
+ * The scoring is gone and the list stays, because the reason underneath it was
+ * never the competition. Patina's entire claim is that data connected here is
+ * portable, and this is the one place a person can watch that be true. We get
+ * nothing from these apps and they get nothing from us.
  */
 
-import { PATINA_APP_ADDRESS } from "./cup";
+import { PATINA_APP_ADDRESS } from "./patina-address";
 
 const LEADERBOARD = "https://builders.vana.org/api/leaderboard";
 
-/** Our own app, so we never recommend ourselves. Shared with cup.ts. */
+/** Our own app, so we never recommend ourselves. */
 const SELF = PATINA_APP_ADDRESS;
 
 /**

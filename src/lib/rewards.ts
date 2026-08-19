@@ -1,79 +1,64 @@
 import { REFERRAL_QUALIFIES_AT } from "./points.ts";
 
 /**
- * The incentive, in one place.
+ * The reward, now that it is owed rather than promised.
  *
- * Every number a visitor is shown comes from here: the landing page, the share
- * panel and the terms page all read these constants. A reward promise that says
- * one thing on the homepage and another on the terms page is worse than no
- * promise at all, and keeping three copies in sync by hand never works.
+ * Patina won the Vana Cup on 18 August 2026. Everything in this file used to
+ * describe a competition that might pay out; it now describes a payout that is
+ * due, and nothing else.
  *
- * Stated in VANA rather than dollars on purpose. The prize pays in VANA, so
- * quoting a dollar figure would mean promising to cover the exchange rate
- * between now and the payout.
+ * No figure appears here for what the pool is worth, deliberately. Quoting a
+ * token amount on a public page is a compliance exposure, and the promise that
+ * was actually made was a SHARE of the winnings rather than a number. The share
+ * is stated; the arithmetic is not.
  */
-
-export const REWARD = {
-  /** Share of anything Patina wins that goes back to the people who connected. */
-  shareOfWinnings: 0.5,
-
-  /** How many people are eligible, ranked by leaderboard points. */
-  places: 50,
-
-  /** Prize for finishing first, from the Vana Cup terms. Grows with network activity. */
-  championPrize: 5000,
-
-  /** Prize for each of second through fifth. */
-  runnerUpPrize: 500,
-
-  /** Competition close, from the Vana Cup official terms. */
-  cupClosesAt: "18 August 2026",
-
-  /** What we commit to publicly. Deliberately later than we expect to need. */
-  paidBy: "31 August 2026",
-
-  /** Score an invited person must reach before their referrer gets a share. */
-  referralQualifiesAt: REFERRAL_QUALIFIES_AT,
-
-  /**
-   * Reference price used ONLY to show people roughly what a share is worth.
-   * Most visitors have never heard of VANA, and "50 VANA" means nothing to them.
-   *
-   * Deliberately a fixed, dated figure rather than a live feed. The promise
-   * itself is denominated in VANA, so a live ticker would imply we are
-   * guaranteeing a dollar amount we cannot control. Every place this appears
-   * says the date out loud.
-   *
-   * To update: change these two lines. Nothing else references the rate.
-   */
-  vanaUsd: 1.23,
-  priceAsOf: "28 July 2026",
-} as const;
-
-/** "$61". Whole dollars, because false precision on an estimate reads as a promise. */
-export function usd(vana: number): string {
-  return `$${Math.round(vana * REWARD.vanaUsd).toLocaleString("en-US")}`;
-}
-
-/** VANA each if the winning pool for a position is split `shares` equal ways. */
-export function perShare(position: "champion" | "runnerUp", shares: number): number {
-  const prize = position === "champion" ? REWARD.championPrize : REWARD.runnerUpPrize;
-  const pool = prize * REWARD.shareOfWinnings;
-  return pool / Math.max(shares, 1);
-}
 
 /**
- * A rough, honest illustration for the page.
+ * The claim window, in UTC.
  *
- * Everyone who finishes in the top `REWARD.places` by points takes an EQUAL cut
- * of the pool, one each, so this assumes a full board of `REWARD.places` and
- * divides evenly. Referrals decide WHO is in those places (each is worth points
- * on the leaderboard), never how many shares anyone holds, so no invite ever
- * makes an individual payout bigger. If anything this is a floor: fewer than
- * `REWARD.places` eligible people would divide the pool fewer ways and make each
- * cut larger. The copy has to say so rather than imply these are guarantees.
+ * Stored as absolute instants rather than a local time and a timezone, because
+ * "3PM" means five different moments to five different readers and getting it
+ * wrong costs somebody their share. These are 15:00 and 03:00 India Standard
+ * Time (UTC+5:30) on the 19th and 20th of August 2026.
+ *
+ * The window is enforced on the server, in the claim route. Anything the page
+ * shows is a courtesy on top of that: a client clock can be wrong, or lied to,
+ * and neither may decide whether a claim is accepted.
  */
-export const ILLUSTRATION = {
-  championPerShare: perShare("champion", REWARD.places),
-  runnerUpPerShare: perShare("runnerUp", REWARD.places),
+export const CLAIM_OPENS_AT = "2026-08-19T09:30:00.000Z";
+export const CLAIM_CLOSES_AT = "2026-08-19T21:30:00.000Z";
+
+export type ClaimWindow = "before" | "open" | "closed";
+
+export function claimWindowState(now: Date = new Date()): ClaimWindow {
+  const t = now.getTime();
+  if (t < Date.parse(CLAIM_OPENS_AT)) return "before";
+  if (t >= Date.parse(CLAIM_CLOSES_AT)) return "closed";
+  return "open";
+}
+
+export const REWARD = {
+  /** Share of the winnings that goes back to the people who connected. */
+  shareOfWinnings: 0.5,
+
+  /** How many people are eligible, ranked by points at the final whistle. */
+  places: 50,
+
+  /** Where Patina finished. */
+  finished: "1st of 43 apps",
+
+  /** Final points at the whistle, for anyone who wants to check the maths. */
+  finalPoints: 4707,
+
+  /** When the standings were frozen and eligibility was decided. */
+  snapshotAt: "18 August 2026",
+
+  /** How the claim window reads to a person, in the operator's own timezone. */
+  windowLabel: "19 August, 3:00pm IST to 20 August, 3:00am IST",
+
+  /** The public commitment on when claims are settled. */
+  paidBy: "31 August 2026",
+
+  /** Score an invited person had to reach for their referrer to be credited. */
+  referralQualifiesAt: REFERRAL_QUALIFIES_AT,
 } as const;

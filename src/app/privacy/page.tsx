@@ -48,9 +48,10 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "Why we keep it",
     body: (
       <>
-        To show you your score and keep it across your devices; to keep the reward honest, eligibility
-        is counted against the underlying account, so the same person cannot quietly collect several
-        shares; and, if Patina places in the Vana Cup, to pay you. That is the whole list.
+        To show you your score and keep it across your devices; to keep the reward honest,
+        eligibility is counted against the underlying account, so the same person cannot quietly
+        collect several shares; and, if you qualified for a share of the Vana Cup winnings, to pay
+        you. That is the whole list.
       </>
     ),
   },
@@ -58,9 +59,8 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "Who can see it",
     body: (
       <>
-        Patina does not publish a list of who is here. The standings page shows you your own
-        position and nothing about anybody else, so there is nowhere on this site that pairs a set
-        of names with a set of scores. Your shareable card at{" "}
+        Patina does not publish a list of who is here. There is nowhere on this site that pairs a
+        set of names with a set of scores. Your shareable card at{" "}
         <span className="t-mono text-text-3">/u/your-name</span> is public only if you choose a name
         and share it, and it shows your score and how far your history goes back, never the accounts
         underneath. We do not sell your data, and we do not hand it to advertisers.
@@ -161,7 +161,7 @@ export default function PrivacyPage() {
           </Link>{" "}
           and the{" "}
           <Link href="/rewards" className="text-accent underline underline-offset-4">
-            reward rules
+            claim page
           </Link>
           .
         </p>

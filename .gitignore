@@ -20,6 +20,9 @@
 # production
 /build
 
+# stray local scratch scripts
+.tmp-*
+
 # misc
 .DS_Store
 *.pem
@@ -55,3 +58,4 @@ AGENT-RETROS.md
 
 # design reference, never ship
 /ray-cash website/
+

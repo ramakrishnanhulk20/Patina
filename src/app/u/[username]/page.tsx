@@ -60,7 +60,7 @@ export default async function ProfilePage({
    *
    * This page is public and keyed by a name anybody can guess, so anything
    * positional shown here can be collected one name at a time and reassembled
-   * into the ranked list that was taken off the standings page. Removing the
+   * into a ranked list, which Patina deliberately does not publish. Removing the
    * list while leaving each person's place on their own card would have moved
    * the leak rather than closed it.
    *
