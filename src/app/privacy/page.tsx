@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { claimPageLive } from "@/lib/rewards";
 import { SectionLabel } from "../components/SectionLabel";
 import { DeleteData } from "../components/DeleteData";
 
@@ -160,9 +161,13 @@ export default function PrivacyPage() {
             terms
           </Link>{" "}
           and the{" "}
-          <Link href="/rewards" className="text-accent underline underline-offset-4">
-            claim page
-          </Link>
+          {claimPageLive() ? (
+            <Link href="/rewards" className="text-accent underline underline-offset-4">
+              claim page
+            </Link>
+          ) : (
+            <span className="text-text">claim page</span>
+          )}
           .
         </p>
       </div>

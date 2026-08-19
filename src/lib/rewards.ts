@@ -44,6 +44,24 @@ export function claimWindowState(now: Date = new Date()): ClaimWindow {
   return "open";
 }
 
+/**
+ * Should the public claim page exist at all?
+ *
+ * Once the window shuts, /rewards stops being a page and starts being a 404:
+ * there is nothing left for a visitor to do there, and a live form for a closed
+ * process invites people to submit an address that will never be read. The
+ * admin console is the only surface that outlives the window, because settling
+ * the payout happens there.
+ *
+ * Every link into the page is gated on this too, so the site never points at a
+ * route it knows is gone. Computed on the SERVER wherever it decides what
+ * renders: a client clock can be wrong, and a nav that disagrees with the route
+ * it links to is worse than no nav at all.
+ */
+export function claimPageLive(now: Date = new Date()): boolean {
+  return claimWindowState(now) !== "closed";
+}
+
 export const REWARD = {
   /** How many people are eligible, ranked by points at the final whistle. */
   places: 50,

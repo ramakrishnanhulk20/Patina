@@ -4,7 +4,7 @@ import { LandingNav } from "./components/landing/LandingNav";
 import { LandingReveal } from "./components/landing/LandingReveal";
 import { ScoreScrolly } from "./components/landing/ScoreScrolly";
 import { RingField } from "./components/RingField";
-import { REWARD } from "@/lib/rewards";
+import { REWARD, claimPageLive } from "@/lib/rewards";
 
 /*
   The landing. Built on the app's own design system (tokens, type, buttons, ring
@@ -180,6 +180,9 @@ const FAQ = [
 ];
 
 export default function Home() {
+  // /rewards 404s once the claim window shuts, so nothing here may link to it.
+  const claimLive = claimPageLive();
+
   return (
     <div className="relative flex min-h-dvh flex-1 flex-col">
       <LandingNav />
@@ -736,10 +739,15 @@ export default function Home() {
           {/* Won, so this states a result rather than selling a contest. */}
           <p className="mt-2 max-w-[42rem] text-[0.95rem] leading-relaxed text-band-ink-2" data-reveal>
             Patina won the Vana Cup, {REWARD.finished}. A share of the prize goes back to the
-            people who connected early.{" "}
-            <Link href="/rewards" className="text-on-band underline underline-offset-4">
-              Claim your share
-            </Link>
+            people who connected early.
+            {claimLive && (
+              <>
+                {" "}
+                <Link href="/rewards" className="text-on-band underline underline-offset-4">
+                  Claim your share
+                </Link>
+              </>
+            )}
             .
           </p>
           <p className="t-mono text-band-ink-2" data-reveal>
@@ -765,7 +773,7 @@ export default function Home() {
             links={[
               ["Get your score", "/connect"],
               ["Verify a score", "/verify"],
-              ["Claim your share", "/rewards"],
+              ...(claimLive ? ([["Claim your share", "/rewards"]] as [string, string][]) : []),
             ]}
           />
           <FootCol

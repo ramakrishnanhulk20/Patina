@@ -11,7 +11,16 @@ import { AppNav } from "./AppNav";
  * that clears the tab bar). Every other route keeps the normal app chrome. When
  * the WIP lock is on, nothing but the lock screen renders.
  */
-export function SiteChrome({ locked, children }: { locked: boolean; children: React.ReactNode }) {
+export function SiteChrome({
+  locked,
+  claimLive,
+  children,
+}: {
+  locked: boolean;
+  /** Whether /rewards still exists. Decided on the server; see claimPageLive. */
+  claimLive: boolean;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname() ?? "/";
 
   if (locked) return <>{children}</>;
@@ -22,7 +31,7 @@ export function SiteChrome({ locked, children }: { locked: boolean; children: Re
 
   return (
     <>
-      <AppNav />
+      <AppNav claimLive={claimLive} />
       {/* Clears the fixed mobile tab bar so nothing sits underneath it. */}
       <div className="flex flex-1 flex-col pb-[calc(56px+env(safe-area-inset-bottom))] sm:pb-0">
         {children}

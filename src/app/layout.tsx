@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Geist, Geist_Mono, Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteChrome } from "./components/SiteChrome";
+import { claimPageLive } from "@/lib/rewards";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { ReferralCapture } from "./components/ReferralCapture";
 import { SITE_URL } from "@/lib/site";
@@ -87,6 +88,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locked = await isWipLocked();
+  // Server-side, so the nav can never offer a route that has already 404'd.
+  const claimLive = claimPageLive();
 
   return (
     <html
@@ -111,7 +114,9 @@ export default async function RootLayout({
         </noscript>
         <SmoothScroll />
         <ReferralCapture />
-        <SiteChrome locked={locked}>{children}</SiteChrome>
+        <SiteChrome locked={locked} claimLive={claimLive}>
+          {children}
+        </SiteChrome>
       </body>
     </html>
   );

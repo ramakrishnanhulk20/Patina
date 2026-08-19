@@ -295,12 +295,6 @@ export function ShareCard({
         </label>
       </details>
 
-      <Link
-        href="/rewards"
-        className="tap t-label mt-4 inline-block text-text-4 underline-offset-4 transition hover:text-accent hover:underline"
-      >
-        Claim your share
-      </Link>
     </div>
   );
 }

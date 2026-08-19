@@ -68,18 +68,34 @@ const ITEMS: Item[] = [
   { href: "/", label: "Home", icon: Rings },
   { href: "/connect", label: "Connect", icon: Plug },
   { href: "/verify", label: "Verify", icon: Shield },
-  { href: "/rewards", label: "Claim", icon: Coin },
   // Developer docs. Desktop header only: it is for people integrating Patina,
   // not a core end-user action, and a sixth tab would crowd the phone bottom bar
   // (it stays reachable there from the footer). See the mobile filter below.
   { href: "/docs", label: "Docs", icon: Doc, desktopOnly: true },
 ];
 
+/**
+ * The claim tab, which outlives nothing.
+ *
+ * /rewards becomes a 404 the moment the claim window shuts, so the tab has to
+ * go with it. Kept out of ITEMS and spliced in instead, because a nav entry
+ * that quietly points at a dead route is the kind of thing nobody notices until
+ * a user reports it.
+ *
+ * Placed before Docs so the ordering a person saw during the window is the same
+ * one they saw before it opened.
+ */
+const CLAIM: Item = { href: "/rewards", label: "Claim", icon: Coin };
+
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-export function AppNav() {
+export function AppNav({ claimLive }: { claimLive: boolean }) {
+  const items = claimLive
+    ? [...ITEMS.slice(0, 3), CLAIM, ...ITEMS.slice(3)]
+    : ITEMS;
+
   const pathname = usePathname() ?? "/";
 
   return (
@@ -93,7 +109,7 @@ export function AppNav() {
           </Link>
 
           <div className="flex items-center gap-1">
-            {ITEMS.filter((item) => item.href !== "/" && item.href !== "/connect").map((item) => (
+            {items.filter((item) => item.href !== "/" && item.href !== "/connect").map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -133,7 +149,7 @@ export function AppNav() {
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <ul className="mx-auto flex max-w-lg">
-          {ITEMS.filter((item) => !item.desktopOnly).map((item) => {
+          {items.filter((item) => !item.desktopOnly).map((item) => {
             const active = isActive(pathname, item.href);
             return (
               <li key={item.href} className="flex-1">

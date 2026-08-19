@@ -1,7 +1,7 @@
 import { readSessionId } from "@/lib/session";
 import { getProfile, resolveProfileId, setPayoutAddress, winnerEntry } from "@/lib/store";
 import { checkUsernameRate } from "@/lib/ratelimit";
-import { CLAIM_CLOSES_AT, CLAIM_OPENS_AT, claimWindowState } from "@/lib/rewards";
+import { CLAIM_CLOSES_AT, CLAIM_OPENS_AT, claimPageLive, claimWindowState } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,10 @@ export const dynamic = "force-dynamic";
  * that was decided weeks ago.
  */
 export async function GET() {
+  // The page is a 404 after the window, so its API is too. Leaving a live
+  // endpoint behind a dead page is how a "closed" process quietly stays open.
+  if (!claimPageLive()) return new Response("Not found", { status: 404 });
+
   const sessionId = await readSessionId();
   const profileId = sessionId ? await resolveProfileId(sessionId) : null;
 
@@ -52,6 +56,8 @@ export async function GET() {
 
 /** Submit or change the wallet address a share should be paid to. */
 export async function POST(request: Request) {
+  if (!claimPageLive()) return new Response("Not found", { status: 404 });
+
   const sessionId = await readSessionId();
   const profileId = sessionId ? await resolveProfileId(sessionId) : null;
 

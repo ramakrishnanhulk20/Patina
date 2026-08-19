@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { SectionLabel } from "../components/SectionLabel";
 import { ClaimPanel } from "./ClaimPanel";
-import { REWARD } from "@/lib/rewards";
+import { REWARD, claimPageLive } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,16 @@ export const metadata: Metadata = {
  * and worse, it keeps inviting people into something they can no longer enter.
  */
 export default function RewardsPage() {
+  /**
+   * Gone the moment the window shuts.
+   *
+   * Not a "closed" banner: there is nothing left to do here, and a page that
+   * still looks like a claim form invites somebody to paste an address that
+   * will never be read. The route is enforced here rather than only hidden in
+   * the nav, so a saved link or a search result lands on a 404 too.
+   */
+  if (!claimPageLive()) notFound();
+
   return (
     <main className="mx-auto w-full max-w-2xl px-5 py-10 sm:px-6 sm:py-14">
       <SectionLabel>Reward</SectionLabel>

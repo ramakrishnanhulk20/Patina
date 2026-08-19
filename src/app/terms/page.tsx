@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { claimPageLive } from "@/lib/rewards";
 import { SectionLabel } from "../components/SectionLabel";
 
 export const metadata = {
@@ -39,9 +40,13 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
         Patina, because the tax and compliance obligations on virtual assets fall on us rather than
         on recipients, and each claimant is told their own amount directly. How to claim is set out
         on the{" "}
-        <Link href="/rewards" className="text-accent underline underline-offset-4">
-          claim page
-        </Link>
+        {claimPageLive() ? (
+          <Link href="/rewards" className="text-accent underline underline-offset-4">
+            claim page
+          </Link>
+        ) : (
+          <span className="text-text">claim page</span>
+        )}
         . It is paid in VANA, whose value moves. Patina will never ask you for a private key, a seed
         phrase, or any payment.
       </>
