@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Claim your share",
   description:
-    "Patina won the Vana Cup. Half the prize goes back to the people who connected. If you were in the top 50 when the standings froze, claim your share here.",
+    "Patina won the Vana Cup. A share of the winnings goes back to the people who connected early. If you were in the top 50 when the standings froze, claim your place here.",
 };
 
 /**
@@ -29,14 +29,40 @@ export default function RewardsPage() {
     <main className="mx-auto w-full max-w-2xl px-5 py-10 sm:px-6 sm:py-14">
       <SectionLabel>Reward</SectionLabel>
 
-      <h1 className="t-section mt-5 text-text">Patina won. Half of it is yours.</h1>
+      <h1 className="t-section mt-5 text-text">Patina won. Claim your place.</h1>
 
       <p className="mt-5 text-lg leading-relaxed text-text-2">
         Patina finished <span className="text-text">{REWARD.finished}</span> in the Vana Cup on{" "}
-        {REWARD.snapshotAt}, with {REWARD.finalPoints.toLocaleString()} points. We said that if it
-        placed, {Math.round(REWARD.shareOfWinnings * 100)}% of the winnings would go back to the
-        people who connected early, split across the top {REWARD.places}. That still stands.
+        {REWARD.snapshotAt}, with {REWARD.finalPoints.toLocaleString()} points. A share of the
+        winnings goes back to the people who connected early, across the top {REWARD.places} by
+        points.
       </p>
+
+      {/*
+        The compliance notice, stated before anything else a claimant reads.
+        Burying the one term that changed under the mechanics would be the
+        dishonest way to present this, so it goes first and it goes big.
+      */}
+      <section className="mt-6 rounded-lg border-2 border-accent/60 bg-panel p-5 sm:p-6">
+        <p className="t-label text-accent">Important, please read</p>
+        <h2 className="mt-3 text-lg font-semibold tracking-tight text-text sm:text-xl">
+          The reward amount is determined solely by the builder.
+        </h2>
+        <div className="mt-3 space-y-3 leading-relaxed text-text-2">
+          <p>
+            Rewards here are virtual assets, and the tax and compliance obligations on them fall on
+            Patina rather than on you. The real cost of settling is not known until this window
+            closes and the number of valid claims is final, so{" "}
+            <span className="text-text">no amount, share or percentage is published</span> on this
+            site, and any figure quoted anywhere previously no longer applies.
+          </p>
+          <p>
+            <span className="text-text">You will be told your own amount directly</span> once the
+            window has closed and the position is worked out. Submitting your address below secures
+            your place; it does not fix a number, and no number is implied by it.
+          </p>
+        </div>
+      </section>
 
       {/*
         The deadline goes above the panel, not buried in the explainer below it.
@@ -77,9 +103,9 @@ export default function RewardsPage() {
           <li className="flex gap-3">
             <span className="text-accent">3.</span>
             <span>
-              Claims that came in on time are settled by{" "}
-              <span className="text-text">{REWARD.paidBy}</span>. That was the commitment made up
-              front and it has not moved.
+              After the window closes, each person who claimed in time is contacted directly with
+              their own amount. Settlement follows once the tax and compliance position is worked
+              out, and no date is promised here rather than one being promised and missed.
             </span>
           </li>
         </ul>

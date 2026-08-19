@@ -34,9 +34,11 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "The reward is our promise, not Vana's",
     body: (
       <>
-        The offer to share winnings is made by Patina, not by the Vana Foundation. Patina placed
-        first, so the share is now owed rather than conditional. Who qualifies was fixed when the
-        standings froze on 18 August 2026, and how to claim is set out on the{" "}
+        The offer to share winnings is made by Patina, not by the Vana Foundation. Who qualifies
+        was fixed when the standings froze on 18 August 2026. The amount is determined solely by
+        Patina, because the tax and compliance obligations on virtual assets fall on us rather than
+        on recipients, and each claimant is told their own amount directly. How to claim is set out
+        on the{" "}
         <Link href="/rewards" className="text-accent underline underline-offset-4">
           claim page
         </Link>

@@ -5,12 +5,19 @@ import { REFERRAL_QUALIFIES_AT } from "./points.ts";
  *
  * Patina won the Vana Cup on 18 August 2026. Everything in this file used to
  * describe a competition that might pay out; it now describes a payout that is
- * due, and nothing else.
+ * being settled.
  *
- * No figure appears here for what the pool is worth, deliberately. Quoting a
- * token amount on a public page is a compliance exposure, and the promise that
- * was actually made was a SHARE of the winnings rather than a number. The share
- * is stated; the arithmetic is not.
+ * NO AMOUNT, NO SHARE, AND NO DATE APPEARS HERE, and none may be reintroduced.
+ * Virtual assets carry tax and reporting obligations that fall on the builder,
+ * not on the recipients, and the real cost of settling is not known until the
+ * window closes and the claim count is final. Publishing a figure before that
+ * is a compliance exposure and a promise that may not survive contact with the
+ * tax treatment.
+ *
+ * What replaces it is not silence. Each claimant is told their own amount
+ * directly, once it is known. That keeps the commitment to the people who
+ * qualified while keeping numbers off a public page, which is the only
+ * arrangement that is both honest and defensible.
  */
 
 /**
@@ -38,9 +45,6 @@ export function claimWindowState(now: Date = new Date()): ClaimWindow {
 }
 
 export const REWARD = {
-  /** Share of the winnings that goes back to the people who connected. */
-  shareOfWinnings: 0.5,
-
   /** How many people are eligible, ranked by points at the final whistle. */
   places: 50,
 
@@ -55,9 +59,6 @@ export const REWARD = {
 
   /** How the claim window reads to a person, in the operator's own timezone. */
   windowLabel: "19 August, 3:00pm IST to 20 August, 3:00am IST",
-
-  /** The public commitment on when claims are settled. */
-  paidBy: "31 August 2026",
 
   /** Score an invited person had to reach for their referrer to be credited. */
   referralQualifiesAt: REFERRAL_QUALIFIES_AT,

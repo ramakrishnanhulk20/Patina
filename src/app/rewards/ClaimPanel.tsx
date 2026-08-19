@@ -237,6 +237,16 @@ export function ClaimPanel() {
       <p className="mt-1 text-sm text-text-3">
         After that, unclaimed shares cannot be paid. Your local time: {localWindow}
       </p>
+      {/*
+        Repeated here, not only in the notice above, because somebody who scrolls
+        straight to the form is exactly the person who needs to know that
+        submitting an address does not fix an amount.
+      */}
+      <p className="mt-2 text-sm leading-relaxed text-text-3">
+        The amount is determined solely by the builder after tax and compliance, and you will be
+        told yours directly once the window closes. Submitting an address secures your place, not a
+        figure.
+      </p>
 
       <form onSubmit={submit} className="mt-5">
         <label htmlFor="addr" className="t-label text-text-3">

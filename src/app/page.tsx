@@ -735,9 +735,8 @@ export default function Home() {
 
           {/* Won, so this states a result rather than selling a contest. */}
           <p className="mt-2 max-w-[42rem] text-[0.95rem] leading-relaxed text-band-ink-2" data-reveal>
-            Patina won the Vana Cup, {REWARD.finished}.{" "}
-            {Math.round(REWARD.shareOfWinnings * 100)}% of the prize goes back to the people who
-            connected early.{" "}
+            Patina won the Vana Cup, {REWARD.finished}. A share of the prize goes back to the
+            people who connected early.{" "}
             <Link href="/rewards" className="text-on-band underline underline-offset-4">
               Claim your share
             </Link>
