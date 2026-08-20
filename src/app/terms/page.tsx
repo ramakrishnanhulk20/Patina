@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { claimPageLive } from "@/lib/rewards";
 import { SectionLabel } from "../components/SectionLabel";
 
 export const metadata = {
@@ -32,22 +31,14 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     ),
   },
   {
-    heading: "The reward is our promise, not Vana's",
+    heading: "The Vana Cup reward",
     body: (
       <>
-        The offer to share winnings is made by Patina, not by the Vana Foundation. Who qualifies
-        was fixed when the standings froze on 18 August 2026. The amount is determined solely by
-        Patina, because the tax and compliance obligations on virtual assets fall on us rather than
-        on recipients, and each claimant is told their own amount directly. How to claim is set out
-        on the{" "}
-        {claimPageLive() ? (
-          <Link href="/rewards" className="text-accent underline underline-offset-4">
-            claim page
-          </Link>
-        ) : (
-          <span className="text-text">claim page</span>
-        )}
-        . It is paid in VANA, whose value moves. Patina will never ask you for a private key, a seed
+        The offer to share winnings was made by Patina, not by the Vana Foundation. Eligibility was
+        fixed when the standings froze on 18 August 2026, and the claim window has since closed.
+        People who claimed in time are contacted directly and settled individually; the amount is
+        determined solely by Patina, because the tax and compliance obligations on virtual assets
+        fall on us rather than on recipients. Patina will never ask you for a private key, a seed
         phrase, or any payment.
       </>
     ),
@@ -79,9 +70,8 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "Changes",
     body: (
       <>
-        We may update these terms as the app and the competition evolve. The date below moves when we
-        do, and anything that materially changes the reward will be said out loud, not slipped in
-        quietly.
+        We may update these terms as the app evolves. The date below moves when we do, and anything
+        that materially changes will be said out loud, not slipped in quietly.
       </>
     ),
   },

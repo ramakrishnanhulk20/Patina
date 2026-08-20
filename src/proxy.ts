@@ -58,6 +58,10 @@ function isUnlocked(request: NextRequest): boolean {
 }
 
 function shouldLockPath(pathname: string): boolean {
+  // The landing stays public during the upgrade. It is the one page that still
+  // says what Patina is, and sending shared links to a lock screen would make a
+  // rebuild look like a shutdown.
+  if (pathname === "/") return false;
   if (pathname === "/wip") return false;
   if (pathname.startsWith("/api/")) return false;
   if (pathname.startsWith("/_next/")) return false;

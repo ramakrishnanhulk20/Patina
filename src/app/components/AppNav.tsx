@@ -74,27 +74,13 @@ const ITEMS: Item[] = [
   { href: "/docs", label: "Docs", icon: Doc, desktopOnly: true },
 ];
 
-/**
- * The claim tab, which outlives nothing.
- *
- * /rewards becomes a 404 the moment the claim window shuts, so the tab has to
- * go with it. Kept out of ITEMS and spliced in instead, because a nav entry
- * that quietly points at a dead route is the kind of thing nobody notices until
- * a user reports it.
- *
- * Placed before Docs so the ordering a person saw during the window is the same
- * one they saw before it opened.
- */
-const CLAIM: Item = { href: "/rewards", label: "Claim", icon: Coin };
 
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-export function AppNav({ claimLive }: { claimLive: boolean }) {
-  const items = claimLive
-    ? [...ITEMS.slice(0, 3), CLAIM, ...ITEMS.slice(3)]
-    : ITEMS;
+export function AppNav() {
+  const items = ITEMS;
 
   const pathname = usePathname() ?? "/";
 

@@ -8,7 +8,8 @@ import {
   leaguePoints,
 } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
-import { REWARD } from "@/lib/rewards";
+
+const RANKED_DEPTH = 50;
 
 const EMPTY = () => {
   const empty = scorePatina({});
@@ -48,7 +49,9 @@ export async function GET() {
   const score = scorePatina(evidenceOf(profile));
   const [tally, standing] = await Promise.all([
     referralTally(profile.referralCode),
-    standingOf(profile.id, REWARD.places),
+    // Depth of the ranked window to look through. Not a reward threshold any
+    // more, just how far down the board a rank is still worth reporting.
+    standingOf(profile.id, RANKED_DEPTH),
   ]);
 
   return Response.json({

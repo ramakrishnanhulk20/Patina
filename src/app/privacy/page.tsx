@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { claimPageLive } from "@/lib/rewards";
 import { SectionLabel } from "../components/SectionLabel";
 import { DeleteData } from "../components/DeleteData";
 
@@ -25,10 +24,6 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
           messages, not the contents of the account.
         </li>
         <li>
-          <strong className="text-text">A payout wallet address</strong>, only if you choose to claim
-          a reward, and only at that point.
-        </li>
-        <li>
           <strong className="text-text">A small cookie</strong>, so you can come back and find your
           own result.
         </li>
@@ -49,10 +44,9 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "Why we keep it",
     body: (
       <>
-        To show you your score and keep it across your devices; to keep the reward honest,
-        eligibility is counted against the underlying account, so the same person cannot quietly
-        collect several shares; and, if you qualified for a share of the Vana Cup winnings, to pay
-        you. That is the whole list.
+        To show you your score and keep it across your devices, and to count eligibility against
+        the underlying account so the same person cannot quietly count twice. That is the whole
+        list.
       </>
     ),
   },
@@ -159,16 +153,7 @@ export default function PrivacyPage() {
           . See also the{" "}
           <Link href="/terms" className="text-accent underline underline-offset-4">
             terms
-          </Link>{" "}
-          and the{" "}
-          {claimPageLive() ? (
-            <Link href="/rewards" className="text-accent underline underline-offset-4">
-              claim page
-            </Link>
-          ) : (
-            <span className="text-text">claim page</span>
-          )}
-          .
+          </Link>.
         </p>
       </div>
     </main>

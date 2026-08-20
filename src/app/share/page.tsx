@@ -12,7 +12,6 @@ import {
 } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { googleConfigured } from "@/lib/google";
-import { REWARD } from "@/lib/rewards";
 
 export const metadata = {
   title: "Share",
@@ -53,7 +52,7 @@ export default async function SharePage() {
   const connected = Object.keys(profile!.sources).length > 0;
   const [tally, standing] = await Promise.all([
     referralTally(profile!.referralCode),
-    standingOf(profile!.id, REWARD.places),
+    standingOf(profile!.id, 50),
   ]);
 
   if (!connected) {

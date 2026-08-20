@@ -54,8 +54,6 @@ export type Profile = {
   referrals: number;
   /** Chosen by the person, shown on the standings. Absent until they pick one. */
   username?: string;
-  /** Set only when someone claims a reward share. Never asked for up front. */
-  payoutAddress?: string;
 };
 
 /**
@@ -1102,88 +1100,4 @@ export function evidenceOf(profile: Profile): Evidence {
     (all, record) => ({ ...all, ...record.evidence }),
     {},
   );
-}
-
-/**
- * The frozen winners list.
- *
- * Eligibility was decided at the final whistle, so it cannot be read from the
- * live ranking: that index keeps moving as people connect, and a person who
- * arrives next week would otherwise walk into a paying place they were never
- * in. The list is therefore snapshotted once, stored, and read from thereafter.
- *
- * Written by the admin page, deliberately, rather than computed on demand. A
- * payout list that silently recomputes itself is one that can quietly change
- * after people have been told where they stand.
- */
-const WINNERS_KEY = `${PREFIX}:winners:v1`;
-
-export type Winner = {
-  id: string;
-  rank: number;
-  points: number;
-  username?: string;
-};
-
-/** Freeze the current top `count` as the payout list. Overwrites any previous. */
-export async function snapshotWinners(
-  count: number,
-  rescore?: (evidence: Evidence) => number,
-): Promise<Winner[]> {
-  const rows = await standings(count, rescore);
-  const winners: Winner[] = rows.slice(0, count).map((row, index) => ({
-    id: row.id,
-    rank: index + 1,
-    points: row.points,
-    ...(row.username ? { username: row.username } : {}),
-  }));
-
-  await db().set(WINNERS_KEY, winners);
-  return winners;
-}
-
-/** The frozen list, or null when it has never been taken. */
-export async function winnersSnapshot(): Promise<Winner[] | null> {
-  const raw = await db().get(WINNERS_KEY);
-  if (!raw) return null;
-  return typeof raw === "string" ? (JSON.parse(raw) as Winner[]) : (raw as Winner[]);
-}
-
-/** This profile's place on the frozen list, or null when they did not qualify. */
-export async function winnerEntry(profileId: string): Promise<Winner | null> {
-  const winners = await winnersSnapshot();
-  if (!winners) return null;
-  return winners.find((w) => w.id === profileId) ?? null;
-}
-
-/**
- * A payout address is the only thing Patina ever asks for that could cost
- * somebody money, so it is validated to the shape of an EVM address and stored
- * against the profile rather than anywhere it could be confused for a login.
- * Nothing about it is public, and it is never shown on a card or an API.
- */
-export function payoutAddressProblem(address: string): string | null {
-  const trimmed = address.trim();
-  if (!trimmed) return "Paste your wallet address.";
-  if (!/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
-    return "That does not look like a wallet address. It should start 0x and be 42 characters.";
-  }
-  return null;
-}
-
-export async function setPayoutAddress(
-  profileId: string,
-  address: string,
-): Promise<{ ok: true; address: string } | { ok: false; reason: string }> {
-  const problem = payoutAddressProblem(address);
-  if (problem) return { ok: false, reason: problem };
-
-  const profile = await getProfile(profileId);
-  if (!profile) return { ok: false, reason: "No profile found for this browser." };
-
-  profile.payoutAddress = address.trim();
-  profile.updatedAt = new Date().toISOString();
-  await saveProfile(profile);
-
-  return { ok: true, address: profile.payoutAddress };
 }

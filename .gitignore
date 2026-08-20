@@ -20,6 +20,11 @@
 # production
 /build
 
+# database backups and the tooling that makes them. Real user data, never committed.
+/scripts/backup-*.mjs
+/backup-*.json
+/backup-*.csv
+
 # stray local scratch scripts
 .tmp-*
 

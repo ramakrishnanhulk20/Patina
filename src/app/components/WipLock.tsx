@@ -28,10 +28,15 @@ export function WipLock() {
       </div>
 
       <h1 className="relative max-w-md text-[clamp(1.75rem,5vw,2.35rem)] leading-[1.15] font-semibold tracking-tight text-text">
-        Work in progress
+        Under development
       </h1>
-      <p className="relative mt-4 max-w-sm text-[15px] leading-relaxed text-text-2">
-        We&apos;re paused while Vana finishes fixing profile connect. Check back soon.
+      <p className="relative mt-4 max-w-md text-[15px] leading-relaxed text-text-2">
+        Patina won the Vana Cup, and is being rebuilt on the back of it. This part of the site is
+        closed while that happens.
+      </p>
+      <p className="relative mt-3 max-w-md text-[15px] leading-relaxed text-text-3">
+        The home page is still up if you want to know what Patina is. Everything else will be back,
+        and better, shortly.
       </p>
 
       <WipUnlockForm />
