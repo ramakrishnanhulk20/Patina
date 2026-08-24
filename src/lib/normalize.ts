@@ -26,7 +26,7 @@
  * reason, which is exactly what we told people we would not do.
  */
 
-import type { Evidence, Months, SourceEvidence, SourceId } from "./score";
+import type { Evidence, Months, SourceEvidence, SourceId } from "./score.ts";
 
 type Json = Record<string, unknown>;
 

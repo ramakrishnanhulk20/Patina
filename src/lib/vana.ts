@@ -1,6 +1,6 @@
 import { createDirectDataController } from "@opendatalabs/vana-sdk/server";
-import { scopesFor, SOURCE_SPECS } from "./sources";
-import type { SourceId } from "./score";
+import { scopesFor, SOURCE_SPECS } from "./sources.ts";
+import type { SourceId } from "./score.ts";
 
 /**
  * Vana app identity and one controller per source.

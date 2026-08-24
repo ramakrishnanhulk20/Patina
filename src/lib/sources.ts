@@ -23,7 +23,7 @@
  * No SDK imports: this file is shared with client components.
  */
 
-import type { SourceId } from "./score";
+import type { SourceId } from "./score.ts";
 
 export type Maturity = "stable" | "beta" | "experimental";
 

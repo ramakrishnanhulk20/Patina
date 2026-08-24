@@ -13,9 +13,9 @@ import {
 } from "@opendatalabs/vana-sdk/server";
 import { CONTRACTS, createEscrowGatewayClient } from "@opendatalabs/vana-sdk";
 import { privateKeyToAccount } from "viem/accounts";
-import { controllerFor, env, network } from "./vana";
-import { scopesFor, SOURCE_SPECS } from "./sources";
-import type { SourceId } from "./score";
+import { controllerFor, env, network } from "./vana.ts";
+import { scopesFor, SOURCE_SPECS } from "./sources.ts";
+import type { SourceId } from "./score.ts";
 
 /**
  * Paid Personal Server reads, settled through the escrow gateway.
