@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SectionLabel } from "../components/SectionLabel";
-import { evidenceOf, profileByUsername } from "@/lib/store";
+import { evidenceOf, profileForUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildAttestation } from "@/lib/attest";
 
@@ -25,7 +25,7 @@ export default async function VerifyPage({
   const params = await searchParams;
   const username = (typeof params.u === "string" ? params.u : "").trim();
 
-  const profile = username ? await profileByUsername(username) : null;
+  const profile = username ? await profileForUsername(username) : null;
 
   const result =
     profile && profile.username

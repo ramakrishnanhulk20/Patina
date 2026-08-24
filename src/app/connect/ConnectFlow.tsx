@@ -3,100 +3,83 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScorePanel, type ScoreView } from "./ScorePanel";
 import { SourceCard } from "./SourceCard";
-import type { SourceSpec } from "@/lib/sources";
 import { ShareCard } from "./ShareCard";
-import { Identity } from "./Identity";
-import { SignInPrompt } from "./SignInPrompt";
+import { ClaimName } from "./ClaimName";
 import { NextApps } from "./NextApps";
 import { useConnect } from "./useConnect";
+import type { SourceSpec } from "@/lib/sources";
 import type { EcosystemApp } from "@/lib/ecosystem";
 
+type Connected = Record<string, { readAt: string; scopes: number }>;
+
 /**
- * The source worth connecting next.
+ * The source worth connecting next, and why.
  *
- * Age and Corroboration are 60% of the score, and on the web only YouTube and
- * GitHub carry an account-opened date, so an unconnected one of those wins.
- * After that any new source adds Breadth. Null once everything is connected.
+ * Age plus Continuity plus Corroboration is 70 of the 100 points, so an
+ * unconnected source that carries BOTH a date and per-item timestamps wins.
+ * GitHub and Steam carry the oldest dates; Spotify is the densest timestamp
+ * stream in the catalogue; LinkedIn is the only source of dated vouches. After
+ * those, any new source adds Breadth. Null once everything is connected.
  */
 function nextBestSource(
   connected: Set<string>,
   sources: SourceSpec[],
 ): { label: string; reason: string } | null {
-  const dated = sources.find(
-    (source) => (source.id === "youtube" || source.id === "github") && !connected.has(source.id),
-  );
-  if (dated) {
-    return { label: dated.label, reason: "it proves how far back you go, the biggest part of the score" };
+  const REASONS: Record<string, string> = {
+    github: "it proves how far back you go and how steadily you showed up, which is most of the score",
+    steam: "Steam accounts are usually the oldest thing anybody still has",
+    spotify: "every saved track is dated, which is the cheapest way to prove you were here throughout",
+    linkedin: "it is the only place that shows when other people chose to connect to you",
+  };
+
+  for (const id of ["github", "steam", "spotify", "linkedin"]) {
+    if (connected.has(id)) continue;
+    const source = sources.find((candidate) => candidate.id === id);
+    if (source) return { label: source.label, reason: REASONS[id] };
   }
+
   const other = sources.find((source) => !connected.has(source.id));
-  if (other) {
-    return { label: other.label, reason: "another independent account raises your breadth" };
-  }
-  return null;
+  return other
+    ? { label: other.label, reason: "another independent account raises your breadth" }
+    : null;
 }
 
 export function ConnectFlow({
-  sources,
+  core,
+  strengthen,
   initialScore,
-  initialReadAt,
-  referralCode,
-  referralCount,
-  promptForName,
-  initialSignedIn,
+  initialConnected,
   initialUsername,
-  loginAvailable,
-  loginError,
+  promptForName,
   nextApps,
 }: {
-  sources: SourceSpec[];
+  core: SourceSpec[];
+  strengthen: SourceSpec[];
   initialScore: ScoreView;
-  initialReadAt: Record<string, string>;
-  referralCode: string;
-  referralCount: number;
-  promptForName: boolean;
-  initialSignedIn: boolean;
+  initialConnected: Connected;
   initialUsername: string | null;
-  loginAvailable: boolean;
-  loginError: string | null;
-  /**
-   * The onward apps for the "counts double" panel. Fetched on the server
-   * unconditionally and handed down so the panel can appear the instant the
-   * first source lands, driven by client state, rather than only after a full
-   * page reload re-ran the server component. Empty when the Cup API is down.
-   */
+  promptForName: boolean;
   nextApps: EcosystemApp[];
 }) {
   const [score, setScore] = useState(initialScore);
-  const [readAt, setReadAt] = useState(initialReadAt);
-  const [invites, setInvites] = useState(referralCount);
-  // The profile does not exist until the first source lands, so the code is
-  // minted mid-session and has to be picked up on refresh rather than only
-  // arriving with the server render.
-  const [code, setCode] = useState(referralCode);
-  // Seeded from the server, NOT defaulted to false.
-  //
-  // These used to start as `false`/`null` and were only ever corrected inside
-  // refresh(), which nothing called on page load. So after signing in and being
-  // redirected back, the server knew who you were and the page still showed
-  // "Sign in" forever, because the client never asked.
-  const [signedIn, setSignedIn] = useState(initialSignedIn);
+  const [connected, setConnected] = useState(initialConnected);
   const [username, setUsername] = useState<string | null>(initialUsername);
-  const [points, setPoints] = useState(initialScore.total);
-  const [rank, setRank] = useState<number | null>(null);
-  const [totalScored, setTotalScored] = useState(0);
+  const [showStrengthen, setShowStrengthen] = useState(
+    () => strengthen.some((source) => initialConnected[source.id]),
+  );
 
   const refresh = useCallback(async () => {
     try {
       const next = await fetch("/api/patina/me").then((r) => r.json());
       setScore(next);
-      setReadAt(next.readAt ?? {});
-      if (typeof next.referralCount === "number") setInvites(next.referralCount);
-      if (typeof next.referralCode === "string") setCode(next.referralCode);
-      setSignedIn(Boolean(next.signedIn));
+      setConnected(
+        Object.fromEntries(
+          Object.entries((next.sources ?? {}) as Record<string, { readAt: string; scopes: string[] }>).map(
+            ([source, record]) => [source, { readAt: record.readAt, scopes: record.scopes.length }],
+          ),
+        ),
+      );
       setUsername(next.username ?? null);
-      setPoints(typeof next.points === "number" ? next.points : 0);
-      setRank(typeof next.rank === "number" ? next.rank : null);
-      setTotalScored(typeof next.totalScored === "number" ? next.totalScored : 0);
     } catch {
       // A failed refresh is cosmetic. The read already succeeded and is stored,
       // so a slightly stale number beats an error thrown at someone who just
@@ -104,13 +87,13 @@ export function ConnectFlow({
     }
   }, []);
 
-  // And confirm against the server once on mount. Belt and braces: the props
-  // above already render the right thing, and this means any future drift
-  // between server and client heals itself in a second instead of stranding
-  // somebody on a screen that is quietly wrong.
-  //
-  // Deferred by a tick so the state updates land in a normal event rather than
-  // synchronously during the effect, which would re-render before first paint.
+  /**
+   * Confirm against the server once on mount. The props above already render
+   * the right thing; this means any drift between server and client heals
+   * itself in a second instead of stranding somebody on a screen that is
+   * quietly wrong. Deferred by a tick so the state updates land in a normal
+   * event rather than synchronously during the effect.
+   */
   useEffect(() => {
     const id = setTimeout(() => void refresh(), 0);
     return () => clearTimeout(id);
@@ -118,9 +101,12 @@ export function ConnectFlow({
 
   const { phase, start, dismissError } = useConnect(refresh);
 
-  // A one-shot "this source just connected" flag, so its card can celebrate the
-  // moment rather than silently flipping to a connected state. Captured from the
-  // reading→idle transition (the success path; a failure lands on "error").
+  /**
+   * A one-shot "this source just connected" flag, so its card can celebrate the
+   * moment rather than silently flipping to a connected state. Captured from the
+   * reading to idle transition, which is the success path; a failure lands on
+   * "error" instead.
+   */
   const [justConnected, setJustConnected] = useState<string | null>(null);
   const readingSourceRef = useRef<string | null>(null);
   const prevPhaseTypeRef = useRef(phase.type);
@@ -134,6 +120,9 @@ export function ConnectFlow({
     if (prev === "reading" && phase.type === "idle" && readingSourceRef.current) {
       const done = readingSourceRef.current;
       setJustConnected(done);
+      // The first success is also the moment the rest of the manifest becomes
+      // worth showing: they have seen a number now, so the ask is cheaper.
+      setShowStrengthen(true);
       const timer = setTimeout(
         () => setJustConnected((current) => (current === done ? null : current)),
         1600,
@@ -145,195 +134,108 @@ export function ConnectFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase.type]);
 
-  const connectedCount = Object.keys(readAt).length;
-  const webSources = sources.filter((source) => source.kind !== "desktop");
-  const desktopSources = sources.filter((source) => source.kind === "desktop");
-  const connectedWeb = webSources.filter((source) => readAt[source.id]).length;
-  const webRemaining = webSources.length - connectedWeb;
-  const next = nextBestSource(new Set(Object.keys(readAt)), webSources);
-  const topPct =
-    rank !== null && totalScored >= 10
-      ? Math.max(1, Math.round((rank / totalScored) * 100))
-      : null;
+  const connectedIds = new Set(Object.keys(connected));
+  const coreConnected = core.filter((source) => connectedIds.has(source.id)).length;
+  const coreRemaining = core.length - coreConnected;
+  const next = nextBestSource(connectedIds, [...core, ...strengthen]);
+
+  const cardFor = (source: SourceSpec) => (
+    <SourceCard
+      key={source.id}
+      source={source}
+      connected={Boolean(connected[source.id])}
+      scopesRead={connected[source.id]?.scopes}
+      phase={phase}
+      onStart={start}
+      onDismissError={dismissError}
+      justConnected={justConnected === source.id}
+    />
+  );
 
   return (
-    <>
     <div className="grid gap-10 lg:grid-cols-[1fr_26rem] lg:items-start lg:gap-14">
       <div>
         <h1 className="t-section text-text">
-          {connectedWeb === 0
+          {connectedIds.size === 0
             ? "Start with one."
             : "Add another. It counts for more than you think."}
         </h1>
 
         <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
-          {connectedWeb === 0
+          {connectedIds.size === 0
             ? "Pick whichever you have had the longest. Age is what matters here, not how active you are."
-            : `Each account you add is independent proof, and the score weights that heavily. ${
-                webRemaining > 0
-                  ? `${webRemaining} left to go.`
-                  : "That is all of them. Nothing more to prove."
-              }`}
+            : coreRemaining > 0
+              ? `Each account you add is independent proof, and the score weights that heavily. ${coreRemaining} of the main four left.`
+              : "That is the main four. Anything below adds breadth on top."}
         </p>
 
-        <div className="mt-8">
-          {signedIn ? (
-            <Identity
-              signedIn={signedIn}
-              username={username}
-              promptForName={promptForName}
-              onNamed={refresh}
-            />
+        {/*
+          Connecting happens on a computer, full stop. Vana Desktop runs the
+          import, and it is what turns a claimed handle into a proven one. Said
+          once, up front, rather than as a per-card apology.
+        */}
+        {connectedIds.size === 0 && (
+          <div className="mt-6 border-l-2 border-accent/40 bg-panel py-3 pl-4 pr-4">
+            <p className="text-sm leading-relaxed text-text-2">
+              You will need <strong className="text-text">Vana Desktop</strong> on this computer.
+              It signs you in to each account on your own machine, which is what proves the account
+              is yours. Patina never sees a password, and Vana offers the download when you connect
+              your first source.
+            </p>
+          </div>
+        )}
+
+        {next && connectedIds.size > 0 && (
+          <p className="mt-6 text-sm leading-relaxed text-text-3">
+            Next best: <strong className="text-text-2">{next.label}</strong>, because {next.reason}.
+          </p>
+        )}
+
+        <div className="mt-8 grid gap-4">{core.map(cardFor)}</div>
+
+        <div className="mt-10">
+          {showStrengthen ? (
+            <>
+              <h2 className="t-label text-text-3">Strengthen it</h2>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-3">
+                Six more, each an independent record of ordinary time passing. None of them are
+                required, and every one of them makes the score harder to fake.
+              </p>
+              <div className="mt-5 grid gap-4">{strengthen.map(cardFor)}</div>
+            </>
           ) : (
-            <SignInPrompt
-              loginAvailable={loginAvailable}
-              connected={connectedCount > 0}
-              loginError={loginError}
-            />
+            <button
+              type="button"
+              onClick={() => setShowStrengthen(true)}
+              className="tap t-label text-text-3 underline-offset-4 hover:text-text hover:underline"
+            >
+              Show {strengthen.length} more sources
+            </button>
           )}
         </div>
 
-        {/*
-          Progress, the best next move, and where they stand, the three things
-          that pull somebody from one connected source to a full profile, which
-          is what the score and the leaderboard both reward.
-        */}
-        {connectedCount > 0 && (
-          <div className="raise mt-6 border border-line bg-panel p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="t-label text-text-3">
-                {connectedWeb} of {webSources.length} connected
-              </span>
-              {rank !== null && (
-                <span className="t-label text-text-3">
-                  #{rank}
-                  {topPct !== null && <span className="text-accent"> · top {topPct}%</span>}
-                </span>
-              )}
-            </div>
-
-            <div className="mt-3 flex gap-1.5" aria-hidden="true">
-              {webSources.map((source) => (
-                <span
-                  key={source.id}
-                  className={`h-1.5 flex-1 rounded-full ${
-                    readAt[source.id] ? "bg-accent" : "bg-line-strong"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {next && (
-              <p className="mt-3 text-sm leading-relaxed text-text-2">
-                Best next: <span className="font-medium text-text">{next.label}</span>, {next.reason}.
-              </p>
-            )}
-
-            {rank !== null && (
-              <p className="mt-2 text-sm leading-relaxed text-text-3">
-                Every real person you bring adds 10 points and moves you up.
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 space-y-3">
-          {webSources.map((source) => (
-            <SourceCard
-              key={source.id}
-              source={source}
-              connected={Boolean(readAt[source.id])}
-              locked={false}
-              phase={phase}
-              onStart={start}
-              onDismissError={dismissError}
-              justConnected={justConnected === source.id}
-            />
-          ))}
-        </div>
-
-        <p className="mt-8 max-w-xl text-sm leading-relaxed text-text-3">
-          Each source is approved separately, because Vana asks for one at a time. Approving opens a
-          Vana tab, enter your profile there, approve, and keep both tabs open until it says
-          connected. That tab hands the data over; this one collects it. We never see a password,
-          and you can revoke access from your Vana account whenever you want.
-        </p>
-
-        {/*
-          Desktop connectors, in their own section. They need Vana's DataConnect
-          app on a computer, so on a phone they are shown but not tappable (the
-          connect button hides below sm). They score exactly like the web ones.
-        */}
-        {desktopSources.length > 0 && (
-          <div className="mt-12 border-t border-line pt-8">
-            <h2 className="text-xl font-semibold tracking-tight text-text">Coming soon: more sources</h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-text-2">
-              More are on the way through Vana, years of orders, rides, and games, all of it deep,
-              timestamped history. Vana is still rolling them out; the moment they are available, you
-              will be able to connect them here, and they will count toward your score like the rest.
-            </p>
-
-            <div className="mt-5 space-y-3">
-              {desktopSources.map((source) => (
-                <SourceCard
-                  key={source.id}
-                  source={source}
-                  connected={Boolean(readAt[source.id])}
-                  locked={false}
-                  phase={phase}
-                  onStart={start}
-                  onDismissError={dismissError}
-                  justConnected={justConnected === source.id}
-                />
-              ))}
-            </div>
+        {connectedIds.size > 0 && nextApps.length > 0 && (
+          <div className="mt-14">
+            <NextApps apps={nextApps} />
           </div>
         )}
       </div>
 
-      <div className="space-y-4 lg:sticky lg:top-20">
-        {/*
-          The story now lives INSIDE the score card (see ScorePanel), directly
-          under the plate, so the card carries both the number and the way into
-          the story rather than the two sitting apart.
-        */}
-        <ScorePanel score={score} username={username} rank={rank} totalScored={totalScored} />
+      <aside className="grid gap-6 lg:sticky lg:top-24">
+        <ScorePanel score={score} username={username} />
 
-        {connectedCount > 0 && (
-          <>
-            <p className="text-sm leading-relaxed text-text-3">
-              This is a snapshot taken when you connected, not a live reading, because Vana gives an
-              app one look at each source.
-            </p>
-            {/*
-              One share surface, at every width. The card used to be desktop
-              only, with a second full-width button below it standing in on
-              phones, which meant two "Share your card" controls stacked on the
-              same page whenever both happened to render.
-            */}
-            {code && username && (
-              <ShareCard
-                score={score}
-                referralCode={code}
-                referralCount={invites}
-                username={username}
-                points={points}
-                rank={rank}
-              />
-            )}
-          </>
+        {connectedIds.size > 0 && (
+          <ClaimName
+            username={username}
+            promptForName={promptForName}
+            provisional={score.provisional}
+            provisionalReason={score.provisionalReason}
+            onNamed={refresh}
+          />
         )}
-      </div>
+
+        {username && !score.provisional && <ShareCard score={score} username={username} />}
+      </aside>
     </div>
-
-    {/*
-      The highest-leverage move, and now it appears the moment the first source
-      lands. It used to be rendered by the server page from a connected-at-load
-      snapshot, so it only showed up after a manual refresh; keying it off the
-      live connected count fixes that on phone and desktop alike. `nextApps` is
-      already fetched server-side, so there is nothing to load here.
-    */}
-    {connectedCount > 0 && nextApps.length > 0 && <NextApps apps={nextApps} />}
-    </>
   );
 }

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import type { ScoreView } from "./ScorePanel";
-import { POINTS_PER_REFERRAL } from "@/lib/points";
 
 /** The origin never changes, so there is nothing to subscribe to. */
 const noSubscribe = () => () => {};
@@ -39,18 +38,9 @@ function shareText(score: ScoreView): string {
 
 export function ShareCard({
   score,
-  referralCode,
-  referralCount,
   username,
-  points,
-  rank,
 }: {
   score: ScoreView;
-  referralCode: string;
-  referralCount: number;
-  /** Leaderboard points: the Patina score plus what they have brought in. */
-  points: number;
-  rank: number | null;
   /** Needed for the card link. Without a name there is no public page to share. */
   username: string | null;
 }) {
@@ -75,19 +65,12 @@ export function ShareCard({
   );
 
   /**
-   * One link, doing both jobs.
+   * One link: the person's own page.
    *
-   * It opens the person's card, which is the thing worth looking at, and it
-   * carries their referral code, which is what earns them 10 leaderboard points
-   * when the invitee clears the bar. A separate "invite link" was one link too
-   * many: people posted the wrong one.
+   * It used to carry a referral code as well, for a competition that has ended.
+   * A plain link is what people expected to be copying anyway.
    */
-  const link =
-    origin && username
-      ? `${origin}/u/${encodeURIComponent(username)}?r=${referralCode}`
-      : origin
-        ? `${origin}/?r=${referralCode}`
-        : "";
+  const link = origin && username ? `${origin}/u/${encodeURIComponent(username)}` : "";
 
   const text = useMemo(() => shareText(score), [score]);
   const payload = link ? `${text}\n\n${link}` : "";
@@ -151,31 +134,9 @@ export function ShareCard({
       <p className="t-label text-text-3">Share your card</p>
 
       <p className="mt-3 text-sm leading-relaxed text-text-2">
-        Your card shows how far back you go. Every real person who opens it and connects adds{" "}
-        {POINTS_PER_REFERRAL} points to your total.
+        Your card shows how far back you go, and anyone can check it without taking your word for
+        it.
       </p>
-
-      <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line">
-        <div className="bg-bg p-4">
-          <p className="t-label text-text-3">Your points</p>
-          <p className="t-mono mt-1.5 text-3xl text-accent">{points}</p>
-          <p className="mt-1 text-xs leading-relaxed text-text-3">
-            score {score.total}
-            {referralCount > 0
-              ? ` + ${referralCount * POINTS_PER_REFERRAL} from ${referralCount === 1 ? "1 person" : `${referralCount} people`}`
-              : " · bring people to rise"}
-          </p>
-        </div>
-        <div className="bg-bg p-4">
-          <p className="t-label text-text-3">Rank</p>
-          <p className={`t-mono mt-1.5 ${rank !== null ? "text-3xl text-text" : "text-xl text-text-4"}`}>
-            {rank !== null ? `#${rank}` : "Unranked"}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-text-3">
-            each real person you bring = +{POINTS_PER_REFERRAL} points
-          </p>
-        </div>
-      </div>
 
       {!username && (
         <p className="mt-4 border border-warn/40 bg-warn/5 p-3 text-sm leading-relaxed text-warn">

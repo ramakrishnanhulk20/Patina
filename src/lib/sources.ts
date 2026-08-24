@@ -25,6 +25,9 @@
 
 import type { SourceId } from "./score.ts";
 
+/** Re-exported so client components can reach it without importing the scorer. */
+export type { SourceId };
+
 export type Maturity = "stable" | "beta" | "experimental";
 
 export type ScopeSpec = {

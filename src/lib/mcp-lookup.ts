@@ -14,7 +14,7 @@
  * Nothing here writes. Every export is a read.
  */
 
-import { evidenceOf, getProfile, profileByUsername, profilesClaiming } from "./store.ts";
+import { evidenceOf, getProfile, profileForUsername, profilesClaiming } from "./store.ts";
 import { scorePatina, verdict, type SourceId } from "./score.ts";
 import { attestationSigner, buildAttestation } from "./attest.ts";
 import { PATINA_APP_ADDRESS } from "./patina-address.ts";
@@ -242,7 +242,7 @@ export async function lookupByUsername(rawUsername: string): Promise<ProfileLook
   const hit = cached(key);
   if (hit) return hit;
 
-  const profile = await profileByUsername(username);
+  const profile = await profileForUsername(username);
 
   // A profile with no username has not chosen to be public, so it is not
   // reachable here even if it exists under some other key.

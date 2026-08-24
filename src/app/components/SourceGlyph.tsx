@@ -19,7 +19,14 @@ import type { SourceId } from "@/lib/sources";
  */
 type Glyph = { viewBox: string; path: string };
 
-const GLYPHS: Record<SourceId, Glyph> = {
+/**
+ * Partial on purpose. DoorDash and Shop have no mark here because accurate
+ * path data for them was not to hand, and a wrong path renders as a smear
+ * rather than as nothing. Those two fall back to a lettered tile, which is
+ * honest, keeps the row aligned, and is trivially replaced the moment the real
+ * glyph is added.
+ */
+const GLYPHS: Partial<Record<SourceId, Glyph>> = {
   youtube: {
     viewBox: "0 0 24 24",
     path: "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z",
@@ -66,7 +73,6 @@ export function SourceGlyph({
   muted?: boolean;
 }) {
   const glyph = GLYPHS[id];
-  if (!glyph) return null;
 
   return (
     <span
@@ -78,9 +84,15 @@ export function SourceGlyph({
             : "border-line bg-panel-2 text-text-2"
       }`}
     >
-      <svg viewBox={glyph.viewBox} className="h-5 w-5" fill="currentColor" aria-hidden="true">
-        <path d={glyph.path} />
-      </svg>
+      {glyph ? (
+        <svg viewBox={glyph.viewBox} className="h-5 w-5" fill="currentColor" aria-hidden="true">
+          <path d={glyph.path} />
+        </svg>
+      ) : (
+        <span className="text-sm font-semibold uppercase" aria-hidden="true">
+          {id.slice(0, 2)}
+        </span>
+      )}
     </span>
   );
 }

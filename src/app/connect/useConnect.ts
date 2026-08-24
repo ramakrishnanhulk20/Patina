@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDirectVanaConnect } from "@opendatalabs/vana-sdk/react";
-import { REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/referral";
 
 /**
  * The connect flow. TWO TABS, and it has to be.
@@ -68,7 +67,7 @@ async function jsonFetch(path: string, init?: RequestInit) {
  * it back up. Keyed once (there is only ever one connect at a time) and stamped
  * so a stale entry cannot trigger a resume long after the fact.
  */
-const PENDING_KEY = "patina:v1:connect-pending";
+const PENDING_KEY = "patina:v2:connect-pending";
 /** Ignore a stored request older than the flow's own timeout: it cannot succeed. */
 const RESUME_TTL_MS = 6 * 60 * 1000;
 /** How long a resumed read waits for approval, then the data, before giving up. */
@@ -109,22 +108,6 @@ function clearPending(): void {
     window.localStorage.removeItem(PENDING_KEY);
   } catch {
     // Ignore: see savePending.
-  }
-}
-
-/**
- * The referral code this browser arrived with, mirrored from the URL into
- * localStorage by ReferralCapture. Sent explicitly with the connect request so
- * the credit does not hinge on the httpOnly cookie, which some mobile in-app
- * browsers drop across the Vana approval round trip. Undefined when there was no
- * referral, or when storage is unavailable, and the server then falls back to
- * the cookie exactly as before.
- */
-function readStoredReferral(): string | undefined {
-  try {
-    return normalizeReferralCode(window.localStorage.getItem(REFERRAL_STORAGE_KEY));
-  } catch {
-    return undefined;
   }
 }
 
@@ -230,11 +213,7 @@ export function useConnect(onConnected: () => void | Promise<void>) {
       // connection. The approval tab is already open by the time the SDK calls
       // this, so the sub-second solve is masked by the tab loading Vana.
       const altcha = await solveAltcha();
-      // Carry the referral code on the request itself, so a phone that never
-      // handed the cookie back still credits the person who shared the link.
       const params = new URLSearchParams({ source: sourceRef.current ?? "" });
-      const ref = readStoredReferral();
-      if (ref) params.set("ref", ref);
       return jsonFetch(`/api/vana/request?${params.toString()}`, {
         method: "POST",
         headers: altcha ? { "x-altcha": altcha } : undefined,

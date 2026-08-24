@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { evidenceOf, profileByUsername } from "@/lib/store";
+import { evidenceOf, profileForUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildStory } from "@/lib/story";
 import { StoryView } from "./StoryView";
@@ -20,7 +20,7 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  const profile = await profileByUsername(decodeURIComponent(username));
+  const profile = await profileForUsername(decodeURIComponent(username));
   if (!profile) return { title: "Not found" };
 
   const score = scorePatina(evidenceOf(profile));
@@ -45,12 +45,12 @@ export default async function StoryPage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const profile = await profileByUsername(decodeURIComponent(username));
+  const profile = await profileForUsername(decodeURIComponent(username));
   if (!profile) notFound();
 
   const evidence = evidenceOf(profile);
   const score = scorePatina(evidence);
-  const story = buildStory(evidence, score, verdict(score));
+  const story = buildStory(evidence, score);
 
   return <StoryView username={profile.username ?? "anonymous"} story={story} />;
 }

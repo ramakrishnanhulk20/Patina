@@ -12,33 +12,28 @@ export type ScoreView = {
   components: Component[];
   oldestSignal: { date: string; years: number; source: string } | null;
   sourcesConnected: string[];
+  /** Below the signing floor: a real number, but no credential behind it yet. */
+  provisional: boolean;
+  provisionalReason: string | null;
 };
 
 export function ScorePanel({
   score,
   username,
-  rank = null,
-  totalScored = 0,
 }: {
   score: ScoreView;
   /** Printed on the card. Falls back to a friendly placeholder before naming. */
   username?: string | null;
-  /** Leaderboard position, if known. Turns into the "Top X%" standing. */
-  rank?: number | null;
-  /** Size of the field the rank sits in; the percentile is meaningless below a floor. */
-  totalScored?: number;
 }) {
   const empty = score.sourcesConnected.length === 0;
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const name = username && username.trim() ? username : "you";
-  // Standing as a percentile, but only once the field is big enough for it to
-  // mean anything. This is leaderboard position (score + people brought), so it
-  // is labelled "Standing", never conflated with the age claim.
-  const topPct =
-    rank !== null && totalScored >= 10
-      ? Math.max(1, Math.round((rank / totalScored) * 100))
-      : null;
+  // The leaderboard is gone with the competition, so there is no standing to
+  // show. The percentile it used to render was a contest position, never a
+  // statement about the person's history, and conflating the two would have
+  // been the wrong thing to keep.
+  const topPct = null;
 
   return (
     <div className="surface">

@@ -105,51 +105,68 @@ export function StoryView({ username, story }: { username: string; story: Story 
       )}
 
       {/* ---------------------------------------------------------- year chart */}
-      {story.postsByYear && (
+      {story.activityByYear.length > 1 && (
         <Section motion={motion}>
           <p className="t-label text-text-3">Year by year</p>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-text-2">
-            Every bar is a year you showed up and left something behind.
+            Every bar is a year you showed up and left something behind, across all of it at once.
+            The short ones count too: {story.activeMonths} separate months with something in them is
+            the part nobody can buy.
           </p>
-          <YearChart data={story.postsByYear} motion={motion} />
+          <YearChart data={story.activityByYear} motion={motion} />
         </Section>
       )}
 
       {/* ---------------------------------------------------------------- made */}
-      {story.made.total > 0 && (
+      {story.madeTotal > 0 && (
         <Section motion={motion}>
           <p className="t-label text-text-3">What you left behind</p>
           <p className="mt-6 flex flex-wrap items-baseline gap-x-4">
             <span className="t-display text-accent">
-              <CountUp value={story.made.total} motion={motion} />
+              <CountUp value={story.madeTotal} motion={motion} />
             </span>
             <span className="text-lg text-text-2">things anyone can still go and look at</span>
           </p>
 
           <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3">
-            {story.made.posts > 0 && <Made label="posts" value={story.made.posts} motion={motion} />}
-            {story.made.videos > 0 && <Made label="videos" value={story.made.videos} motion={motion} />}
-            {story.made.repos > 0 && <Made label="repositories" value={story.made.repos} motion={motion} />}
+            {story.made.map((kind) => (
+              <Made key={kind.label} label={kind.label} value={kind.count} motion={motion} />
+            ))}
           </div>
         </Section>
       )}
 
       {/* --------------------------------------------------------------- reach */}
-      {(story.reach > 0 || story.vouches > 0) && (
+      {(story.reach > 0 || story.vouchTotal > 0) && (
         <Section motion={motion}>
           <p className="t-label text-text-3">Who gathered round</p>
-          {story.reach > 0 && (
-            <p className="mt-6 flex flex-wrap items-baseline gap-x-4">
-              <span className="t-display text-text">
-                <CountUp value={story.reach} motion={motion} />
-              </span>
-              <span className="text-lg text-text-2">follow the trail you left</span>
-            </p>
+
+          {/*
+            The vouches lead, not the follower count. Followers are the most
+            purchasable number on the internet; a connection with a DATE on it
+            required another person to act, at a moment that has already passed.
+          */}
+          {story.vouchTotal > 0 && (
+            <>
+              <p className="mt-6 flex flex-wrap items-baseline gap-x-4">
+                <span className="t-display text-accent">
+                  <CountUp value={story.vouchTotal} motion={motion} />
+                </span>
+                <span className="text-lg text-text-2">people chose to connect to you</span>
+              </p>
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
+                Not all at once, which is the point. They arrived across{" "}
+                {story.vouchesByYear.length} years, each one a decision somebody made on a day that
+                has already happened.
+              </p>
+              <YearChart data={story.vouchesByYear} motion={motion} />
+            </>
           )}
-          {story.vouches > 0 && (
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-2">
-              And {story.vouches} time{story.vouches === 1 ? "" : "s"} an organisation or a badge
-              said, in effect, that you were real, the kind of thing somebody else has to grant you.
+
+          {story.reach > 0 && (
+            <p className="mt-8 text-sm leading-relaxed text-text-3">
+              {story.reach.toLocaleString()} follow you across everything, for what it is worth.
+              Patina counts that for very little: followers are the one thing here you can buy.
             </p>
           )}
         </Section>

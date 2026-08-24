@@ -4,7 +4,7 @@ import { Geist, Geist_Mono, Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteChrome } from "./components/SiteChrome";
 import { SmoothScroll } from "./components/SmoothScroll";
-import { ReferralCapture } from "./components/ReferralCapture";
+
 import { SITE_URL } from "@/lib/site";
 import { isWipLocked } from "@/lib/wip-server";
 
@@ -110,7 +110,7 @@ export default async function RootLayout({
           />
         </noscript>
         <SmoothScroll />
-        <ReferralCapture />
+
         <SiteChrome locked={locked}>{children}</SiteChrome>
       </body>
     </html>

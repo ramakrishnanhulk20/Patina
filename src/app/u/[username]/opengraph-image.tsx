@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { evidenceOf, profileByUsername } from "@/lib/store";
+import { evidenceOf, profileForUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { SITE_URL } from "@/lib/site";
 
@@ -28,7 +28,7 @@ const FAINT = "#4B504B";
  */
 export default async function Image({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const profile = await profileByUsername(decodeURIComponent(username));
+  const profile = await profileForUsername(decodeURIComponent(username));
 
   const score = profile ? scorePatina(evidenceOf(profile)) : scorePatina({});
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;

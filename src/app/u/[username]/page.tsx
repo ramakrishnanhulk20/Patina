@@ -6,7 +6,7 @@ import { PlateCard } from "../../components/PlateCard";
 import { SaveCard } from "./SaveCard";
 import { SignedProof } from "./SignedProof";
 import { DigitalRings } from "../../components/DigitalRings";
-import { evidenceOf, profileByUsername } from "@/lib/store";
+import { evidenceOf, profileForUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildAttestation } from "@/lib/attest";
 import { siteUrl } from "@/lib/site";
@@ -26,7 +26,7 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  const profile = await profileByUsername(decodeURIComponent(username));
+  const profile = await profileForUsername(decodeURIComponent(username));
   if (!profile) return { title: "Not found" };
 
   const score = scorePatina(evidenceOf(profile));
@@ -51,7 +51,7 @@ export default async function ProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const profile = await profileByUsername(decodeURIComponent(username));
+  const profile = await profileForUsername(decodeURIComponent(username));
   if (!profile) notFound();
 
   const score = scorePatina(evidenceOf(profile));
