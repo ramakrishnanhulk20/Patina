@@ -13,15 +13,20 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     body: (
       <ul className="mt-3 space-y-3">
         <li>
-          <strong className="text-text">A Google account id</strong>, when you sign in, a
-          random-looking identifier Google gives us, so your score is the same on every device. Not
-          your email, not your name.
+          <strong className="text-text">A scrambled fingerprint of your Vana Personal Server</strong>
+          , so your score is the same on every computer you connect from. It is a one-way hash: we
+          cannot turn it back into an address, and it is not your email or your name. There is no
+          sign-in to Patina at all.
         </li>
         <li>
-          <strong className="text-text">A few signals from each source you connect</strong>: the date
-          the account was opened, public counts like posts or followers, and the handle or channel id
-          that account is known by, plus the score worked out from them. Not your posts, not your
-          messages, not the contents of the account.
+          <strong className="text-text">Dates and counts from each source you connect</strong>: the
+          month things happened in, how many there were, and the handle that account is known by,
+          plus the score worked out from them. Never your posts, your messages, your captions, your
+          addresses, the names of people you know, or the contents of the account.{" "}
+          <Link href="/how-it-works" className="text-accent underline underline-offset-4">
+            The full list, source by source
+          </Link>
+          .
         </li>
         <li>
           <strong className="text-text">A small cookie</strong>, so you can come back and find your
@@ -34,9 +39,12 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     heading: "What we never collect",
     body: (
       <>
-        Your passwords, we never see them, because approval happens inside your own Vana account. Your
-        email or name. And the actual contents of your accounts: Patina reads the shape of your
-        history, not what is in it.
+        Your passwords. Signing in happens inside Vana Desktop, in a browser window on your own
+        computer, and nothing about it reaches us. Your email or your name. And the actual contents
+        of your accounts: Patina reads the shape of your history, not what is in it. Where a source
+        hands over something we did not ask for, an email address on a YouTube profile, the names of
+        everyone who liked a post, the address a car picked you up from, it is dropped before
+        anything is written down.
       </>
     ),
   },

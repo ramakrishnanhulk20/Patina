@@ -68,9 +68,12 @@ const ITEMS: Item[] = [
   { href: "/", label: "Home", icon: Rings },
   { href: "/connect", label: "Connect", icon: Plug },
   { href: "/verify", label: "Verify", icon: Shield },
-  // Developer docs. Desktop header only: it is for people integrating Patina,
-  // not a core end-user action, and a sixth tab would crowd the phone bottom bar
-  // (it stays reachable there from the footer). See the mobile filter below.
+  // The two reference pages, split by who is reading. "How it works" is for the
+  // person being scored: what is read from each account and what survives.
+  // "Docs" is for the app doing the checking. Both are desktop header only,
+  // because neither is a core end-user action and extra tabs would crowd the
+  // phone bottom bar (they stay reachable there from the footer).
+  { href: "/how-it-works", label: "How it works", icon: Rings, desktopOnly: true },
   { href: "/docs", label: "Docs", icon: Doc, desktopOnly: true },
 ];
 

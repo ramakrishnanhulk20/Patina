@@ -13,18 +13,25 @@ const APP_ADDRESS = PATINA_APP_ADDRESS;
 
 const EXAMPLE_RESPONSE = `{
   "username": "alice",
-  "score": 83,
-  "verdict": "Deeply worn in",
-  "oldestYear": 2013,
-  "sourcesConnected": ["youtube", "github", "linkedin", "spotify"],
+  "score": 71,
+  "verdict": "Well established",
+  "oldestYear": 2012,
+  "yearsOfHistory": 14.2,
+  "sourcesConnected": ["github", "steam", "spotify"],
   "components": [
-    { "key": "age", "label": "Age", "points": 38.4, "max": 40, "detail": "..." },
-    { "key": "corroboration", "label": "Corroboration", "points": 17, "max": 20, "detail": "..." }
+    { "key": "age", "label": "Age", "points": 30, "max": 30, "detail": "..." },
+    { "key": "continuity", "label": "Continuity", "points": 19.6, "max": 25, "detail": "..." },
+    { "key": "corroboration", "label": "Corroboration", "points": 15, "max": 15, "detail": "..." },
+    { "key": "vouches", "label": "Vouches", "points": 0.7, "max": 12, "detail": "..." },
+    { "key": "depth", "label": "Depth", "points": 7.2, "max": 10, "detail": "..." },
+    { "key": "breadth", "label": "Breadth", "points": 3.6, "max": 8, "detail": "..." }
   ],
-  "issuedAt": "2026-08-01T12:00:00.000Z",
+  "provisional": false,
+  "provisionalReason": null,
+  "issuedAt": "2026-08-24T12:00:00.000Z",
   "attestation": {
     "app": "${APP_ADDRESS}",
-    "message": "Patina score attestation\\n\\nusername: alice\\nscore: 83/100\\n...",
+    "message": "Patina score attestation\\n\\nusername: alice\\nscore: 71/100\\n...",
     "signature": "0x…",
     "howToVerify": "Recover the EIP-191 signer of \`message\` from \`signature\`; it equals \`app\`."
   }
@@ -48,21 +55,32 @@ const ETHERS_SNIPPET = `import { verifyMessage } from "ethers";
 const signer = verifyMessage(attestation.message, attestation.signature);
 const genuine = signer.toLowerCase() === attestation.app.toLowerCase();`;
 
+/**
+ * No published prices, deliberately.
+ *
+ * Patina costs real money to run: every source read settles a fee against the
+ * app's escrow. But putting a per-verification number on this page before a
+ * single buyer conversation is how you pick the wrong one and then have to
+ * defend it. Free with honest limits, and a way to reach us, until somebody
+ * tells us what volume actually looks like.
+ */
 const PRICING = [
   {
     name: "Personal",
     price: "Free",
-    detail: "Your own score, card and story. No wallet, no card, free for good.",
+    detail: "Your own score, page and story. No wallet, no card, free for good.",
   },
   {
     name: "Developer",
-    price: "Free to start",
-    detail: "Read any public score. No key, CORS-open, generous limits while you build.",
+    price: "Free",
+    detail:
+      "Read any public score and every MCP tool. No key, CORS-open, rate limited only enough to stop a script.",
   },
   {
-    name: "Business",
-    price: "Usage-based",
-    detail: "Volume reads, uptime commitments and support. Talk to us when you scale.",
+    name: "Volume",
+    price: "Talk to us",
+    detail:
+      "Higher limits, uptime commitments and integration help. We would rather hear what you need than guess at a price.",
   },
 ];
 
@@ -85,6 +103,15 @@ export default function DocsPage() {
         Patina turns the history in accounts a person already owns into a score out of 100, high only
         when there are real years of history behind it. You can read that score, signed and verifiable,
         for anyone with a public Patina profile. No API key, no OAuth, one GET.
+      </p>
+
+      <p className="mt-4 leading-relaxed text-text-2">
+        Being scored rather than doing the checking?{" "}
+        <Link href="/how-it-works" className="text-accent underline underline-offset-4">
+          How it works
+        </Link>{" "}
+        is the page for you: what is read from each account, what survives, and what the number
+        means.
       </p>
 
       <section className="mt-12">
@@ -178,11 +205,12 @@ export default function DocsPage() {
           <div>
             <dt className="font-semibold text-text">score</dt>
             <dd className="mt-1 leading-relaxed">
-              0–100. Age and corroboration (whether independent sources agree on how far back you go)
-              are 60 of it; depth, standing and breadth make up the rest and only count when real
-              history backs them.{" "}
-              <Link href="/" className="text-accent underline underline-offset-4">
-                The full model is on the home page
+              0–100. Age (30), Continuity (25) and Corroboration (15) are the time signals and are
+              earned outright. Vouches (12), Depth (10) and Breadth (8) are gated behind them,
+              because volume and followers can be manufactured in an afternoon and elapsed years
+              cannot.{" "}
+              <Link href="/how-it-works" className="text-accent underline underline-offset-4">
+                The full model, component by component
               </Link>
               .
             </dd>
@@ -195,9 +223,21 @@ export default function DocsPage() {
             </dd>
           </div>
           <div>
+            <dt className="font-semibold text-text">provisional</dt>
+            <dd className="mt-1 leading-relaxed">
+              True when the profile is below the signing floor: fewer than three connected sources,
+              or fewer than two carrying a date. The score is still computed honestly and{" "}
+              <code className="t-mono text-[0.9em] text-text">attestation</code> is null. Read it as{" "}
+              <em className="not-italic text-text">not enough evidence either way</em>, never as
+              grounds for suspicion, and do not use a provisional score as a trust gate on its own.
+            </dd>
+          </div>
+          <div>
             <dt className="font-semibold text-text">oldestYear</dt>
             <dd className="mt-1 leading-relaxed">
-              The earliest year Patina can prove across every connected source, or null.
+              The earliest year Patina can prove across every connected source, or null. Paired with{" "}
+              <code className="t-mono text-[0.9em] text-text">yearsOfHistory</code>, the same span to
+              one decimal, which is usually the number you actually want to threshold on.
             </dd>
           </div>
           <div>

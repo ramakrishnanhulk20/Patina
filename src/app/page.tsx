@@ -36,21 +36,24 @@ function Photo({
   );
 }
 
-function Phone({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
+/**
+ * A desktop window, not a phone.
+ *
+ * These were phone mockups, from when Patina read public pages and the whole
+ * flow fitted on a handset. Collection now runs through Vana Desktop, which
+ * signs you in on your own machine, and a phone cannot do it at all. Showing a
+ * handset here would promise the one thing the product no longer does.
+ */
+function Window({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[16.5rem] rounded-[2.6rem] bg-[#080c0a] p-2 shadow-[0_40px_70px_-30px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/10">
-      <div className="relative flex aspect-[9/19.2] flex-col overflow-hidden rounded-[2.2rem] bg-panel">
-        <div aria-hidden="true" className="absolute left-1/2 top-3 z-10 h-4 w-[4.4rem] -translate-x-1/2 rounded-full bg-[#080c0a]" />
-        <div className="flex items-center justify-between px-4 pb-1 pt-3 text-[0.62rem] font-bold text-text">
-          <span>9:41</span>
-          <span className="flex items-end gap-[2px]" aria-hidden="true">
-            <span className="h-[5px] w-[3px] rounded-[1px] bg-text" />
-            <span className="h-[7px] w-[3px] rounded-[1px] bg-text" />
-            <span className="h-[9px] w-[3px] rounded-[1px] bg-text" />
-            <span className="h-[11px] w-[3px] rounded-[1px] bg-text" />
-          </span>
-        </div>
-        <div className="flex flex-col gap-0.5 border-b border-line px-4 pb-2 pt-1.5">
+    <div className="mx-auto w-full max-w-[21rem] overflow-hidden rounded-xl bg-[#080c0a] shadow-[0_40px_70px_-30px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/10">
+      <div className="flex items-center gap-1.5 px-3.5 py-2.5">
+        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-white/15" />
+        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-white/15" />
+        <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-white/15" />
+      </div>
+      <div className="flex aspect-[4/3.4] flex-col overflow-hidden bg-panel">
+        <div className="flex flex-col gap-0.5 border-b border-line px-4 pb-2.5 pt-3">
           <span className="text-[0.86rem] font-bold tracking-tight text-text">{title}</span>
           <span className="text-[0.6rem] text-text-4">{sub}</span>
         </div>
@@ -157,12 +160,16 @@ const LIMITS = [
 
 const FAQ = [
   {
+    q: "Why does this need a computer now?",
+    a: "Because typing a username proves nothing. The old version read public pages, which meant anybody could enter anybody's handle. Now you sign in to each account through Vana Desktop, in a browser window on your own machine, and that is what proves the account is actually yours. It is a slower start and a far stronger claim at the end of it.",
+  },
+  {
     q: "Do you see my password?",
-    a: "Never. Patina never receives credentials for any account. Your data sits in your own Personal Server on Vana, and we read one approved scope from it, a permission you can revoke at any point.",
+    a: "Never. The sign-in happens inside Vana Desktop on your computer and nothing about it reaches us. Patina holds no credentials and no tokens, and cannot sign in as you afterwards. What we read is the data your own Personal Server hands over under a grant you can revoke at any point.",
   },
   {
     q: "What happens to my data after you read it?",
-    a: "We keep only the derived signals needed to score you: dates and counts. Captions, post text and personal content are dropped before storage, not held and ignored.",
+    a: "We keep dates and counts, rounded to the month. Captions, post text, home addresses, email addresses, song and game titles, and the names of people you know are all dropped before anything is written down, not held and ignored. There is a test that fails if any of them ever reach storage.",
   },
   {
     q: "I'm 20. Am I going to look like a bot?",
@@ -173,8 +180,8 @@ const FAQ = [
     a: "It should not have to. Every score ships with an attestation signed by Patina's app key on Vana. Any developer can recover the signer themselves and confirm the score is genuinely ours and unaltered, without calling us at all.",
   },
   {
-    q: "Do I need a crypto wallet?",
-    a: "No. No wallet, no seed phrase, no download, and no payment. Sign in with Google if you want your score to follow you between devices, and even that is optional.",
+    q: "Do I need a crypto wallet, or an account with you?",
+    a: "Neither. No wallet, no seed phrase, no payment, and there is nothing to sign up for. Your score follows you between computers on its own, because connecting proves which Vana account you are without us asking you for anything.",
   },
 ];
 
@@ -333,18 +340,22 @@ export default function Home() {
               <span className="rings" aria-hidden="true" />
               How it works
             </p>
-            <h2 className="t-section mt-5 text-text">Three steps. About a minute.</h2>
+            <h2 className="t-section mt-5 text-text">Three steps, on a computer.</h2>
+            <p className="mt-6 max-w-[46ch] text-lg leading-relaxed text-text-2">
+              It used to be a minute on a phone. It is longer now, and it has to be: proving an
+              account is yours means signing in to it, and that happens on your machine rather than
+              on ours.
+            </p>
           </div>
 
           <div className="grid gap-12 lg:grid-cols-3 lg:gap-8">
             <div data-reveal>
-              <Phone title="Connect an account" sub="Start with your oldest">
-                <Prow ico="YT" a="YouTube" b="The day it was opened" tag="Connect" />
-                <Prow ico="GH" a="GitHub" b="When you joined" tag="Connect" />
-                <Prow ico="IG" a="Instagram" b="How much you post" tag="Connect" tagQuiet />
-                <Prow ico="LI" a="LinkedIn" b="Who knows you" tag="Connect" tagQuiet />
-                <Prow ico="SP" a="Spotify" b="A listening life" tag="Connect" tagQuiet />
-              </Phone>
+              <Window title="Pick a source" sub="Start with your oldest">
+                <Prow ico="GH" a="GitHub" b="Commits, and who replied" tag="Connect" />
+                <Prow ico="LI" a="LinkedIn" b="When people connected" tag="Connect" tagQuiet />
+                <Prow ico="SP" a="Spotify" b="A decade of dated saves" tag="Connect" tagQuiet />
+                <Prow ico="ST" a="Steam" b="Usually your oldest account" tag="Connect" tagQuiet />
+              </Window>
               <div className="mt-8">
                 <span className="t-mono grid h-10 w-10 place-items-center rounded-full border border-line text-text-4">
                   01
@@ -353,54 +364,48 @@ export default function Home() {
                   Pick your oldest account
                 </h3>
                 <p className="mt-3 leading-relaxed text-text-2">
-                  No wallet, no download, no seed phrase. Start with whichever you have had longest
-                  and a score appears straight away.
+                  No wallet and no seed phrase. Ten sources to choose from, and whichever you have
+                  had longest is the one worth starting with.
                 </p>
               </div>
             </div>
 
             <div data-reveal data-reveal-delay="80">
-              <Phone title="Approve one read" sub="You decide exactly what">
-                <Prow ico="GH" a="github.profile" b="Join date, repos, followers" />
-                <Prow ico="✓" a="Read once" b="Not stored on our servers" />
-                <Prow ico="↺" a="Revocable" b="Take it back any time" />
-                <Prow ico="✕" a="No password" b="We never receive one" />
+              <Window title="Sign in on your machine" sub="Through Vana Desktop">
+                <Prow ico="↓" a="Vana Desktop" b="Opens a browser locally" />
+                <Prow ico="✕" a="No password reaches us" b="The sign-in stays on your computer" />
+                <Prow ico="✓" a="Dates only" b="Captions, addresses, names dropped" />
+                <Prow ico="↺" a="Revocable" b="Take the grant back any time" />
                 <div className="mt-auto rounded-full bg-accent px-4 py-2 text-center text-[0.65rem] font-bold text-on-accent">
-                  Approve
+                  Import
                 </div>
-                <div className="rounded-full border border-line px-4 py-2 text-center text-[0.65rem] font-bold text-accent">
-                  Not now
-                </div>
-              </Phone>
+              </Window>
               <div className="mt-8">
                 <span className="t-mono grid h-10 w-10 place-items-center rounded-full border border-line text-text-4">
                   02
                 </span>
                 <h3 className="mt-4 text-xl font-semibold tracking-tight text-text">
-                  Approve exactly what we read
+                  Sign in on your own computer
                 </h3>
                 <p className="mt-3 leading-relaxed text-text-2">
-                  You grant one scope, we read it once, and you can take the permission back whenever
-                  you like. We never touch a password.
+                  Vana Desktop opens a browser window and asks you to log in. That is what turns a
+                  typed username into a proven one, and it is why Patina never sees a password.
                 </p>
               </div>
             </div>
 
             <div data-reveal data-reveal-delay="160">
-              <Phone title="Your Patina" sub="Signed and portable">
-                <div className="flex flex-col items-center gap-0.5 py-3">
-                  <span className="text-[3rem] font-extrabold leading-none tracking-tight tabular-nums text-accent">
-                    83
+              <Window title="Your Patina" sub="Signed and portable">
+                <div className="flex flex-col items-center gap-0.5 py-2">
+                  <span className="text-[2.6rem] font-extrabold leading-none tracking-tight tabular-nums text-accent">
+                    71
                   </span>
-                  <span className="text-[0.7rem] font-bold text-text">Deeply worn in</span>
-                  <span className="text-[0.55rem] text-text-4">4 sources · earliest 2013</span>
+                  <span className="text-[0.7rem] font-bold text-text">Well established</span>
+                  <span className="text-[0.55rem] text-text-4">14.2 years · earliest 2012</span>
                 </div>
-                <Prow ico="↗" a="Share your card" b="patinadata.xyz/u/you" />
+                <Prow ico="↗" a="Your own page" b="patinadata.xyz/u/you" />
                 <Prow ico="{}" a="Readable by any app" b="No login required" />
-                <div className="mt-auto rounded-full bg-accent px-4 py-2 text-center text-[0.65rem] font-bold text-on-accent">
-                  Save my score
-                </div>
-              </Phone>
+              </Window>
               <div className="mt-8">
                 <span className="t-mono grid h-10 w-10 place-items-center rounded-full border border-line text-text-4">
                   03
@@ -409,7 +414,7 @@ export default function Home() {
                   Keep it, and use it anywhere
                 </h3>
                 <p className="mt-3 leading-relaxed text-text-2">
-                  Your card, your story, and a signed proof other apps can verify on their own,
+                  Your page, your story, and a signed proof other apps can verify on their own,
                   without you doing any of this twice.
                 </p>
               </div>
@@ -513,11 +518,13 @@ export default function Home() {
                 {"\n\n"}
                 {"{"}
                 {"\n  "}
-                <span className="text-on-band">&quot;score&quot;</span>: 83,
+                <span className="text-on-band">&quot;score&quot;</span>: 76,
                 {"\n  "}
                 <span className="text-on-band">&quot;verdict&quot;</span>:{" "}
-                <span className="text-[#e0b072]">&quot;Deeply worn in&quot;</span>,{"\n  "}
-                <span className="text-on-band">&quot;oldestYear&quot;</span>: 2013,
+                <span className="text-[#e0b072]">&quot;Well established&quot;</span>,{"\n  "}
+                <span className="text-on-band">&quot;oldestYear&quot;</span>: 2012,
+                {"\n  "}
+                <span className="text-on-band">&quot;yearsOfHistory&quot;</span>: 14.2,
                 {"\n  "}
                 <span className="text-on-band">&quot;attestation&quot;</span>: {"{"}
                 {"\n    "}
@@ -574,10 +581,12 @@ export default function Home() {
               <span className="rings" aria-hidden="true" />
               Pricing
             </p>
-            <h2 className="t-section mt-5 text-text">Free for people. Paid by the apps that need it.</h2>
+            <h2 className="t-section mt-5 text-text">Free for people. Free to build on.</h2>
             <p className="mt-6 text-lg leading-relaxed text-text-2">
-              Individuals never pay. Businesses verifying humans at volume do, and that is how Patina
-              makes money.
+              Individuals never pay. Reading scores is free too, with limits set only high enough to
+              stop a script. Patina costs real money to run, so that will not be true forever at
+              volume, and when it changes we would rather hear what you need than guess at a number
+              now.
             </p>
           </div>
 
@@ -586,30 +595,42 @@ export default function Home() {
               {
                 name: "Personal",
                 price: "Free",
-                blurb: "Your score, your card, your story. Free for good.",
-                items: ["Unlimited sources", "Shareable public card", "No wallet, no card, no account"],
+                blurb: "Your score, your page, your story. Free for good.",
+                items: [
+                  "All ten sources",
+                  "A page anyone can check",
+                  "No wallet, no card, no account",
+                ],
                 cta: { label: "Get your score", href: "/connect" },
                 feature: false,
               },
               {
                 name: "Developer",
-                price: "Free to start",
+                price: "Free",
                 blurb: "Read any public score. Everything you need to build.",
                 items: [
                   "No API key required",
                   "CORS open, call from the browser",
                   "Signed attestation on every response",
-                  "Embeddable badge",
+                  "MCP server and embeddable badge",
                 ],
                 cta: { label: "Read the docs", href: "/docs" },
                 feature: true,
               },
               {
-                name: "Business",
-                price: "Usage-based",
+                name: "Volume",
+                price: "Talk to us",
                 blurb: "For apps gating real humans at scale.",
-                items: ["Volume reads", "Uptime commitments", "Support and integration help"],
-                cta: { label: "Talk to us", href: "/docs" },
+                items: [
+                  "Higher limits",
+                  "Uptime commitments",
+                  "Integration help from whoever built it",
+                ],
+                // The same contact route the docs, privacy and terms pages use.
+                // A dedicated Patina address would be better for a volume
+                // conversation; there is not one yet, and inventing one on the
+                // pricing section is how you lose the first enquiry.
+                cta: { label: "Get in touch", href: "https://discord.gg/vanaofficial" },
                 feature: false,
               },
             ].map((tier) => (
@@ -759,6 +780,7 @@ export default function Home() {
             title="Product"
             links={[
               ["Get your score", "/connect"],
+              ["How it works", "/how-it-works"],
               ["Verify a score", "/verify"],
             ]}
           />

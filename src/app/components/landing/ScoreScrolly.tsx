@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * The signature moment: the five signals, advanced by scroll.
+ * The signature moment: the six signals, advanced by scroll.
  *
  * On desktop the section is tall and its inner panel pins, so scrolling walks the
  * highlight down the list, Age through Breadth, lighting the matching bar on the
@@ -15,41 +15,61 @@ import { useEffect, useRef, useState } from "react";
  * list with the whole card lit. Reduced motion gets the same static state.
  */
 
+/**
+ * The six components, showing a REAL profile rather than flattering numbers:
+ * Steam opened in 2012 and eleven years of GitHub, which the scorer actually
+ * returns 76 for. The rows sum to the total on the card, so anybody who adds
+ * them up gets the number we printed. Every marketing score card that does not
+ * survive that check is a small lie about the thing it is selling.
+ *
+ * Standing is gone as a row, folded into Vouches at a heavy discount, because a
+ * connection with a date on it is a strictly better version of the same claim
+ * than a follower count is. Vouches sits near zero here on purpose: this person
+ * has not connected LinkedIn, and the card should show a real gap rather than
+ * six full bars.
+ */
 const SIGNALS = [
   {
     name: "Age",
-    weight: 40,
-    pct: 96,
-    n: "38.4",
-    desc: "The oldest date provable across everything you connect. Twelve years scores full marks.",
+    weight: 30,
+    pct: 100,
+    n: "30.0",
+    desc: "The oldest date provable across everything you connect. Twelve years scores full marks. It is the biggest row and still under a third of the score, because one old date is the one thing somebody could buy outright.",
+  },
+  {
+    name: "Continuity",
+    weight: 25,
+    pct: 78,
+    n: "19.6",
+    desc: "How many separate months you actually showed up in, and what share of your whole span that covers. Perfect attendance over six months is still six months. One busy year inside a decade is somebody who passed through.",
   },
   {
     name: "Corroboration",
-    weight: 20,
-    pct: 85,
-    n: "17.0",
+    weight: 15,
+    pct: 100,
+    n: "15.0",
     desc: "Two unrelated platforms independently agreeing on how far back you go. One old account can be bought. Two, on different services, is far harder to arrange.",
   },
   {
-    name: "Depth",
-    weight: 20,
-    pct: 71,
-    n: "14.2",
-    desc: "The things you actually made. Posts, videos, repositories. Tedious to fake at volume.",
+    name: "Vouches",
+    weight: 12,
+    pct: 6,
+    n: "0.7",
+    desc: "When other people chose to connect to you, not how many did. A bought follower carries no date. A connection made in 2016 required somebody else to act, in 2016.",
   },
   {
-    name: "Standing",
+    name: "Depth",
     weight: 10,
-    pct: 64,
-    n: "6.4",
-    desc: "Others treating you as real. Weighted lowest on purpose, because followers are the easiest thing on this list to buy.",
+    pct: 72,
+    n: "7.2",
+    desc: "The things you actually made. Posts, repositories, orders, saved tracks. Tedious to fake at volume, and discounted when it all arrived in one burst.",
   },
   {
     name: "Breadth",
-    weight: 10,
-    pct: 80,
-    n: "8.0",
-    desc: "Independent accounts telling the same story. Faking one is easy. Faking four, each with its own decade behind it, is a different job.",
+    weight: 8,
+    pct: 45,
+    n: "3.6",
+    desc: "Independent accounts telling the same story. Faking one is easy. Faking six, each with its own decade behind it, is a different job.",
   },
 ];
 
@@ -134,7 +154,7 @@ export function ScoreScrolly() {
               The score
             </p>
             <h2 className="t-section mt-5 text-text">
-              Five signals, weighted by what they cost in time.
+              Six signals, weighted by what they cost in time.
             </h2>
           </div>
 
@@ -187,14 +207,14 @@ export function ScoreScrolly() {
                 <div className="flex flex-col gap-2">
                   <span className="t-mono text-xs text-band-ink-2">Patina score</span>
                   <span className="text-[4.2rem] font-extrabold leading-[0.85] tracking-tight tabular-nums text-on-band">
-                    83
+                    76
                   </span>
-                  <span className="text-lg font-semibold">Deeply worn in</span>
+                  <span className="text-lg font-semibold">Well established</span>
                 </div>
                 <div className="flex flex-col gap-1 text-right">
                   <span className="text-xs text-band-ink-2">Oldest signal</span>
-                  <span className="t-mono text-[1.7rem] font-semibold tracking-tight">2013</span>
-                  <span className="text-xs text-band-ink-2">YouTube, 13.1 years</span>
+                  <span className="t-mono text-[1.7rem] font-semibold tracking-tight">2012</span>
+                  <span className="text-xs text-band-ink-2">Steam, 14.2 years</span>
                 </div>
               </div>
 

@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: SITE_URL, changeFrequency: "monthly", priority: 1 },
     { url: `${SITE_URL}/connect`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${SITE_URL}/how-it-works`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/mcp`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/docs`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/verify/offline`, changeFrequency: "monthly", priority: 0.5 },
