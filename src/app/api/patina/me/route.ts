@@ -1,7 +1,7 @@
 import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, resolveProfileId } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
-import { SOURCE_SPECS } from "@/lib/sources";
+import { buildExhibits } from "@/lib/story";
 
 /**
  * The caller's own score.
@@ -18,7 +18,8 @@ function emptyResponse() {
     components: empty.components,
     oldestSignal: null,
     sourcesConnected: [] as string[],
-    sources: {} as Record<string, { readAt: string; scopes: string[] }>,
+    exhibits: [] as unknown[],
+    scopesRead: {} as Record<string, number>,
     provisional: true,
     provisionalReason: empty.provisionalReason,
     username: null as string | null,
@@ -35,7 +36,8 @@ export async function GET() {
   const profile = profileId ? await getProfile(profileId) : null;
   if (!profile) return Response.json(emptyResponse());
 
-  const score = scorePatina(evidenceOf(profile));
+  const evidence = evidenceOf(profile);
+  const score = scorePatina(evidence);
 
   return Response.json({
     total: score.total,
@@ -43,19 +45,14 @@ export async function GET() {
     components: score.components,
     oldestSignal: score.oldestSignal,
     sourcesConnected: score.sourcesConnected,
-    sources: Object.fromEntries(
-      Object.entries(profile.sources).map(([source, record]) => [
-        source,
-        {
-          readAt: record!.readAt,
-          scopes: record!.scopes,
-          // How many of the scopes we asked for actually came back. A partial
-          // source still counts, and the person should be able to see that it
-          // was partial rather than wonder why their score is lower than a
-          // friend's with the same accounts.
-          of: SOURCE_SPECS[source as keyof typeof SOURCE_SPECS]?.scopes.length ?? 0,
-        },
-      ]),
+    // Per-source facts for the exhibit cards: each one carries its OWN date and
+    // counts, rather than the merged totals the score works from.
+    exhibits: buildExhibits(evidence),
+    // How many scopes actually came back per source. A partial source still
+    // counts, and somebody comparing their score with a friend's on the same
+    // accounts deserves to know why it differs.
+    scopesRead: Object.fromEntries(
+      Object.entries(profile.sources).map(([source, record]) => [source, record!.scopes.length]),
     ),
     provisional: score.provisional,
     provisionalReason: score.provisionalReason,

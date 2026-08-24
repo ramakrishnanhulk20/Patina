@@ -4,6 +4,7 @@ import { CORE_ORDER, SOURCE_SPECS, STRENGTHEN_ORDER } from "@/lib/sources";
 import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, resolveProfileId } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
+import { buildExhibits } from "@/lib/story";
 
 export const metadata = { title: "Connect" };
 export const dynamic = "force-dynamic";
@@ -26,12 +27,13 @@ export default async function ConnectPage({
   const sessionId = await readSessionId();
   const profileId = sessionId ? await resolveProfileId(sessionId) : null;
   const profile = profileId ? await getProfile(profileId) : null;
-  const score = scorePatina(profile ? evidenceOf(profile) : {});
+  const evidence = profile ? evidenceOf(profile) : {};
+  const score = scorePatina(evidence);
 
-  const connected = Object.fromEntries(
+  const scopesRead = Object.fromEntries(
     Object.entries(profile?.sources ?? {}).map(([source, record]) => [
       source,
-      { readAt: record!.readAt, scopes: record!.scopes.length },
+      record!.scopes.length,
     ]),
   );
 
@@ -45,7 +47,7 @@ export default async function ConnectPage({
   const nextApps = await ecosystemApps(4);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-14">
+    <main className="mx-auto w-full max-w-[80rem] px-6 py-10 sm:py-14">
       <ConnectFlow
         core={CORE_ORDER.map((id) => SOURCE_SPECS[id])}
         strengthen={STRENGTHEN_ORDER.map((id) => SOURCE_SPECS[id])}
@@ -58,7 +60,8 @@ export default async function ConnectPage({
           provisional: score.provisional,
           provisionalReason: score.provisionalReason,
         }}
-        initialConnected={connected}
+        initialExhibits={buildExhibits(evidence)}
+        initialScopesRead={scopesRead}
         initialUsername={profile?.username ?? null}
         promptForName={params.name === "1"}
         nextApps={nextApps}

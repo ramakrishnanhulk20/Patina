@@ -178,3 +178,48 @@ export function ScorePanel({
     </div>
   );
 }
+
+/**
+ * The six components on their own, without the card, the rings or the seal.
+ *
+ * The evidence board puts the headline number on its own plate under the
+ * exhibits, so the breakdown no longer needs to carry a score with it. It is
+ * still shown in full and never summarised: a score nobody can interrogate is a
+ * score nobody should trust, and "why is mine 61" has to be answerable on the
+ * same screen the 61 appears on.
+ */
+export function Components({ score }: { score: ScoreView }) {
+  return (
+    <section>
+      <h2 className="t-label text-text-3">Where it comes from</h2>
+
+      <dl className="mt-5 grid gap-x-9 gap-y-6 sm:grid-cols-2">
+        {score.components.map((component) => {
+          const pct = component.max === 0 ? 0 : (component.points / component.max) * 100;
+
+          return (
+            <div key={component.key}>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="font-semibold text-text">{component.label}</dt>
+                <dd className="t-mono text-sm text-text-2">
+                  <span className="text-text">{component.points}</span>
+                  <span className="text-text-4"> / {component.max}</span>
+                </dd>
+              </div>
+
+              {/* Bar is decorative; the numbers above are the accessible source of truth. */}
+              <div className="mt-2.5 h-[3px] w-full bg-line" aria-hidden="true">
+                <div
+                  className="h-full bg-accent transition-[width] duration-700 ease-out"
+                  style={{ width: `${Math.max(pct, pct > 0 ? 1.5 : 0)}%` }}
+                />
+              </div>
+
+              <p className="mt-2.5 text-sm leading-relaxed text-text-3">{component.detail}</p>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
+  );
+}

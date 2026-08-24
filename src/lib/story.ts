@@ -75,6 +75,87 @@ export type Story = {
   provisional: boolean;
 };
 
+/**
+ * One source, reduced to what belongs on the face of its card.
+ *
+ * The connect page draws each connected source as an exhibit carrying its own
+ * evidence, so it needs per-source facts rather than the merged totals the
+ * score works from. Deliberately small: a date, a couple of counts, and how
+ * complete the read was. Anything more and the card stops being scannable,
+ * which is the only reason to draw it as a card.
+ */
+export type Exhibit = {
+  source: SourceId;
+  label: string;
+  /** Four-digit year on the face of the card, or null when this source has no date. */
+  year: number | null;
+  /** "account opened", "first contribution". Sits under the year. */
+  yearLabel: string | null;
+  /** True when that date is self-reported rather than machine-generated. */
+  soft: boolean;
+  /** Distinct months this source alone can account for. */
+  activeMonths: number;
+  /** Things made, per kind, already filtered to the non-empty ones. */
+  made: Array<{ count: number; label: string }>;
+  /** Dated third-party connections this source contributed. */
+  vouches: number;
+};
+
+/**
+ * The two or three lines under the year, chosen per source.
+ *
+ * Every card would otherwise say the same thing in a different order. What is
+ * worth reading differs: Steam's is its library, GitHub's is how many months it
+ * covers, LinkedIn's is who showed up and when.
+ */
+export function exhibitFacts(exhibit: Exhibit): string[] {
+  const facts: string[] = [];
+
+  if (exhibit.vouches > 0) {
+    facts.push(`${exhibit.vouches.toLocaleString()} dated connections`);
+  }
+  if (exhibit.activeMonths > 0) {
+    facts.push(`${exhibit.activeMonths} active ${exhibit.activeMonths === 1 ? "month" : "months"}`);
+  }
+  for (const kind of exhibit.made) {
+    if (facts.length >= 3) break;
+    facts.push(`${kind.count.toLocaleString()} ${kind.label}`);
+  }
+
+  return facts.slice(0, 3);
+}
+
+/** Per-source display facts, for the exhibits on the connect board. */
+export function buildExhibits(evidence: Evidence): Exhibit[] {
+  return (Object.entries(evidence) as Array<[SourceId, Evidence[SourceId]]>)
+    .filter((entry): entry is [SourceId, NonNullable<Evidence[SourceId]>] => Boolean(entry[1]))
+    .map(([source, data]) => ({
+      source,
+      label: SOURCE_LABEL[source],
+      year: yearOf(data.earliest),
+      yearLabel: data.earliestLabel ? shortenLabel(data.earliestLabel, SOURCE_LABEL[source]) : null,
+      soft: data.softDate === true,
+      activeMonths: Object.keys(data.months ?? {}).length,
+      made: (data.made ?? []).filter((kind) => kind && Number.isFinite(kind.count) && kind.count > 0),
+      vouches: Object.values(data.vouchMonths ?? {}).reduce(
+        (sum, count) => sum + (Number.isFinite(count) ? count : 0),
+        0,
+      ),
+    }));
+}
+
+/**
+ * "Steam account opened" becomes "account opened".
+ *
+ * The card already says Steam in the heading directly above, and repeating it
+ * under the date is the kind of thing that reads as filler in a layout this
+ * tight.
+ */
+function shortenLabel(label: string, sourceLabel: string): string {
+  const trimmed = label.replace(new RegExp(`^${sourceLabel}\\s+`, "i"), "").trim();
+  return trimmed || label;
+}
+
 const SOURCE_LABEL: Record<SourceId, string> = {
   github: "GitHub",
   linkedin: "LinkedIn",

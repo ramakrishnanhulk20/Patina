@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildStory, storyLine } from "./story.ts";
+import { buildExhibits, buildStory, exhibitFacts, storyLine } from "./story.ts";
 import { scorePatina, type Evidence, type Months } from "./score.ts";
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
@@ -150,6 +150,65 @@ test("the share line names the number and the span", () => {
   assert.match(line, /13 years of provable history/);
   assert.match(line, /4 accounts/);
   assert.match(line, /Patina \d+\./);
+});
+
+// ---------------------------------------------------------------------------
+// Exhibits, the per-source facts the connect board draws on each card
+// ---------------------------------------------------------------------------
+
+test("an exhibit carries its own year, not the profile's oldest", () => {
+  const exhibits = buildExhibits(LIVED);
+  const github = exhibits.find((e) => e.source === "github")!;
+  const steam = exhibits.find((e) => e.source === "steam")!;
+
+  assert.equal(steam.year, year(13));
+  assert.equal(github.year, year(9), "GitHub shows its own date, not Steam's");
+});
+
+test("an exhibit label drops the source name the heading already says", () => {
+  const steam = buildExhibits(LIVED).find((e) => e.source === "steam")!;
+  assert.equal(steam.yearLabel, "account opened", "not 'Steam account opened'");
+});
+
+test("a self-reported date is marked on the exhibit", () => {
+  const linkedin = buildExhibits(LIVED).find((e) => e.source === "linkedin")!;
+  assert.equal(linkedin.soft, true);
+});
+
+test("a source with no date still becomes an exhibit", () => {
+  const spotify = buildExhibits(LIVED).find((e) => e.source === "spotify")!;
+  assert.equal(spotify.year, null);
+  assert.ok(spotify.activeMonths > 0, "it has months even without an opening date");
+});
+
+test("exhibit facts lead with vouches, then months, then what was made", () => {
+  const linkedin = buildExhibits(LIVED).find((e) => e.source === "linkedin")!;
+  assert.match(exhibitFacts(linkedin)[0], /dated connections/);
+
+  const github = buildExhibits(LIVED).find((e) => e.source === "github")!;
+  assert.match(exhibitFacts(github)[0], /active months/);
+  assert.match(exhibitFacts(github)[1], /repos/);
+});
+
+test("exhibit facts never run past three lines", () => {
+  const crowded = buildExhibits({
+    github: {
+      earliest: iso(9),
+      months: monthsAgo(9, 0, 4),
+      vouchMonths: monthsAgo(8, 0, 2),
+      made: [
+        { count: 40, label: "repos" },
+        { count: 200, label: "pull requests and issues" },
+        { count: 12, label: "gists" },
+      ],
+    },
+  })[0];
+
+  assert.ok(exhibitFacts(crowded).length <= 3, "a card this tight cannot hold more");
+});
+
+test("an empty profile has no exhibits", () => {
+  assert.deepEqual(buildExhibits({}), []);
 });
 
 test("garbage evidence does not throw", () => {
