@@ -8,14 +8,15 @@ import { useState } from "react";
  * Two states, and the difference between them is the product's whole position
  * on what a score means.
  *
- * PROVISIONAL. Below three sources, or fewer than two carrying dates, there is
- * a number but no credential: no public page, no badge, nothing signed. The
- * customer for a credential is whoever is checking it, and one consumed from a
- * single source is noise. Refusing to sign is how the number keeps meaning
- * something. So this panel says what is missing rather than offering a name
- * that cannot be used yet.
+ * PROVISIONAL. Nothing connected carries a date, so there is a number but
+ * nothing to attest to: an attestation reading "their accounts go back to ..."
+ * would have nothing to put after the "to". This panel says what is missing
+ * rather than offering a name that cannot be used yet.
  *
- * SIGNABLE. Pick a name, get a page.
+ * SIGNABLE. Everything else. One source proving one real date is enough, and
+ * deliberately so: a single fifteen-year history is not noise, and the score
+ * already docks a thin profile through Corroboration without needing the badge
+ * withheld as well.
  */
 export function ClaimName({
   username,
@@ -44,8 +45,9 @@ export function ClaimName({
           {provisionalReason ?? "Connect another source to make this shareable."}
         </p>
         <p className="mt-3 text-xs leading-relaxed text-text-4">
-          A score built on one account is not worth much to anyone checking it, so Patina will not
-          sign one. Your number is real either way, and it is right there.
+          A Patina badge says how far back your accounts go, and nothing you have connected proves
+          a date yet. One that does is all it takes. Your number is real either way, and it is right
+          there.
         </p>
       </div>
     );

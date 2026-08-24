@@ -29,11 +29,6 @@ export function ScorePanel({
   const year = score.oldestSignal ? new Date(score.oldestSignal.date).getFullYear() : null;
   const years = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
   const name = username && username.trim() ? username : "you";
-  // The leaderboard is gone with the competition, so there is no standing to
-  // show. The percentile it used to render was a contest position, never a
-  // statement about the person's history, and conflating the two would have
-  // been the wrong thing to keep.
-  const topPct = null;
 
   return (
     <div className="surface">
@@ -111,24 +106,18 @@ export function ScorePanel({
         Turns the score from a quiz result into something certified. The struck
         seal, which lands like a stamp the first time it appears, says plainly
         that this is signed and checkable on Vana, the whole reason to build on a
-        protocol rather than behind a login. "Standing" is the leaderboard
-        percentile, kept separate from the age claim (which the rings below carry).
+        protocol rather than behind a login.
+
+        There was a "Standing" percentile here, showing a position on the
+        competition leaderboard. The competition is over and the leaderboard is
+        gone, so the branch that rendered it could never be taken.
       */}
       {!empty && (
         <div className="border-b border-line p-6">
           <div className="flex items-center gap-4">
             <VerifiedSeal size={76} className="shrink-0 seal-strike" />
             <div className="min-w-0">
-              {topPct !== null ? (
-                <>
-                  <p className="t-label text-text-3">Standing</p>
-                  <p className="mt-1 text-2xl font-semibold text-text">
-                    Top <span className="text-accent">{topPct}%</span>
-                  </p>
-                </>
-              ) : (
-                <p className="text-lg font-semibold text-text">A signed credential</p>
-              )}
+              <p className="text-lg font-semibold text-text">A signed credential</p>
               <p className="mt-1.5 text-sm leading-relaxed text-text-3">
                 Every Patina score is cryptographically signed on Vana.{" "}
                 <a href="/verify" className="tap text-accent underline underline-offset-4">

@@ -203,20 +203,29 @@ export default function HowItWorksPage() {
       <section className="mt-16">
         <SectionLabel>Before it is shareable</SectionLabel>
         <h2 className="mt-4 text-2xl font-semibold text-text">
-          Patina will not sign a thin score.
+          One account with a date on it is enough.
         </h2>
 
         <p className="mt-5 leading-relaxed text-text-2">
-          Below three connected sources, or fewer than two carrying a date, you still get your
-          number and the full breakdown behind it. What you do not get is a public page, a badge, or
-          a signature. A score built on one account tells whoever is checking it almost nothing, and
-          every weak credential in circulation makes the strong ones worth less.
+          You do not need to own ten different websites to get a page and a badge. Connect one
+          account that proves a real date and you have one. Everybody has a different number of
+          accounts, and a rule that only rewarded people who happened to have a lot of them would be
+          measuring the wrong thing.
         </p>
 
         <p className="mt-4 leading-relaxed text-text-2">
-          Anything marked provisional should be read as{" "}
-          <em className="not-italic text-text">not enough evidence either way</em>, never as a
-          warning about the person.
+          Connecting more still helps, and it should: a second unrelated account agreeing with the
+          first is genuinely much harder to arrange than one on its own, and the score says so. But
+          it costs points rather than the whole credential. Somebody with two accounts and a real
+          decade behind them scores in the seventies, and that number is theirs to share.
+        </p>
+
+        <p className="mt-4 leading-relaxed text-text-2">
+          The one thing that cannot be signed is a profile where nothing carries a date at all. A
+          Patina badge is a statement about how far back you go, and with no date there is nothing
+          to put in it. That case is marked provisional, and should be read as{" "}
+          <em className="not-italic text-text">no evidence either way</em>, never as a warning about
+          the person.
         </p>
       </section>
 

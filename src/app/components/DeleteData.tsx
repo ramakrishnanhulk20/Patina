@@ -4,8 +4,8 @@ import { useState } from "react";
 
 /**
  * Self-serve erasure. Backs up the privacy promise with an actual button rather
- * than a "email us" address nobody trusts. Two steps, because deleting a score
- * and a leaderboard place is not something to fire on a single stray tap.
+ * than a "email us" address nobody trusts. Two steps, because erasing a history
+ * somebody spent an evening connecting is not something to fire on a stray tap.
  */
 export function DeleteData() {
   const [state, setState] = useState<"idle" | "confirming" | "deleting" | "done" | "error">("idle");
@@ -25,8 +25,8 @@ export function DeleteData() {
     return (
       <div className="border border-accent/40 bg-accent-wash p-5">
         <p className="text-sm leading-relaxed text-text">
-          Done. Your score, sources, name and leaderboard place have been deleted, and this browser
-          has been reset.{" "}
+          Done. Your score, connected sources and name have been deleted, and this browser has been
+          reset.{" "}
           <a href="/" className="text-accent underline underline-offset-4">
             Return home
           </a>
@@ -42,8 +42,9 @@ export function DeleteData() {
         <>
           <p className="text-sm font-semibold text-text">Delete everything?</p>
           <p className="mt-1 text-sm leading-relaxed text-text-2">
-            This permanently removes your score, connected sources, chosen name and place on the
-            leaderboard. It cannot be undone. Any reward eligibility from this profile goes with it.
+            This permanently removes your score, your connected sources, your chosen name and the
+            public page they sit on. It cannot be undone, and reconnecting later starts from
+            nothing.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button

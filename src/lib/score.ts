@@ -150,14 +150,27 @@ export type PatinaScore = {
   oldestSignal: { date: string; years: number; source: string } | null;
   sourcesConnected: SourceId[];
   /**
-   * Whether this score is complete enough to sign.
+   * Whether there is anything here worth signing at all.
    *
-   * Below the floor Patina still shows the number, but issues no badge, no
-   * signed attestation and no public page. The customer for a credential is the
-   * verifier, and a verifier consuming a one-source score gets noise. Every
-   * noisy credential spent devalues the rest, so refusing to SIGN is how the
-   * number keeps meaning something. Refusing to SHOW it would just be rude to
-   * the person who did the work.
+   * True only when NOTHING connected proves a real date. That is the one case
+   * where a signature would be meaningless, because a Patina attestation says
+   * "this person's accounts go back to X" and there is no X.
+   *
+   * IT USED TO REQUIRE THREE SOURCES, and that was wrong. Measured against real
+   * profiles, a developer with one fifteen-year GitHub scores 68 and a person
+   * with two ordinary accounts scores 78, and both were denied a badge while
+   * somebody on 81 got one. The reasoning was "one source is noise to a
+   * verifier", which does not survive contact with a fifteen-year contribution
+   * history.
+   *
+   * It was also double-punishing. Corroboration ALREADY docks that developer to
+   * 7.5 out of 15 for having nobody to agree with him. The score encodes the
+   * weakness of a thin profile perfectly well on its own; withholding the
+   * signature on top of it punished the same fact twice, and the only thing it
+   * reliably achieved was losing people who owned fewer websites.
+   *
+   * Going from two connected sources to eight is worth eleven points. There is
+   * no cliff to protect.
    */
   provisional: boolean;
   /** Why it is provisional, or null when it is not. */
@@ -175,9 +188,15 @@ const CORROBORATION_FULL_YEARS = 8;
 /** A vouch counts fully once it is five years old. */
 const VOUCH_FULL_YEARS = 5;
 
-/** Below this many sources, or dated sources, the score will not be signed. */
-const FLOOR_SOURCES = 3;
-const FLOOR_DATED_SOURCES = 2;
+/**
+ * The whole floor: one source proving one real date.
+ *
+ * A SOFT date does not clear it. LinkedIn experience is free text somebody
+ * typed about themselves, it earns no Age on its own, and signing an
+ * attestation whose only evidence is a typed year would put Patina's name on
+ * something it never checked.
+ */
+const FLOOR_HARD_DATED_SOURCES = 1;
 
 function parseDate(value: unknown): Date | null {
   if (typeof value !== "string" || !value.trim()) return null;
@@ -607,15 +626,16 @@ export function scorePatina(evidence: Evidence): PatinaScore {
   const components = [age, continuity, corroboration, ...gated];
   const total = Math.round(components.reduce((sum, c) => sum + c.points, 0));
 
-  const datedSources = entries(evidence).filter(([, s]) => parseDate(s.earliest) !== null).length;
+  const hardDated = entries(evidence).filter(
+    ([, s]) => s.softDate !== true && parseDate(s.earliest) !== null,
+  ).length;
+
   const provisionalReason =
-    sourcesConnected.length < FLOOR_SOURCES
-      ? `Connect ${FLOOR_SOURCES - sourcesConnected.length} more ${
-          FLOOR_SOURCES - sourcesConnected.length === 1 ? "source" : "sources"
-        } to make this shareable.`
-      : datedSources < FLOOR_DATED_SOURCES
-        ? "Connect another account that carries a date, so this can be independently backed up."
-        : null;
+    hardDated >= FLOOR_HARD_DATED_SOURCES
+      ? null
+      : sourcesConnected.length === 0
+        ? "Connect a source to get your score."
+        : "Nothing you have connected carries a date yet. Connect one that does, and this becomes shareable.";
 
   return {
     total,

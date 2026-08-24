@@ -83,7 +83,8 @@ export function VerdictPlate({
           </div>
           <div className="h-12 w-px bg-line" />
           <p className="max-w-[24em] text-sm leading-relaxed text-text-3">
-            Connect three and this becomes something you can hand to somebody who needs to check.
+            Connect one account with a date on it and this becomes something you can hand to
+            somebody who needs to check.
           </p>
         </div>
       </div>

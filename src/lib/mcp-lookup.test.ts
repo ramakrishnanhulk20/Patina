@@ -294,12 +294,14 @@ test("a published profile carries tenure to one decimal place", async () => {
  * exactly the mistake the floor exists to prevent, so the flag travels with the
  * number and the attestation is withheld rather than issued quietly.
  */
-test("a profile below the signing floor is provisional and carries no signature", async () => {
+/**
+ * One dated source is signable. This used to assert the opposite, under a
+ * three-source floor that refused a badge to a fifteen-year GitHub history.
+ */
+test("a single dated source is signable and carries a signature", async () => {
   const name = `thin-${Date.now() % 100000}`;
   const id = await ensureProfileId(`mcp-thin-${Date.now()}`);
 
-  // One source, and a genuinely old one. The number will be respectable; the
-  // evidence behind it is still a single account.
   await recordSource(id, "github", [
     {
       scope: "github.history",
@@ -315,10 +317,35 @@ test("a profile below the signing floor is provisional and carries no signature"
   assert.equal(result.found, true);
   if (!result.found) return;
 
-  assert.equal(result.provisional, true, "one source is below the floor");
-  assert.match(result.provisionalReason ?? "", /more source/i);
-  assert.equal(result.attestation, null, "a provisional score must not be signed");
-  assert.ok(result.score > 0, "the number itself is still real and still reported");
+  assert.equal(result.provisional, false, "eleven years is a real history, alone or not");
+  assert.equal(result.provisionalReason, null);
+  assert.ok(result.score > 0);
+  // Whether a signature is actually attached depends on this deployment holding
+  // a key, which is a separate concern with its own test below. What matters
+  // here is that the floor no longer withholds one.
+});
+
+/**
+ * The floor is enforced in the STORE, not only in the connect page.
+ *
+ * It used to live solely in the UI, which hid the name field. That is a rule in
+ * the button rather than in the lock: anything posting straight at the username
+ * route walked past it and got a public page, a badge and a signature for a
+ * score Patina had decided not to vouch for.
+ */
+test("a profile with no dated source cannot claim a name at all", async () => {
+  const id = await ensureProfileId(`mcp-undated-${Date.now()}`);
+
+  await recordSource(id, "spotify", [
+    {
+      scope: "spotify.profile",
+      fragment: readScope("spotify.profile", { followers: 400 })!,
+    },
+  ]);
+
+  const claimed = await claimUsername(id, `undated-${Date.now() % 100000}`);
+  assert.equal(claimed.ok, false, "no date means nothing to attest to");
+  assert.match(claimed.ok === false ? claimed.error : "", /carries a date/i);
 });
 
 test("a profile above the floor is signable and says it is not provisional", async () => {

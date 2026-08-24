@@ -63,18 +63,23 @@ export const SCORE_MEANING =
 /**
  * What a caller must understand about an unsigned score.
  *
- * Patina refuses to sign a profile below three sources, or fewer than two
- * carrying dates, because a credential built on one account is noise to whoever
- * consumes it. Those profiles still return a real number, and an agent that
- * treats a provisional 41 as equivalent to a signed 41 is making exactly the
- * mistake the floor exists to prevent.
+ * The floor is one source proving one real date, and it is deliberately that
+ * low. Somebody with a single fifteen-year GitHub history has proved a great
+ * deal, and Corroboration already docks a thin profile for having nobody to
+ * agree with it, so withholding the signature on top of that punished the same
+ * fact twice.
+ *
+ * What remains unsignable is a profile with no date at all, where an
+ * attestation reading "this person's accounts go back to ..." would have
+ * nothing to put after the "to".
  */
 export const PROVISIONAL_MEANING =
-  "A provisional score has too little behind it for Patina to sign: fewer than " +
-  "three connected sources, or fewer than two that carry a date. The number is " +
-  "still computed honestly, but it carries no attestation and should not be used " +
-  "as a trust gate on its own. Treat provisional:true as 'not enough evidence " +
-  "either way', never as 'suspicious'.";
+  "A provisional score has no date behind it: nothing the person connected proves " +
+  "when anything started, so there is nothing for Patina to attest to. The number " +
+  "is still computed honestly, but it carries no attestation. Treat " +
+  "provisional:true as 'no evidence either way', never as 'suspicious'. If you " +
+  "need a stronger bar than Patina's own, gate on sourcesConnected.length or " +
+  "yearsOfHistory rather than on this flag.";
 
 /**
  * Sources whose stored account id is a handle a person could actually type.

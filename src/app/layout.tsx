@@ -6,7 +6,6 @@ import { SiteChrome } from "./components/SiteChrome";
 import { SmoothScroll } from "./components/SmoothScroll";
 
 import { SITE_URL } from "@/lib/site";
-import { isWipLocked } from "@/lib/wip-server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -86,7 +85,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locked = await isWipLocked();
 
   return (
     <html
@@ -111,7 +109,7 @@ export default async function RootLayout({
         </noscript>
         <SmoothScroll />
 
-        <SiteChrome locked={locked}>{children}</SiteChrome>
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );

@@ -8,13 +8,10 @@ import { AppNav } from "./AppNav";
  *
  * The landing carries its own floating nav and its own footer, so the app's top
  * bar and mobile tab bar are suppressed there (and with them the bottom padding
- * that clears the tab bar). Every other route keeps the normal app chrome. When
- * the WIP lock is on, nothing but the lock screen renders.
+ * that clears the tab bar). Every other route keeps the normal app chrome.
  */
-export function SiteChrome({ locked, children }: { locked: boolean; children: React.ReactNode }) {
+export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
-
-  if (locked) return <>{children}</>;
 
   if (pathname === "/") {
     return <div className="flex flex-1 flex-col">{children}</div>;

@@ -225,11 +225,15 @@ export default function DocsPage() {
           <div>
             <dt className="font-semibold text-text">provisional</dt>
             <dd className="mt-1 leading-relaxed">
-              True when the profile is below the signing floor: fewer than three connected sources,
-              or fewer than two carrying a date. The score is still computed honestly and{" "}
+              True when nothing the person connected proves a date, so there is nothing for Patina
+              to attest to. The score is still computed honestly and{" "}
               <code className="t-mono text-[0.9em] text-text">attestation</code> is null. Read it as{" "}
-              <em className="not-italic text-text">not enough evidence either way</em>, never as
-              grounds for suspicion, and do not use a provisional score as a trust gate on its own.
+              <em className="not-italic text-text">no evidence either way</em>, never as grounds for
+              suspicion. If you want a stronger bar than Patina&apos;s own, gate on{" "}
+              <code className="t-mono text-[0.9em] text-text">yearsOfHistory</code> or the length of{" "}
+              <code className="t-mono text-[0.9em] text-text">sourcesConnected</code> rather than on
+              this flag: Patina signs a single well-evidenced account on purpose, and how much
+              corroboration you require is your call, not ours.
             </dd>
           </div>
           <div>

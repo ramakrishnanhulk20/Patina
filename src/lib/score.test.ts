@@ -148,7 +148,9 @@ test("deep profile: eleven active years across four accounts scores in the ninet
 test("ordinary profile: a decade with real gaps and two accounts lands in the sixties", () => {
   const score = scorePatina(ORDINARY);
   assert.ok(score.total >= 55 && score.total <= 78, `expected roughly 66, got ${score.total}`);
-  assert.equal(score.provisional, true, "two sources is below the signing floor");
+  // Two ordinary accounts and a real decade behind them. This was refused a
+  // badge under the old three-source rule, which is the case that killed it.
+  assert.equal(score.provisional, false, "two dated accounts is a real, signable history");
 });
 
 test("the scale has room at the top: continuous use outranks intermittent use", () => {
@@ -421,41 +423,75 @@ test("gating: manufactured breadth and volume are worth little without time", ()
   assert.ok(score.total <= 8, `six same-day accounts must not add up, got ${score.total}`);
 });
 
-test("floor: one source shows a number but is not signable", () => {
+/**
+ * ONE dated source is the whole floor.
+ *
+ * These asserted a three-source rule until measurement killed it: a developer
+ * with one fifteen-year GitHub scores 68 and somebody with two ordinary
+ * accounts scores 78, and both were refused a badge while a profile on 81 got
+ * one. Corroboration already docks a thin profile for having nobody to agree
+ * with it, so the old rule punished the same fact twice and mostly just lost
+ * people who happened to own fewer websites.
+ */
+test("floor: one source with a real date is signable", () => {
   const score = scorePatina({
     github: {
-      earliest: yearsAgo(10),
-      earliestLabel: "GitHub account opened",
-      months: monthsAgo(10, 0, 8),
+      earliest: yearsAgo(15),
+      earliestLabel: "first GitHub contribution",
+      months: monthsAgo(15, 0, 8),
       made: [{ count: 200, label: "repos" }],
     },
   });
 
-  assert.ok(score.total > 20, "the person still sees what they earned");
-  assert.equal(score.provisional, true);
-  assert.match(score.provisionalReason ?? "", /2 more sources/);
+  assert.equal(score.provisional, false, "fifteen years is not noise, whatever it sits alone on");
+  assert.equal(score.provisionalReason, null);
+  // And the score still says, on its own, that nobody corroborates them.
+  const corroboration = score.components.find((c) => c.key === "corroboration")!;
+  assert.ok(corroboration.points < corroboration.max * 0.6, "one source cannot max corroboration");
 });
 
-test("floor: three sources with two dates is signable", () => {
+test("floor: a low score is still signed, because the number tells the truth", () => {
   const score = scorePatina({
-    github: { earliest: yearsAgo(9), earliestLabel: "GitHub account opened", months: monthsAgo(9, 0, 6) },
-    steam: { earliest: yearsAgo(12), earliestLabel: "Steam account opened" },
-    spotify: { made: [{ count: 400, label: "saved tracks" }], months: monthsAgo(5, 0, 8) },
+    instagram: {
+      earliest: yearsAgo(0.05),
+      earliestLabel: "earliest Instagram post",
+      months: monthsAgo(0.05, 0, 120),
+      made: [{ count: 120, label: "posts" }],
+      followers: 3900,
+    },
   });
 
-  assert.equal(score.provisional, false);
-  assert.equal(score.provisionalReason, null);
+  assert.ok(score.total <= 5, "a week-old farm still scores almost nothing");
+  assert.equal(score.provisional, false, "an accurate 2 is not a credential worth withholding");
 });
 
-test("floor: three sources with only one date is not signable", () => {
+test("floor: nothing dated is the one thing that cannot be signed", () => {
   const score = scorePatina({
-    github: { earliest: yearsAgo(9), earliestLabel: "GitHub account opened" },
     spotify: { made: [{ count: 400, label: "saved tracks" }] },
     shop: { made: [{ count: 30, label: "orders" }] },
   });
 
-  assert.equal(score.provisional, true);
+  assert.equal(score.provisional, true, "an attestation with no date in it says nothing");
   assert.match(score.provisionalReason ?? "", /carries a date/);
+});
+
+test("floor: a self-reported date alone does not clear it", () => {
+  const score = scorePatina({
+    linkedin: {
+      earliest: yearsAgo(20),
+      earliestLabel: "LinkedIn work history",
+      softDate: true,
+      vouchMonths: monthsAgo(8, 0, 3),
+    },
+  });
+
+  assert.equal(score.provisional, true, "signing typed free text would put our name on nothing");
+});
+
+test("floor: an empty profile asks for a source rather than scolding", () => {
+  const score = scorePatina({});
+  assert.equal(score.provisional, true);
+  assert.match(score.provisionalReason ?? "", /Connect a source/);
 });
 
 // ---------------------------------------------------------------------------

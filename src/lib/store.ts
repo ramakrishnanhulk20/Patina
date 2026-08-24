@@ -517,14 +517,29 @@ export async function claimUsername(
   const problem = usernameProblem(value);
   if (problem) return { ok: false, error: problem };
 
-  // Gated on having CONNECTED something, not on the profile record existing. A
-  // profile is created the moment a Personal Server is recognised, which is
-  // before any source has been read, and an empty profile has no business
-  // holding a name.
+  /**
+   * The signing floor, enforced HERE rather than only in the UI.
+   *
+   * It used to live solely in the connect page, which hid the name field for a
+   * provisional profile. That is a rule in the button, not a rule in the lock:
+   * anything posting straight to /api/patina/username walked past it and got a
+   * public page, a badge and a signed attestation for a score Patina had
+   * decided not to vouch for. The check belongs at the point of writing, where
+   * nothing can route around it.
+   */
   const profile = await getProfile(profileId);
   if (!profile || Object.keys(profile.sources).length === 0) {
     return { ok: false, error: "Connect a source before choosing a name." };
   }
+
+  const score = scorePatina(evidenceFrom(profile.fragments ?? {}));
+  if (score.provisional) {
+    return {
+      ok: false,
+      error: score.provisionalReason ?? "Connect a source that carries a date first.",
+    };
+  }
+
   if (profile.username === value) return { ok: true, username: value };
 
   const won = await db().setIfAbsent(usernameKey(value), profileId);

@@ -24,22 +24,9 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     body: (
       <>
         Connect only accounts that are genuinely yours. No bots, scripts, fabricated or purchased
-        accounts, duplicate or Sybil accounts, and no signing up as several people. Breaking this voids
-        any share of the reward. Detecting fake history is the entire product, so it would be
-        strange to allow it here.
-      </>
-    ),
-  },
-  {
-    heading: "The Vana Cup reward",
-    body: (
-      <>
-        The offer to share winnings was made by Patina, not by the Vana Foundation. Eligibility was
-        fixed when the standings froze on 18 August 2026, and the claim window has since closed.
-        People who claimed in time are contacted directly and settled individually; the amount is
-        determined solely by Patina, because the tax and compliance obligations on virtual assets
-        fall on us rather than on recipients. Patina will never ask you for a private key, a seed
-        phrase, or any payment.
+        accounts, duplicate or Sybil accounts, and no signing up as several people. Breaking this gets the
+        profile removed. Detecting fake history is the entire product, so it would be strange to
+        allow it here.
       </>
     ),
   },
