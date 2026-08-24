@@ -1,20 +1,33 @@
-import { controllerFor, isSourceId } from "@/lib/vana";
-import { ensureSessionId, readReferralCode, readSessionId } from "@/lib/session";
+import { controllerFor } from "@/lib/vana";
+import { isSourceId, scopesFor } from "@/lib/sources";
+import { ensureSessionId, readSessionId } from "@/lib/session";
 import { ensureProfileId, rememberRequest } from "@/lib/store";
-import { normalizeReferralCode } from "@/lib/referral";
 import { checkConnectRate } from "@/lib/ratelimit";
 import { altchaConfigured, verifyAltcha } from "@/lib/altcha";
 import { siteUrl } from "@/lib/site";
 
+/**
+ * Start one connection: create the access request and hand back the URL that
+ * sends the user to Vana.
+ *
+ * ALL of the source's scopes go in a single request. GitHub asks once for four
+ * things rather than four times for one, which takes the whole manifest from
+ * twenty-one approval trips to ten. See the note in vana.ts on why that is
+ * possible now and was not in v1.
+ *
+ * No sign-in requirement, and no wallet. The moment of connecting is exactly
+ * where people give up, so nothing is asked for here. Identity resolves itself
+ * on the way back, when the approval reveals which Personal Server this is
+ * (see profileForServer in store.ts).
+ */
 export async function POST(request: Request) {
-  const url = new URL(request.url);
-  const source = url.searchParams.get("source");
+  const source = new URL(request.url).searchParams.get("source");
 
   if (!isSourceId(source)) {
     return Response.json({ error: "Unknown source" }, { status: 400 });
   }
 
-  // Rate limit before minting a session, so hammering this route cannot spin up
+  // Rate limit BEFORE minting a session, so hammering this route cannot spin up
   // unlimited sessions to escape the per-session bucket.
   const existingSession = await readSessionId();
   const rate = await checkConnectRate(request, existingSession);
@@ -26,11 +39,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // Invisible bot check. Each paid connection must carry a freshly solved
-  // proof-of-work (see lib/altcha.ts), so a script cannot spend the escrow in a
-  // loop. Skipped entirely when ALTCHA is not configured, so the flow keeps
-  // working before the key is added. The browser solves this without any
-  // interaction; a caller that cannot present a valid solution is not a person.
+  /**
+   * Invisible bot check. Each paid connection must carry a freshly solved
+   * proof-of-work, so a script cannot spend the escrow in a loop. The browser
+   * solves this without any interaction; a caller that cannot present a valid
+   * solution is not a person. Skipped entirely when ALTCHA is not configured,
+   * so the flow keeps working before the key is added.
+   */
   if (altchaConfigured()) {
     const solved = await verifyAltcha(request.headers.get("x-altcha") ?? "");
     if (!solved) {
@@ -41,46 +56,18 @@ export async function POST(request: Request) {
     }
   }
 
-  // The read must be recorded against the WALLET profile when the person has
-  // signed in, not against this browser. Otherwise connecting on a phone and a
-  // laptop produces two half-finished profiles for the same human.
-  const browserSession = await ensureSessionId();
+  const sessionId = await ensureSessionId();
+  const profileId = await ensureProfileId(sessionId);
 
-  // No sign-in requirement.
-  //
-  // There was one, gating this route behind a Vana wallet address. It had to go:
-  // that address is only obtainable through the Context Gateway, ODL's separate
-  // commercial layer, which needs a client_id we do not have. account.vana.org
-  // answers the SDK's own auth URL with "This app is not registered with Vana".
-  //
-  // So the gate blocked every connection on the site while offering a sign-in
-  // that could never complete. Identity is solved separately and optionally,
-  // with Google sign-in folding this browser into one cross-device profile
-  // (see claimProfile). Connecting itself never requires it.
-  // Mints and binds a profile the first time this browser connects anything.
-  // The id is generated independently of the session token, so neither value
-  // can be derived from the other and a published id is not a credential.
-  const profileId = await ensureProfileId(browserSession);
-
-  // Pin the referral code to the request NOW, at the tap, while it is most
-  // reliably in reach. The cookie the proxy parked is authoritative when it is
-  // present (the edge already enforced first-code-wins), so prefer it; the
-  // client also mirrors the code onto this POST as ?ref= from localStorage, for
-  // the in-app browsers that never gave the cookie back. Reading it here instead
-  // of at data-collection time is the fix for phones dropping the cookie across
-  // the Vana approval round trip: by then it may be gone, but the request
-  // remembers who to credit. See referrerFor in the data route.
-  const referredBy =
-    normalizeReferralCode(await readReferralCode()) ??
-    normalizeReferralCode(url.searchParams.get("ref"));
-
-  // Vana sends the user straight back to the connect page, where the pending
-  // request is picked up from sessionStorage and finished off. A dedicated
-  // "you may close this tab" page only makes sense for the popup flow, and we
-  // do not use one because popups break on phones.
+  /**
+   * Vana sends the user straight back to the connect page, where the pending
+   * request is picked up and finished off. A dedicated "you may close this tab"
+   * page only makes sense for a popup flow, and this is a redirect.
+   *
+   * siteUrl, not the raw env var: unset, that interpolated to the literal string
+   * "undefined/connect" and dropped every approved user on a dead page.
+   */
   const accessRequest = await controllerFor(source).createAccessRequest({
-    // siteUrl, not the raw env var: unset, this interpolated to the literal
-    // string "undefined/connect" and dropped every approved user on a dead page.
     returnUrl: siteUrl("/connect"),
   });
 
@@ -88,8 +75,11 @@ export async function POST(request: Request) {
     source,
     profileId,
     createdAt: new Date().toISOString(),
-    ...(referredBy ? { referredBy } : {}),
   });
 
-  return Response.json({ ...accessRequest, source });
+  return Response.json({
+    ...accessRequest,
+    source,
+    scopes: scopesFor(source),
+  });
 }

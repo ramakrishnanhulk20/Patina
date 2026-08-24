@@ -1,4 +1,4 @@
-import { evidenceOf, profileByUsername } from "@/lib/store";
+import { evidenceOf, profileForUsername } from "@/lib/store";
 import { scorePatina } from "@/lib/score";
 import { checkLookupRate } from "@/lib/ratelimit";
 
@@ -61,7 +61,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
 
   const { username } = await params;
   const name = decodeURIComponent(username).replace(/\.svg$/i, "");
-  const profile = await profileByUsername(name);
+  const profile = await profileForUsername(name);
 
   if (!profile || !profile.username) {
     return new Response("Not found", { status: 404 });

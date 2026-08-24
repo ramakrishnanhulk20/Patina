@@ -3,29 +3,40 @@
  *
  * The score answers "how much". This answers "what happened": the year it all
  * begins, the accounts opened one after another, the things made across a
- * decade, the people who gathered around them. It is the same data the card is
- * built from, no account handles, nothing the card would not already show, 
- * arranged as a life rather than a number.
+ * decade, the people who gathered around them. It is built from exactly the
+ * same data the score is, no account handles, nothing a public page would not
+ * already show, arranged as a life rather than a number.
+ *
+ * WHAT v2 MADE POSSIBLE. v1 could only draw a real timeline for people who had
+ * brought Instagram posts, because those were the only per-item timestamps the
+ * web path could reach. Everything else was a single account-opened date and a
+ * count. Desktop collection means every source arrives as a month histogram, so
+ * the activity graph below is available to everybody and is built from all ten
+ * sources at once.
  *
  * Pure and deterministic, so it can be tested without a browser and rendered on
  * the server. It never throws: a thin history yields a short story, not an error.
  */
 
-import type { Evidence, PatinaScore, SourceId } from "./score";
+import type { Evidence, Months, PatinaScore, SourceId } from "./score.ts";
 
 export type TimelineEntry = {
   source: SourceId;
-  /** Four-digit year the account or first trace appears. */
+  /** Four-digit year the account or its first trace appears. */
   year: number;
-  /** "opened YouTube", "joined GitHub", "first Instagram post". */
+  /** "Steam account opened", "earliest Instagram post". */
   label: string;
+  /** True when the date is self-reported rather than machine-generated. */
+  soft: boolean;
 };
+
+export type YearCount = { year: number; count: number };
 
 export type Story = {
   /** The oldest provable year across everything, and how long ago that is. */
   startYear: number | null;
   spanYears: number | null;
-  /** Plain-English origin, e.g. "your YouTube account, opened in 2012". */
+  /** Plain-English origin, e.g. "your Steam account, opened in 2011". */
   origin: string | null;
 
   /** Every dated source, earliest first. The spine of the timeline. */
@@ -33,136 +44,201 @@ export type Story = {
   /** Sources that carry no date but were still connected. */
   alsoConnected: string[];
 
-  /** Things made, that a person can point at. */
-  made: { posts: number; videos: number; repos: number; total: number };
-  /** Per-year post counts, gap-filled, when Instagram posts were brought. */
-  postsByYear: { year: number; count: number }[] | null;
+  /** Things made, kept per kind so they can be named. */
+  made: Array<{ count: number; label: string }>;
+  madeTotal: number;
 
-  /** People and organisations gathered around them. */
+  /**
+   * Activity per year, gap-filled across the whole span.
+   *
+   * Gap-filled deliberately: the quiet years are part of the story and hiding
+   * them would draw a graph of somebody who was always busy, which is both a
+   * lie and less interesting than the truth.
+   */
+  activityByYear: YearCount[];
+  /** The number of separate months with anything in them. */
+  activeMonths: number;
+
+  /** When other people showed up, by year. Empty when nothing dated came back. */
+  vouchesByYear: YearCount[];
+  vouchTotal: number;
+
+  /** People following, across everything. The buyable number, shown small. */
   reach: number;
-  vouches: number;
 
   /** The number the whole thing resolves to. */
   score: number;
   verdict: string;
   /** The component that carried the most weight, for the closing line. */
   strongest: { label: string; points: number; max: number } | null;
+  /** Below the signing floor, so the page shows a number but no credential. */
+  provisional: boolean;
 };
 
 const SOURCE_LABEL: Record<SourceId, string> = {
-  youtube: "YouTube",
-  instagram: "Instagram",
   github: "GitHub",
-  spotify: "Spotify",
   linkedin: "LinkedIn",
+  spotify: "Spotify",
+  instagram: "Instagram",
+  steam: "Steam",
+  youtube: "YouTube",
   amazon: "Amazon",
   uber: "Uber",
-  steam: "Steam",
+  doordash: "DoorDash",
+  shop: "Shop",
 };
 
-function yearOf(value: unknown): number | null {
-  if (typeof value !== "string" || !value.trim()) return null;
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time)) return null;
-  const year = new Date(time).getUTCFullYear();
-  // Guard against obviously broken dates that would make the story lie.
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+function yearOf(iso: string | undefined): number | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getUTCFullYear();
   return year >= 1990 && year <= new Date().getUTCFullYear() ? year : null;
 }
 
-export function buildStory(evidence: Evidence, score: PatinaScore, verdict: string): Story {
-  const timeline: TimelineEntry[] = [];
-
-  const ytYear = yearOf(evidence.youtube?.joinedDate);
-  if (ytYear) timeline.push({ source: "youtube", year: ytYear, label: "opened YouTube" });
-
-  const ghYear = yearOf(evidence.github?.createdAt);
-  if (ghYear) timeline.push({ source: "github", year: ghYear, label: "joined GitHub" });
-
-  const liYear = yearOf(evidence.linkedin?.createdAt);
-  if (liYear) timeline.push({ source: "linkedin", year: liYear, label: "joined LinkedIn" });
-
-  const postYears = (evidence.instagramPosts?.posts ?? [])
-    .map((post) => yearOf(post.taken_at))
-    .filter((y): y is number => y !== null)
-    .sort((a, b) => a - b);
-  if (postYears[0]) {
-    timeline.push({ source: "instagram", year: postYears[0], label: "first Instagram post" });
+/** Sum a set of month histograms into per-year totals. */
+function byYear(histograms: Array<Months | undefined>): Map<number, number> {
+  const years = new Map<number, number>();
+  for (const histogram of histograms) {
+    if (!histogram) continue;
+    for (const [month, count] of Object.entries(histogram)) {
+      const year = Number(month.slice(0, 4));
+      if (!Number.isFinite(year) || typeof count !== "number" || !Number.isFinite(count)) continue;
+      years.set(year, (years.get(year) ?? 0) + count);
+    }
   }
-
-  const steamYear = yearOf(evidence.steam?.accountCreated);
-  if (steamYear) timeline.push({ source: "steam", year: steamYear, label: "created Steam" });
-
-  const amazonYear = yearOf(evidence.amazon?.earliestOrder);
-  if (amazonYear) timeline.push({ source: "amazon", year: amazonYear, label: "first Amazon order" });
-
-  const uberYear = yearOf(evidence.uber?.earliestTrip);
-  if (uberYear) timeline.push({ source: "uber", year: uberYear, label: "first Uber trip" });
-
-  timeline.sort((a, b) => a.year - b.year);
-
-  // Sources present but undated, so they still get a mention rather than
-  // vanishing from a story that is meant to account for everything connected.
-  const dated = new Set(timeline.map((entry) => entry.source));
-  const alsoConnected = score.sourcesConnected
-    .filter((source) => !dated.has(source))
-    .map((source) => SOURCE_LABEL[source]);
-
-  const startYear = score.oldestSignal
-    ? new Date(score.oldestSignal.date).getUTCFullYear()
-    : (timeline[0]?.year ?? null);
-  const spanYears = score.oldestSignal ? Math.floor(score.oldestSignal.years) : null;
-  const origin = timeline[0]
-    ? `your ${SOURCE_LABEL[timeline[0].source]} account, from ${timeline[0].year}`
-    : null;
-
-  const posts =
-    evidence.instagram?.media_count ?? evidence.instagramPosts?.posts?.length ?? 0;
-  const videos = evidence.youtube?.videoCount ?? 0;
-  const repos = evidence.github?.repositoryCount ?? 0;
-
-  const reach =
-    (evidence.instagram?.follower_count ?? 0) +
-    (evidence.youtube?.subscriberCount ?? 0) +
-    (evidence.github?.followers ?? 0) +
-    (evidence.spotify?.followers ?? 0) +
-    (evidence.linkedin?.connections ?? 0);
-
-  const vouches =
-    (evidence.github?.organizations?.length ?? 0) +
-    (evidence.github?.achievements?.length ?? 0);
-
-  const strongest = [...score.components]
-    .filter((component) => component.points > 0)
-    .sort((a, b) => b.points - a.points)[0];
-
-  return {
-    startYear,
-    spanYears,
-    origin,
-    timeline,
-    alsoConnected,
-    made: { posts, videos, repos, total: posts + videos + repos },
-    postsByYear: postYears.length >= 2 ? countByYear(postYears) : null,
-    reach,
-    vouches,
-    score: score.total,
-    verdict,
-    strongest: strongest
-      ? { label: strongest.label, points: strongest.points, max: strongest.max }
-      : null,
-  };
+  return years;
 }
 
-/** Group years into a gap-filled run, so a quiet year reads as a real gap. */
-function countByYear(years: number[]): { year: number; count: number }[] {
-  const counts = new Map<number, number>();
-  for (const year of years) counts.set(year, (counts.get(year) ?? 0) + 1);
-
-  const first = years[0];
-  const last = years[years.length - 1];
-  const out: { year: number; count: number }[] = [];
-  for (let year = first; year <= last; year += 1) {
-    out.push({ year, count: counts.get(year) ?? 0 });
+/** Every year from first to last, including the empty ones. */
+function fill(years: Map<number, number>): YearCount[] {
+  if (years.size === 0) return [];
+  const keys = [...years.keys()].sort((a, b) => a - b);
+  const out: YearCount[] = [];
+  for (let year = keys[0]; year <= keys[keys.length - 1]; year += 1) {
+    out.push({ year, count: years.get(year) ?? 0 });
   }
   return out;
 }
+
+function countMonths(histograms: Array<Months | undefined>): number {
+  const months = new Set<string>();
+  for (const histogram of histograms) {
+    for (const month of Object.keys(histogram ?? {})) months.add(month);
+  }
+  return months.size;
+}
+
+export function buildStory(evidence: Evidence, score: PatinaScore): Story {
+  const entries = (Object.entries(evidence) as Array<[SourceId, Evidence[SourceId]]>).filter(
+    (entry): entry is [SourceId, NonNullable<Evidence[SourceId]>] => Boolean(entry[1]),
+  );
+
+  const timeline: TimelineEntry[] = [];
+  const alsoConnected: string[] = [];
+
+  for (const [source, data] of entries) {
+    const year = yearOf(data.earliest);
+    if (year === null) {
+      alsoConnected.push(SOURCE_LABEL[source]);
+      continue;
+    }
+    timeline.push({
+      source,
+      year,
+      label: data.earliestLabel ?? `${SOURCE_LABEL[source]} account`,
+      soft: data.softDate === true,
+    });
+  }
+
+  timeline.sort((a, b) => a.year - b.year || SOURCE_LABEL[a.source].localeCompare(SOURCE_LABEL[b.source]));
+
+  const made = entries.flatMap(([, data]) =>
+    (data.made ?? []).filter((kind) => kind && Number.isFinite(kind.count) && kind.count > 0),
+  );
+
+  const activity = byYear(entries.map(([, data]) => data.months));
+  const vouches = byYear(entries.map(([, data]) => data.vouchMonths));
+
+  const strongest = [...score.components].sort(
+    // By how much of its own maximum a component earned, not by raw points, or
+    // Age would win almost every time simply for being the biggest row.
+    (a, b) => b.points / b.max - a.points / a.max,
+  )[0];
+
+  const startYear = score.oldestSignal ? yearOf(score.oldestSignal.date) : (timeline[0]?.year ?? null);
+
+  return {
+    startYear,
+    spanYears: score.oldestSignal
+      ? Math.round(score.oldestSignal.years)
+      : startYear
+        ? new Date().getUTCFullYear() - startYear
+        : null,
+    origin: score.oldestSignal
+      ? `your ${score.oldestSignal.source}, ${startYear ? `back in ${startYear}` : "the oldest thing you brought"}`
+      : null,
+
+    timeline,
+    alsoConnected: alsoConnected.sort(),
+
+    made,
+    madeTotal: made.reduce((sum, kind) => sum + kind.count, 0),
+
+    activityByYear: fill(activity),
+    activeMonths: countMonths(entries.map(([, data]) => data.months)),
+
+    vouchesByYear: fill(vouches),
+    vouchTotal: [...vouches.values()].reduce((sum, count) => sum + count, 0),
+
+    reach: entries.reduce(
+      (sum, [, data]) => sum + (Number.isFinite(data.followers) ? (data.followers as number) : 0),
+      0,
+    ),
+
+    score: score.total,
+    verdict: verdictOf(score.total),
+    strongest: strongest
+      ? { label: strongest.label, points: strongest.points, max: strongest.max }
+      : null,
+    provisional: score.provisional,
+  };
+}
+
+/** Kept local so story.ts stays pure and importable from a client component. */
+function verdictOf(total: number): string {
+  if (total >= 80) return "Deeply worn in";
+  if (total >= 60) return "Well established";
+  if (total >= 40) return "Some real history";
+  if (total >= 20) return "Thin, but genuine so far";
+  return "Not much to go on yet";
+}
+
+/**
+ * The one-sentence version, for a share card or a meta description.
+ *
+ * Written to be true of a thin history as well as a deep one. A person with two
+ * years and one account should get a sentence they would be happy to post,
+ * because a low score is evidence of absence rather than an accusation and the
+ * copy has to carry that or the product reads as a judgement.
+ */
+export function storyLine(story: Story): string {
+  if (story.startYear === null) {
+    return "Nothing connected yet.";
+  }
+
+  const span =
+    story.spanYears && story.spanYears >= 1
+      ? `${story.spanYears} ${story.spanYears === 1 ? "year" : "years"} of provable history`
+      : "a history that is just getting started";
+
+  const sources = story.timeline.length + story.alsoConnected.length;
+  const backing =
+    sources > 1 ? `, across ${sources} accounts that agree with each other` : ", from one account";
+
+  return `${span}${backing}. Patina ${story.score}.`;
+}
+
+export { SOURCE_LABEL };

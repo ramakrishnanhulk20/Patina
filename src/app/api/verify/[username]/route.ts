@@ -1,4 +1,4 @@
-import { evidenceOf, profileByUsername } from "@/lib/store";
+import { evidenceOf, profileForUsername } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildAttestation } from "@/lib/attest";
 import { checkLookupRate } from "@/lib/ratelimit";
@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   }
 
   const { username } = await params;
-  const profile = await profileByUsername(decodeURIComponent(username));
+  const profile = await profileForUsername(decodeURIComponent(username));
 
   if (!profile || !profile.username) {
     return Response.json(

@@ -564,6 +564,12 @@ export type PendingRequest = {
    * would undo the entire point of discarding them on arrival.
    */
   reads?: Array<{ scope: string; fragment: Fragment }>;
+  /**
+   * The account handle behind those reads, captured from the raw payload before
+   * normalize discarded it. Cached alongside the reads so a replayed request
+   * records the same account rather than losing it.
+   */
+  externalId?: string;
 };
 
 /**

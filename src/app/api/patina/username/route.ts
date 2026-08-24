@@ -1,5 +1,5 @@
 import { readSessionId } from "@/lib/session";
-import { resolveProfileId, setUsername } from "@/lib/store";
+import { claimUsername, resolveProfileId } from "@/lib/store";
 import { checkUsernameRate } from "@/lib/ratelimit";
 
 export async function POST(request: Request) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, reason: "Connect a source first." }, { status: 400 });
   }
 
-  const result = await setUsername(profileId, name);
+  const result = await claimUsername(profileId, name);
 
   // A taken name is not a server error: it is a normal thing to type.
   return Response.json(result, { status: result.ok ? 200 : 409 });
