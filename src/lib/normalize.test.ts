@@ -1,233 +1,463 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { foldRead, normalizeGitHub, normalizeLinkedIn, identityOf } from "./normalize.ts";
-import { scorePatina } from "./score.ts";
+import {
+  ALL_SCOPES,
+  evidenceFrom,
+  foldRead,
+  identityOf,
+  payloadFor,
+  readScope,
+  SCOPES_BY_SOURCE,
+} from "./normalize.ts";
+import { scorePatina, type Evidence } from "./score.ts";
 
-/**
- * Captured from a real paid read against Moksha on 28 July 2026, from a
- * throwaway GitHub account created five months earlier. Copied verbatim so this
- * test fails the moment Vana changes the shape underneath us.
- *
- * Note it does NOT match the schema published in data-connectors: the payload
- * is inside `items[]`, repos are `publicRepos` rather than `repositoryCount`,
- * and there is a `createdAt` the published schema never mentions.
- */
-const REAL_GITHUB_READ = {
-  scope: "github.profile",
-  data: {
-    version: "1.0",
-    scope: "github.profile",
-    collectedAt: "2026-07-28T11:14:25Z",
-    data: {
-      items: [
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+const iso = (yearsAgo: number) => new Date(Date.now() - yearsAgo * MS_PER_YEAR).toISOString();
+
+function fold(scope: string, payload: unknown, into: Evidence = {}): Evidence {
+  return foldRead(into, scope, payload);
+}
+
+// ---------------------------------------------------------------------------
+// Envelopes. Four shapes have been seen in the wild; all four must work, and an
+// unrecognised fifth must be survivable rather than fatal.
+// ---------------------------------------------------------------------------
+
+test("envelope: reads a bare payload", () => {
+  assert.deepEqual(payloadFor({ followers: 12 }, "github.profile"), { followers: 12 });
+});
+
+test("envelope: unwraps { data: x }", () => {
+  assert.deepEqual(payloadFor({ data: { followers: 12 } }, "github.profile"), { followers: 12 });
+});
+
+test("envelope: unwraps { data: { data: { items: [x] } } }", () => {
+  const raw = { data: { data: { items: [{ followers: 12 }] } } };
+  assert.deepEqual(payloadFor(raw, "github.profile"), { followers: 12 });
+});
+
+test("envelope: prefers the scope-keyed connector format over a sibling data key", () => {
+  const raw = {
+    "github.profile": { followers: 99 },
+    data: { followers: 1 },
+    requestedScopes: ["github.profile"],
+  };
+  assert.deepEqual(payloadFor(raw, "github.profile"), { followers: 99 });
+});
+
+test("envelope: a top-level array survives, because steam.friends is one", () => {
+  const raw = [{ steamId: "1", friendSince: iso(4) }];
+  assert.ok(Array.isArray(payloadFor(raw, "steam.friends")));
+});
+
+// ---------------------------------------------------------------------------
+// THE TRUST TEST.
+//
+// Every scope is requested for its timestamps. This asserts that the content
+// riding along with them never reaches the output. If this test ever fails,
+// Patina is storing something it told people it would not.
+// ---------------------------------------------------------------------------
+
+test("nothing sensitive survives normalisation", () => {
+  const secrets = [
+    "ram@example.com",
+    "17 Nightingale Road",
+    "Chennai Central",
+    "my terrible caption",
+    "sneaky_liker_92",
+    "Half-Life 3",
+    "Goldman Sachs",
+    "Priya Ramanathan",
+    "linkedin.com/in/priya-r",
+    "Bohemian Rhapsody",
+    "Wireless Earbuds",
+    "Dosa Corner",
+    "the body of my pull request",
+  ];
+
+  let evidence: Evidence = {};
+
+  evidence = fold(
+    "instagram.posts",
+    {
+      posts: [
         {
-          username: "rvasanthi160-bit",
-          name: null,
-          bio: null,
-          location: null,
-          company: null,
-          websiteUrl: null,
-          twitterUsername: null,
-          socialAccounts: [],
-          avatarUrl: "https://avatars.githubusercontent.com/u/263559170?v=4",
-          profileUrl: "https://github.com/rvasanthi160-bit",
-          email: null,
-          followers: 0,
-          following: 0,
-          publicRepos: 0,
-          publicGists: 0,
-          totalStars: 0,
-          totalForks: 0,
-          hireable: null,
-          accountType: "User",
-          createdAt: "2026-02-24T06:55:47Z",
-          updatedAt: "2026-02-24T06:55:47Z",
-          scrapedAt: "2026-07-28T11:14:20.235684+00:00",
-          error: null,
+          taken_at: iso(6),
+          caption: "my terrible caption",
+          img_url: "https://cdn/x.jpg",
+          num_of_likes: 40,
+          who_liked: [{ username: "sneaky_liker_92", pk: "1", profile_pic_url: "https://x" }],
         },
       ],
     },
-  },
-  payment: {
-    opType: "grant",
-    opId: "0xe99cdc0db69d05da2464419e4dfef99f3a4242dfe89ebba7c2ad3c9c96ba9e8d",
-    asset: "0x0000000000000000000000000000000000000000",
-    amount: "11000000000000000",
-    paymentNonce: "7667536866913511790444",
-    breakdown: {
-      registrationFee: "1000000000000000",
-      dataAccessFee: "10000000000000000",
-      registrationPaid: true,
+    evidence,
+  );
+
+  evidence = fold("youtube.profile", { email: "ram@example.com", joinedDate: iso(9) }, evidence);
+
+  evidence = fold(
+    "uber.trips",
+    {
+      trips: [
+        {
+          requestTime: iso(5),
+          pickupAddress: "17 Nightingale Road",
+          dropoffAddress: "Chennai Central",
+          fare: "₹240",
+        },
+      ],
     },
-    paidAt: "2026-07-28T11:19:08.180Z",
-  },
-};
+    evidence,
+  );
 
-test("the real server-side payload is unwrapped from items[]", () => {
-  const profile = normalizeGitHub(REAL_GITHUB_READ);
+  evidence = fold(
+    "linkedin.connections",
+    {
+      connections: [
+        {
+          fullName: "Priya Ramanathan",
+          headline: "Engineer",
+          profileUrl: "linkedin.com/in/priya-r",
+          dateConnected: iso(7),
+        },
+      ],
+    },
+    evidence,
+  );
 
-  assert.equal(profile?.username, "rvasanthi160-bit");
-  assert.equal(profile?.createdAt, "2026-02-24T06:55:47Z");
-  // publicRepos, not the published schema's repositoryCount.
-  assert.equal(profile?.repositoryCount, 0);
-  assert.equal(profile?.followers, 0);
+  evidence = fold(
+    "steam.games",
+    { owned: [{ appId: 1, name: "Half-Life 3", playtimeMinutes: 900, lastPlayed: iso(2) }] },
+    evidence,
+  );
+
+  evidence = fold(
+    "linkedin.experience",
+    { experiences: [{ jobTitle: "Analyst", companyName: "Goldman Sachs", dates: "2011 - 2015" }] },
+    evidence,
+  );
+
+  evidence = fold(
+    "spotify.savedTracks",
+    { savedTracks: [{ added_at: iso(8), name: "Bohemian Rhapsody", artists: [{ name: "Queen" }] }] },
+    evidence,
+  );
+
+  evidence = fold(
+    "amazon.orders",
+    { orders: [{ orderId: "1", orderDate: iso(10), items: ["Wireless Earbuds"] }] },
+    evidence,
+  );
+
+  evidence = fold(
+    "doordash.orders",
+    { orders: [{ orderId: "1", date: iso(3), restaurant: "Dosa Corner" }] },
+    evidence,
+  );
+
+  evidence = fold(
+    "github.history",
+    {
+      pullRequests: [
+        { id: "1", createdAt: iso(9), title: "fix", body: "the body of my pull request", repo: "a/b" },
+      ],
+    },
+    evidence,
+  );
+
+  const stored = JSON.stringify(evidence);
+  for (const secret of secrets) {
+    assert.ok(!stored.includes(secret), `"${secret}" reached the store`);
+  }
+
+  // And the timestamps we DID want are all still there.
+  assert.ok(evidence.instagram?.months, "instagram post months survived");
+  assert.ok(evidence.uber?.months, "uber trip months survived");
+  assert.ok(evidence.linkedin?.vouchMonths, "linkedin connection dates survived");
+  assert.equal(evidence.youtube?.earliestLabel, "YouTube account opened");
 });
 
-test("a five-month-old throwaway account scores near the floor", () => {
-  const evidence = foldRead({}, "github.profile", REAL_GITHUB_READ);
-  const score = scorePatina(evidence);
+test("instagram: who_liked is dropped even when there are hundreds of them", () => {
+  const evidence = fold("instagram.posts", {
+    posts: Array.from({ length: 30 }, (_, i) => ({
+      taken_at: iso(5 - i * 0.1),
+      who_liked: Array.from({ length: 50 }, (_, j) => ({ username: `liker_${i}_${j}` })),
+    })),
+  });
+  assert.ok(!JSON.stringify(evidence).includes("liker_"), "third-party usernames leaked");
+  assert.equal(evidence.instagram?.made?.[0].count, 30);
+});
 
-  assert.ok(score.total < 12, `throwaway account scored ${score.total}, expected under 12`);
-  assert.equal(score.oldestSignal?.source, "GitHub account opened");
-  assert.ok(
-    score.oldestSignal!.years < 1,
-    `expected under a year of history, got ${score.oldestSignal?.years}`,
+// ---------------------------------------------------------------------------
+// Dates
+// ---------------------------------------------------------------------------
+
+test("steam: a unix timestamp for account creation is not 1970", () => {
+  const evidence = fold("steam.profile", { steamId: "76", timecreated: 1375315200 });
+  assert.equal(new Date(evidence.steam!.earliest!).getUTCFullYear(), 2013);
+});
+
+test("dates: impossible ones are refused rather than scored", () => {
+  const epoch = fold("youtube.profile", { joinedDate: "1970-01-01T00:00:00Z" });
+  assert.equal(epoch.youtube?.earliest, undefined, "1970 is a parse failure, not an account");
+
+  const future = fold("steam.profile", { accountCreated: iso(-5) });
+  assert.equal(future.steam, undefined, "nothing has happened in five years' time");
+});
+
+test("linkedin: free-text date ranges yield the earliest year, marked soft", () => {
+  const evidence = fold("linkedin.experience", {
+    experiences: [
+      { dates: "Jan 2019 - Present · 7 yrs" },
+      { dates: "2011 - 2015" },
+      { dates: "Mar 2015 - Dec 2018" },
+    ],
+  });
+  assert.equal(new Date(evidence.linkedin!.earliest!).getUTCFullYear(), 2011);
+  assert.equal(evidence.linkedin!.softDate, true, "typed history must be marked self-reported");
+});
+
+test("linkedin: a real date beats a self-reported one even when it is newer", () => {
+  let evidence = fold("linkedin.experience", { experiences: [{ dates: "2005 - 2010" }] });
+  evidence = fold("linkedin.connections", { connections: [{ dateConnected: iso(6) }] }, evidence);
+
+  // Nothing hard has arrived for LinkedIn yet, so the soft date stands.
+  assert.equal(evidence.linkedin?.softDate, true);
+
+  // The scorer is where it gets discounted: a soft date alone earns no Age.
+  assert.equal(scorePatina({ linkedin: evidence.linkedin }).components[0].points, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Numbers
+// ---------------------------------------------------------------------------
+
+test("linkedin: a connections count of \"500+\" is read as 500", () => {
+  assert.equal(fold("linkedin.profile", { connections: "500+" }).linkedin?.followers, 500);
+});
+
+test("counts: \"12.5K\" and \"1,234\" are both read", () => {
+  assert.equal(fold("spotify.profile", { followers: "12.5K" }).spotify?.followers, 12_500);
+  assert.equal(fold("spotify.profile", { followers: "1,234" }).spotify?.followers, 1_234);
+});
+
+// ---------------------------------------------------------------------------
+// Merging several scopes into one source
+// ---------------------------------------------------------------------------
+
+test("github: four scopes fold into one account", () => {
+  let evidence: Evidence = {};
+  evidence = fold("github.profile", { followers: 40, organizations: [{ login: "a" }], achievements: [{ name: "b" }] }, evidence);
+  evidence = fold("github.repositories", { repositories: [{ name: "x" }, { name: "y" }] }, evidence);
+  evidence = fold("github.history", { pullRequests: [{ id: "1", createdAt: iso(7), comments: 3, reactionsTotal: 2 }], issues: [{ id: "2", createdAt: iso(5) }] }, evidence);
+  evidence = fold("github.contributions", { days: [{ date: iso(2), count: 4 }], yearTotals: [{ year: new Date().getUTCFullYear() - 8, total: 300 }] }, evidence);
+
+  const github = evidence.github!;
+  assert.equal(github.followers, 40);
+  assert.equal(github.vouches, 2 + 5, "orgs and badges, plus comments and reactions received");
+  assert.deepEqual(
+    github.made?.map((k) => k.label),
+    ["repos", "pull requests and issues"],
+  );
+  assert.equal(github.made?.reduce((n, k) => n + k.count, 0), 4);
+  // yearTotals reaches back further than the history did, so it wins.
+  assert.equal(new Date(github.earliest!).getUTCFullYear(), new Date().getUTCFullYear() - 8);
+});
+
+test("github: repositories contribute no months, because updatedAt is not a birthday", () => {
+  const evidence = fold("github.repositories", {
+    repositories: [{ name: "ancient-repo", updatedAt: iso(0.01) }],
+  });
+  assert.equal(evidence.github?.months, undefined);
+});
+
+test("instagram: the profile post count does not double up on the posts scope", () => {
+  let evidence = fold("instagram.posts", {
+    posts: [{ taken_at: iso(3) }, { taken_at: iso(2) }],
+  });
+  evidence = fold("instagram.profile", { media_count: 2, follower_count: 800 }, evidence);
+
+  const total = evidence.instagram?.made?.reduce((n, k) => n + k.count, 0);
+  assert.equal(total, 2, "two posts must not be counted as four");
+  assert.equal(evidence.instagram?.followers, 800);
+});
+
+test("spotify: saved tracks and playlists both feed the same months", () => {
+  let evidence = fold("spotify.savedTracks", {
+    savedTracks: [{ added_at: "2019-03-04T00:00:00Z" }],
+    total: 1,
+  });
+  evidence = fold(
+    "spotify.playlists",
+    { playlists: [{ name: "x", tracks: [{ added_at: "2019-03-19T00:00:00Z" }] }] },
+    evidence,
+  );
+
+  assert.equal(evidence.spotify?.months?.["2019-03"], 2, "both saves land in the same month");
+  assert.deepEqual(
+    evidence.spotify?.made?.map((k) => k.label),
+    ["saved tracks", "playlists"],
   );
 });
 
-test("GitHub account age is picked up as an age signal", () => {
-  const old = foldRead({}, "github.profile", {
-    scope: "github.profile",
-    data: { data: { items: [{ username: "veteran", createdAt: "2011-03-04T00:00:00Z", publicRepos: 60 }] } },
+// ---------------------------------------------------------------------------
+// Vouches
+// ---------------------------------------------------------------------------
+
+test("steam.friends: a bare array of friends yields dated vouches", () => {
+  const evidence = fold("steam.friends", [
+    { steamId: "1", friendSince: "2016-05-02T00:00:00Z" },
+    { steamId: "2", friendSince: "2016-05-20T00:00:00Z" },
+    { steamId: "3", friendSince: null },
+  ]);
+  assert.equal(evidence.steam?.vouchMonths?.["2016-05"], 2);
+});
+
+test("connections with no usable dates record nothing rather than a bare count", () => {
+  const evidence = fold("linkedin.connections", {
+    connections: [{ fullName: "A" }, { fullName: "B" }],
   });
-
-  const score = scorePatina(old);
-  assert.ok(score.oldestSignal!.years > 14, `expected 14+ years, got ${score.oldestSignal?.years}`);
-  assert.ok(score.total > 40, `a 2011 GitHub with 60 repos scored ${score.total}`);
+  assert.equal(evidence.linkedin, undefined, "an undated connection is not a vouch");
 });
 
-test("the published desktop schema shape still works", () => {
-  // Same scope, the OTHER shape. Both paths must normalize identically enough.
-  const desktopShape = {
-    scope: "github.profile",
-    data: {
-      data: {
-        username: "desktopuser",
-        repositoryCount: 12,
-        followers: 30,
-        organizations: [{ login: "org-a" }, { login: "org-b" }],
-        achievements: [{ name: "Pull Shark" }],
-      },
-    },
-  };
+// ---------------------------------------------------------------------------
+// Failure modes. None of these may throw, and none may claim a source slot.
+// ---------------------------------------------------------------------------
 
-  const profile = normalizeGitHub(desktopShape);
-  assert.equal(profile?.username, "desktopuser");
-  assert.equal(profile?.repositoryCount, 12);
-  assert.equal(profile?.organizations?.length, 2);
-  assert.equal(profile?.achievements?.length, 1);
+test("an unknown scope is ignored", () => {
+  assert.deepEqual(fold("tiktok.videos", { videos: [1, 2, 3] }), {});
 });
 
-test("garbage in never throws", () => {
-  for (const junk of [null, undefined, 42, "text", [], {}, { data: null }, { data: { data: [] } }]) {
-    assert.doesNotThrow(() => normalizeGitHub(junk));
-    assert.doesNotThrow(() => scorePatina(foldRead({}, "github.profile", junk)));
+test("empty and malformed payloads claim no source", () => {
+  const cases: Array<[string, unknown]> = [
+    ["instagram.posts", { posts: [] }],
+    ["amazon.orders", { orders: [] }],
+    ["steam.profile", {}],
+    ["github.history", { pullRequests: [], issues: [] }],
+    ["spotify.savedTracks", null],
+    ["uber.trips", "not an object"],
+    ["linkedin.education", { education: [{ years: "sometime in the past" }] }],
+    ["youtube.profile", { email: "only@anemail.com" }],
+  ];
+
+  for (const [scope, payload] of cases) {
+    assert.deepEqual(fold(scope, payload), {}, `${scope} should have recorded nothing`);
   }
 });
 
-test("an unknown scope is ignored rather than corrupting evidence", () => {
-  const before = { github: { username: "keep" } };
-  const after = foldRead(before, "tiktok.something", { data: { data: {} } });
-  assert.deepEqual(after, before);
+test("every declared scope has a normaliser and survives junk without throwing", () => {
+  for (const scope of ALL_SCOPES) {
+    for (const junk of [null, undefined, 42, "text", [], {}, { data: { data: { items: [] } } }]) {
+      assert.doesNotThrow(() => foldRead({}, scope, junk), `${scope} threw on ${String(junk)}`);
+    }
+  }
 });
 
-test("LinkedIn profile normalizes connections strings and a vanity slug", () => {
-  const raw = {
-    scope: "linkedin.profile",
-    data: {
-      data: {
-        items: [
-          {
-            profileUrl: "https://www.linkedin.com/in/jane-doe-42/",
-            fullName: "Jane Doe",
-            headline: "Builder",
-            location: "Chennai",
-            connections: "500+",
-            profilePictureUrl: "https://example.com/a.jpg",
-            about: "Hi",
-          },
-        ],
-      },
-    },
-  };
-
-  const profile = normalizeLinkedIn(raw);
-  assert.equal(profile?.fullName, "Jane Doe");
-  assert.equal(profile?.connections, 500);
-  assert.equal(identityOf("linkedin.profile", raw), "jane-doe-42");
-
-  const evidence = foldRead({}, "linkedin.profile", raw);
-  assert.equal(evidence.linkedin?.connections, 500);
-  assert.ok(scorePatina(evidence).sourcesConnected.includes("linkedin"));
+test("the manifest is 21 scopes across 10 sources", () => {
+  assert.equal(ALL_SCOPES.length, 21);
+  assert.equal(Object.keys(SCOPES_BY_SOURCE).length, 10);
+  assert.deepEqual(SCOPES_BY_SOURCE.github, [
+    "github.profile",
+    "github.contributions",
+    "github.history",
+    "github.repositories",
+  ]);
 });
 
-/**
- * Instagram is now read as `instagram.posts` rather than `instagram.profile`,
- * because the profile carries no date and post timestamps feed Age and
- * Corroboration. 60 of the 100 points. These tests pin the shapes that must
- * keep working, since a silent miss here costs the user most of their score on
- * a read they already paid for.
- */
-test("Instagram posts normalize from a named posts array", () => {
-  const raw = {
-    scope: "instagram.posts",
-    data: {
-      data: {
-        items: [
-          {
-            username: "janedoe",
-            posts: [
-              { taken_at: "2014-03-02T10:00:00Z", num_of_likes: 12, caption: "one" },
-              { taken_at: "2021-11-20T10:00:00Z", num_of_likes: 40 },
-            ],
-          },
-        ],
-      },
-    },
+// ---------------------------------------------------------------------------
+// Idempotency.
+//
+// Reads get retried: a network blip, a cold instance, somebody refreshing
+// mid-settle. Storing fragments keyed by scope is what makes a retry land
+// identically instead of adding the same months and vouches a second time.
+// ---------------------------------------------------------------------------
+
+test("re-reading every scope changes nothing", () => {
+  const reads: Record<string, unknown> = {
+    "github.contributions": { days: [{ date: iso(3), count: 5 }], yearTotals: [{ year: 2019, total: 90 }] },
+    "github.history": { pullRequests: [{ id: "1", createdAt: iso(6), comments: 4 }] },
+    "github.profile": { followers: 30, organizations: [{ login: "o" }] },
+    "steam.friends": [{ friendSince: iso(5) }, { friendSince: iso(4) }],
+    "steam.profile": { accountCreated: iso(11) },
+    "spotify.savedTracks": { savedTracks: [{ added_at: iso(7) }], total: 1 },
+    "instagram.posts": { posts: [{ taken_at: iso(4) }] },
+    "instagram.profile": { media_count: 1, follower_count: 200 },
   };
 
-  const evidence = foldRead({}, "instagram.posts", raw);
-  assert.equal(evidence.instagramPosts?.posts?.length, 2);
-  assert.equal(identityOf("instagram.posts", raw), "janedoe");
+  const once = Object.fromEntries(
+    Object.entries(reads).map(([scope, raw]) => [scope, readScope(scope, raw)]),
+  );
 
-  // Data minimisation: the raw read carried a caption and a like count, and
-  // neither is scored, so neither must survive into what we store.
-  const first = evidence.instagramPosts?.posts?.[0] as Record<string, unknown>;
-  assert.ok(first.taken_at, "the timestamp is what we keep");
-  assert.equal(first.num_of_likes, undefined, "like counts must not be retained");
-  assert.equal(first.caption, undefined, "captions must not be retained");
+  // Every scope read a second time, as a retry would.
+  const twice = Object.fromEntries(
+    Object.entries(reads).map(([scope, raw]) => [scope, readScope(scope, raw)]),
+  );
 
-  // The oldest post is what Age is built from.
+  const first = evidenceFrom(once);
+  const second = evidenceFrom({ ...once, ...twice });
+
+  assert.deepEqual(second, first, "a retry must not change the evidence");
+  assert.equal(scorePatina(second).total, scorePatina(first).total);
+});
+
+test("the fold is deterministic regardless of the order sources were connected", () => {
+  const reads: Record<string, unknown> = {
+    "steam.profile": { accountCreated: iso(12) },
+    "github.history": { pullRequests: [{ id: "1", createdAt: iso(8) }] },
+    "spotify.savedTracks": { savedTracks: [{ added_at: iso(6) }], total: 1 },
+  };
+
+  const fragments = Object.fromEntries(
+    Object.entries(reads).map(([scope, raw]) => [scope, readScope(scope, raw)]),
+  );
+
+  const forwards = evidenceFrom(fragments);
+  const backwards = evidenceFrom(Object.fromEntries(Object.entries(fragments).reverse()));
+
+  assert.deepEqual(backwards, forwards, "connection order must not change the score");
+});
+
+test("a failed re-read leaves the previous fragment intact", () => {
+  const good = readScope("instagram.posts", { posts: [{ taken_at: iso(5) }, { taken_at: iso(4) }] });
+  const failed = readScope("instagram.posts", { posts: [] });
+
+  assert.ok(good);
+  assert.equal(failed, undefined, "an empty re-read yields nothing to store");
+
+  // The caller keeps what it had, so the person does not lose a source to a blip.
+  const evidence = evidenceFrom({ "instagram.posts": failed ?? good });
+  assert.equal(evidence.instagram?.made?.[0].count, 2);
+});
+
+// ---------------------------------------------------------------------------
+// End to end
+// ---------------------------------------------------------------------------
+
+test("a realistic multi-source read produces a sensible score", () => {
+  let evidence: Evidence = {};
+
+  evidence = fold("github.contributions", {
+    days: Array.from({ length: 400 }, (_, i) => ({ date: iso(9 - i * 0.02), count: 3 })),
+    yearTotals: [{ year: new Date().getUTCFullYear() - 9, total: 500 }],
+  }, evidence);
+  evidence = fold("github.profile", { followers: 60, organizations: [{ login: "o" }] }, evidence);
+  evidence = fold("steam.profile", { accountCreated: iso(14) }, evidence);
+  evidence = fold("steam.friends", Array.from({ length: 40 }, (_, i) => ({ friendSince: iso(9 - i * 0.15) })), evidence);
+  evidence = fold("spotify.savedTracks", {
+    savedTracks: Array.from({ length: 600 }, (_, i) => ({ added_at: iso(8 - i * 0.012) })),
+    total: 600,
+  }, evidence);
+
   const score = scorePatina(evidence);
-  assert.ok(score.sourcesConnected.includes("instagram"));
-  assert.equal(new Date(score.oldestSignal!.date).getUTCFullYear(), 2014);
+
+  assert.equal(score.sourcesConnected.length, 3);
+  assert.equal(score.provisional, false, "three sources with dates is signable");
+  assert.equal(score.oldestSignal?.source, "Steam account opened");
+  assert.ok(score.total >= 60, `a real fourteen-year history should score well, got ${score.total}`);
 });
 
-test("Instagram posts still normalize when the records ARE the envelope items", () => {
-  const raw = {
-    scope: "instagram.posts",
-    data: {
-      data: {
-        items: [
-          { taken_at: "2015-06-01T10:00:00Z", like_count: 3 },
-          { taken_at: "2019-01-01T10:00:00Z", like_count: 9 },
-        ],
-      },
-    },
-  };
-
-  const evidence = foldRead({}, "instagram.posts", raw);
-  assert.equal(evidence.instagramPosts?.posts?.length, 2);
-  assert.equal(new Date(scorePatina(evidence).oldestSignal!.date).getUTCFullYear(), 2015);
-});
-
-test("A posts read with no timestamps anywhere records nothing at all", () => {
-  // Must stay undefined rather than claiming the slot: an empty Instagram
-  // record would block a later, better read from filling it.
-  const evidence = foldRead({}, "instagram.posts", {
-    scope: "instagram.posts",
-    data: { data: { items: [] } },
-  });
-  assert.equal(evidence.instagramPosts, undefined);
-  assert.equal(scorePatina(evidence).sourcesConnected.length, 0);
+test("identityOf finds a handle without inventing one", () => {
+  assert.equal(identityOf("github.profile", { username: "ram" }), "ram");
+  assert.equal(identityOf("steam.profile", { steamId: "7656119" }), "7656119");
+  assert.equal(identityOf("amazon.orders", { orders: [] }), undefined);
 });

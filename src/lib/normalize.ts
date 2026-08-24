@@ -1,40 +1,32 @@
 /**
  * Turning what the Personal Server actually returns into something the scorer
- * can trust.
+ * can trust, and throwing away everything else on the way through.
  *
- * This file exists because of a real bug. The JSON Schemas published in
- * PDP-Connect/data-connectors describe the DESKTOP connector's output. Vana's
- * server-side collection path (the one a user gets without installing anything)
- * returns a DIFFERENT SHAPE for the same scope: the payload is wrapped in an
- * `items` array, and several fields are named differently.
+ * TWO JOBS, and the second one is the promise the product is built on.
  *
- * Observed for `github.profile` via server-side collection on 28 July 2026:
+ * 1. SURVIVE THE SHAPE. Vana's payloads do not arrive in one predictable form.
+ *    The JSON Schemas in PDP-Connect/data-connectors describe the connector's
+ *    output; what reaches us is wrapped in an envelope that has had at least
+ *    four observed variants, including one where the whole payload sits inside
+ *    an `items[]` array with different field names. Nothing in this file may
+ *    ever throw. A field we cannot find becomes undefined, the scorer treats it
+ *    as absent evidence, and the person sees a slightly lower score instead of a
+ *    broken page.
  *
- *   { scope, data: { version, scope, collectedAt,
- *                    data: { items: [ { username, name, publicRepos,
- *                                       createdAt, ... } ] } },
- *     payment: {...} }
+ * 2. DISCARD ON ARRIVAL. Every scope here is requested for its TIMESTAMPS. The
+ *    content that comes attached is not wanted, is not scored, and must not
+ *    reach the store. Instagram posts arrive with captions, images, and a
+ *    `who_liked[]` array naming everyone who liked them. Uber trips arrive with
+ *    the pickup and dropoff address of every journey. YouTube arrives with the
+ *    account's email. None of that is persisted, and the tests in
+ *    normalize.test.ts fail if any of it ever is.
  *
- * versus the published schema's `fullName` / `repositoryCount` and no array.
- *
- * So: read defensively, accept both spellings, never assume the array. A field
- * we cannot find becomes undefined and the scorer treats it as absent evidence,
- * which is correct. It must never throw, because a thrown error here means a
- * user who connected successfully sees a broken page.
+ * Timestamps collapse to MONTH BUCKETS before they are stored. The scorer only
+ * ever asks about months, so holding anything finer would be holding it for no
+ * reason, which is exactly what we told people we would not do.
  */
 
-import type {
-  AmazonOrders,
-  Evidence,
-  GitHubProfile,
-  InstagramPosts,
-  InstagramProfile,
-  LinkedInProfile,
-  SpotifyProfile,
-  SteamProfile,
-  UberTrips,
-  YouTubeProfile,
-} from "./score";
+import type { Evidence, Months, SourceEvidence, SourceId } from "./score";
 
 type Json = Record<string, unknown>;
 
@@ -43,29 +35,87 @@ function isObject(value: unknown): value is Json {
 }
 
 /**
- * Peel the envelope and hand back the record that actually holds the fields.
+ * Every scope Patina reads, and which source it belongs to.
  *
- * Handles `{ data: { data: { items: [x] } } }`, `{ data: { data: x } }`,
- * `{ data: x }` and a bare `x`, because we have confirmed two of these in the
- * wild and should not be surprised by the others.
+ * The single source of truth for the manifest. Anything not listed here is a
+ * scope we did not ask for, and a read that comes back with one is ignored
+ * rather than guessed at.
  */
-function payloadOf(raw: unknown): Json | undefined {
+export const SCOPE_SOURCE: Record<string, SourceId> = {
+  "github.profile": "github",
+  "github.contributions": "github",
+  "github.history": "github",
+  "github.repositories": "github",
+  "linkedin.profile": "linkedin",
+  "linkedin.connections": "linkedin",
+  "linkedin.experience": "linkedin",
+  "linkedin.education": "linkedin",
+  "spotify.profile": "spotify",
+  "spotify.savedTracks": "spotify",
+  "spotify.playlists": "spotify",
+  "instagram.profile": "instagram",
+  "instagram.posts": "instagram",
+  "steam.profile": "steam",
+  "steam.friends": "steam",
+  "steam.games": "steam",
+  "youtube.profile": "youtube",
+  "amazon.orders": "amazon",
+  "uber.trips": "uber",
+  "doordash.orders": "doordash",
+  "shop.orders": "shop",
+};
+
+export const ALL_SCOPES = Object.keys(SCOPE_SOURCE);
+
+/** Every scope Patina asks for, grouped by the source that serves it. */
+export const SCOPES_BY_SOURCE = ALL_SCOPES.reduce<Record<SourceId, string[]>>(
+  (grouped, scope) => {
+    const source = SCOPE_SOURCE[scope];
+    (grouped[source] ??= []).push(scope);
+    return grouped;
+  },
+  {} as Record<SourceId, string[]>,
+);
+
+// ---------------------------------------------------------------------------
+// Unwrapping
+// ---------------------------------------------------------------------------
+
+/**
+ * Find the record (or array) that actually holds the fields for `scope`.
+ *
+ * Handles every envelope shape seen so far, in order of how specific they are:
+ *
+ *   { "github.profile": {...}, requestedScopes: [...] }   connector flat format
+ *   { data: { data: { items: [x] } } }                    server-side collection
+ *   { data: { data: x } }
+ *   { data: x }
+ *   x                                                     bare
+ *
+ * Returns `undefined` rather than throwing when none of them match, because an
+ * unrecognised envelope is a source that scores nothing, not an outage.
+ */
+export function payloadFor(raw: unknown, scope: string): unknown {
   let node: unknown = raw;
 
-  for (let depth = 0; depth < 4; depth += 1) {
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (Array.isArray(node)) return node;
     if (!isObject(node)) break;
+
+    // Connectors key their output by "platform.scope". Check this first: an
+    // envelope can contain BOTH a `data` key and the scope key, and the scope
+    // key is the more specific answer.
+    if (scope in node) {
+      const keyed = node[scope];
+      if (keyed !== undefined && keyed !== null) return keyed;
+    }
 
     if (Array.isArray(node.items)) {
       const first = node.items[0];
       return isObject(first) ? first : undefined;
     }
 
-    // Descend through envelope wrappers, but only while `data` is a container.
-    if ("data" in node && (isObject(node.data) || Array.isArray(node.data))) {
-      if (Array.isArray(node.data)) {
-        const first = node.data[0];
-        return isObject(first) ? first : undefined;
-      }
+    if ("data" in node && node.data !== undefined && node.data !== null) {
       node = node.data;
       continue;
     }
@@ -73,358 +123,621 @@ function payloadOf(raw: unknown): Json | undefined {
     return node;
   }
 
-  return isObject(node) ? node : undefined;
+  return isObject(node) || Array.isArray(node) ? node : undefined;
 }
 
-/** All the records in a payload, for scopes that return a list (posts, etc). */
-function listOf(raw: unknown, key: string): Json[] {
-  let node: unknown = raw;
+// ---------------------------------------------------------------------------
+// Reading values defensively
+// ---------------------------------------------------------------------------
 
-  for (let depth = 0; depth < 4; depth += 1) {
-    if (!isObject(node)) return [];
-    if (Array.isArray(node[key])) return (node[key] as unknown[]).filter(isObject);
-    if (Array.isArray(node.items)) {
-      const merged = (node.items as unknown[]).filter(isObject).flatMap((item) =>
-        Array.isArray(item[key]) ? (item[key] as unknown[]).filter(isObject) : [],
-      );
-      if (merged.length) return merged;
-    }
-    if ("data" in node && isObject(node.data)) {
-      node = node.data;
-      continue;
-    }
-    return [];
-  }
-
-  return [];
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
-/**
- * The envelope's own `items` array, whatever depth it is buried at.
- *
- * Distinct from `listOf`, which looks for a NAMED list inside the payload. Some
- * reads put the records straight into `items` with no wrapper key at all.
- */
-function itemsOf(raw: unknown): Json[] {
-  let node: unknown = raw;
-
-  for (let depth = 0; depth < 4; depth += 1) {
-    if (!isObject(node)) return [];
-    if (Array.isArray(node.items)) return (node.items as unknown[]).filter(isObject);
-    if (Array.isArray(node.data)) return (node.data as unknown[]).filter(isObject);
-    if ("data" in node && isObject(node.data)) {
-      node = node.data;
-      continue;
-    }
-    return [];
-  }
-
-  return [];
-}
-
-/** First present value among several possible field spellings. */
-function pick<T>(source: Json | undefined, keys: string[], guard: (v: unknown) => v is T): T | undefined {
-  if (!source) return undefined;
+/** First key that exists, because the same field is spelled differently across shapes. */
+function pick(node: unknown, ...keys: string[]): unknown {
+  if (!isObject(node)) return undefined;
   for (const key of keys) {
-    const value = source[key];
-    if (guard(value)) return value;
+    if (node[key] !== undefined && node[key] !== null) return node[key];
   }
   return undefined;
 }
 
-const isStr = (v: unknown): v is string => typeof v === "string" && v.trim() !== "";
-const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-const isBool = (v: unknown): v is boolean => typeof v === "boolean";
-
-export function normalizeGitHub(raw: unknown): GitHubProfile | undefined {
-  const p = payloadOf(raw);
-  if (!p) return undefined;
-
-  return {
-    username: pick(p, ["username", "login"], isStr),
-    followers: pick(p, ["followers"], isNum),
-    // Server-side says publicRepos; the published desktop schema says repositoryCount.
-    repositoryCount: pick(p, ["publicRepos", "repositoryCount", "public_repos"], isNum),
-    contributionsLastYear: pick(p, ["contributionsLastYear"], isNum),
-    createdAt: pick(p, ["createdAt", "created_at"], isStr),
-    totalStars: pick(p, ["totalStars"], isNum),
-    organizations: Array.isArray(p.organizations)
-      ? (p.organizations as unknown[]).filter(isObject).map((o) => ({ login: String(o.login ?? "") }))
-      : undefined,
-    achievements: Array.isArray(p.achievements)
-      ? (p.achievements as unknown[]).filter(isObject).map((a) => ({ name: String(a.name ?? "") }))
-      : undefined,
-  };
+/**
+ * A Date from whatever the connector felt like sending.
+ *
+ * Strings are the common case. Steam sends unix SECONDS for account creation
+ * where the schema says date-time, and a naive `new Date(1375315200)` is
+ * January 1970, which would hand somebody a fifty-six year old account.
+ */
+function toDate(value: unknown): Date | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    // Ten-digit values are seconds; thirteen-digit are milliseconds.
+    const ms = value < 1e11 ? value * 1000 : value;
+    const date = new Date(ms);
+    return Number.isNaN(date.getTime()) ? null : sane(date);
+  }
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : sane(date);
 }
 
-export function normalizeYouTube(raw: unknown): YouTubeProfile | undefined {
-  const p = payloadOf(raw);
-  if (!p) return undefined;
-
-  return {
-    joinedDate: pick(p, ["joinedDate", "joined_date", "createdAt"], isStr),
-    subscriberCount: pick(p, ["subscriberCount", "subscriber_count"], isNum),
-    viewCount: pick(p, ["viewCount", "view_count"], isNum),
-    videoCount: pick(p, ["videoCount", "video_count"], isNum),
-    handle: pick(p, ["handle"], isStr),
-    channelTitle: pick(p, ["channelTitle", "channel_title", "title"], isStr),
-  };
+/**
+ * Reject dates that cannot be true.
+ *
+ * A parse failure that yields 1970, or a timezone artefact that yields next
+ * year, would both feed straight into Age. The web is not older than 1990 and
+ * nothing has happened tomorrow.
+ */
+function sane(date: Date): Date | null {
+  const year = date.getUTCFullYear();
+  if (year < 1990) return null;
+  if (date.getTime() > Date.now() + 86_400_000) return null;
+  return date;
 }
 
-export function normalizeInstagramProfile(raw: unknown): InstagramProfile | undefined {
-  const p = payloadOf(raw);
-  if (!p) return undefined;
-
-  return {
-    username: pick(p, ["username"], isStr),
-    follower_count: pick(p, ["follower_count", "followerCount", "followers"], isNum),
-    following_count: pick(p, ["following_count", "followingCount", "following"], isNum),
-    media_count: pick(p, ["media_count", "mediaCount", "posts_count"], isNum),
-    is_private: pick(p, ["is_private", "isPrivate"], isBool),
-    is_verified: pick(p, ["is_verified", "isVerified"], isBool),
-    is_business: pick(p, ["is_business", "isBusiness"], isBool),
-  };
-}
-
-/** Field names a post's timestamp has been seen under. */
-const POST_DATE_KEYS = ["taken_at", "takenAt", "timestamp", "created_at", "createdAt"];
-
-/** Does this record look like a post rather than an envelope? */
-function looksLikeAPost(record: Json): boolean {
-  return POST_DATE_KEYS.some((key) => isStr(record[key]));
-}
-
-export function normalizeInstagramPosts(raw: unknown): InstagramPosts | undefined {
-  // A `posts` array is the documented shape. But this is now the scope Age and
-  // Corroboration depend on, so a payload that hands back the posts as the
-  // envelope's own `items` must not read as "no history": that would silently
-  // cost 60 of the 100 points on a read the user already paid for.
-  const named = listOf(raw, "posts");
-  const source = named.length ? named : itemsOf(raw).filter(looksLikeAPost);
-  if (!source.length) return undefined;
-
-  return {
-    // Only the timestamp is kept, because only the timestamp is scored (Age and
-    // Corroboration). Captions and like counts are deliberately dropped rather
-    // than stored: the scorer never reads them, and holding a person's post text
-    // would be more than "the few signals behind the score" that we promise.
-    posts: source.map((post) => ({
-      taken_at: pick(post, POST_DATE_KEYS, isStr),
-    })),
-  };
-}
-
-export function normalizeSpotify(raw: unknown): SpotifyProfile | undefined {
-  const p = payloadOf(raw);
-  if (!p) return undefined;
-
-  return {
-    id: pick(p, ["id"], isStr),
-    display_name: pick(p, ["display_name", "displayName"], isStr),
-    followers: pick(p, ["followers"], isNum),
-  };
-}
-
-/** LinkedIn often returns connections as "500+" rather than a number. */
-function parseConnections(value: unknown): number | undefined {
+function toNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return undefined;
-  const match = value.replace(/,/g, "").match(/(\d+)/);
-  if (!match) return undefined;
-  const n = Number(match[1]);
-  return Number.isFinite(n) ? n : undefined;
+  if (typeof value === "string") {
+    // "500+", "1,234", "12K followers" all appear in real connector output.
+    const cleaned = value.replace(/,/g, "").trim();
+    const match = cleaned.match(/^(\d+(?:\.\d+)?)\s*([KkMm])?/);
+    if (!match) return undefined;
+    const base = Number(match[1]);
+    if (!Number.isFinite(base)) return undefined;
+    const suffix = match[2]?.toLowerCase();
+    return suffix === "k" ? base * 1_000 : suffix === "m" ? base * 1_000_000 : base;
+  }
+  return undefined;
 }
 
-/** Vanity slug from a LinkedIn profile URL, used as the stable account id. */
-function linkedInSlug(profileUrl: string | undefined): string | undefined {
-  if (!profileUrl) return undefined;
-  const match = profileUrl.match(/linkedin\.com\/in\/([^/?#]+)/i);
-  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+function monthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export function normalizeLinkedIn(raw: unknown): LinkedInProfile | undefined {
-  const p = payloadOf(raw);
-  if (!p) return undefined;
+/**
+ * Collapse a list of items into a month histogram plus the earliest date seen.
+ *
+ * This is where the discarding happens: `items` goes in carrying whatever the
+ * connector sent, and only counts-per-month come out.
+ */
+function bucket(items: unknown[], ...dateKeys: string[]): { months: Months; earliest?: Date } {
+  const months: Months = {};
+  let earliest: Date | undefined;
 
-  const profileUrl = pick(p, ["profileUrl", "profile_url", "url"], isStr);
-  const connections =
-    parseConnections(p.connections) ??
-    parseConnections(p.connectionCount) ??
-    pick(p, ["connectionCount", "connectionsCount"], isNum);
+  for (const item of items) {
+    const date = toDate(pick(item, ...dateKeys));
+    if (!date) continue;
+    const key = monthKey(date);
+    months[key] = (months[key] ?? 0) + 1;
+    if (!earliest || date < earliest) earliest = date;
+  }
 
-  // Refuse an empty object: a failed scrape that returns {} would otherwise
-  // claim the LinkedIn slot and block a later good read.
-  if (!profileUrl && !pick(p, ["fullName", "full_name", "name"], isStr) && connections === undefined) {
+  return { months, earliest };
+}
+
+/**
+ * The earliest plausible year mentioned in a free-text date range.
+ *
+ * LinkedIn sends experience dates as strings a human typed or a page rendered:
+ * "Jan 2015 - Present", "2010 - 2014", "2019 - Present · 6 yrs". There is no
+ * structured field, so this is the best available and it is why every date it
+ * produces is marked `softDate` and counts at half weight.
+ */
+function earliestYearIn(text: unknown): Date | null {
+  if (typeof text !== "string") return null;
+  const years = [...text.matchAll(/\b(19[9]\d|20[0-4]\d)\b/g)]
+    .map((match) => Number(match[1]))
+    .filter((year) => year >= 1990 && year <= new Date().getUTCFullYear());
+  if (years.length === 0) return null;
+  return new Date(Date.UTC(Math.min(...years), 0, 1));
+}
+
+// ---------------------------------------------------------------------------
+// Per-scope normalisers
+//
+// Each returns only what survives: dates, month buckets, counts. Everything
+// else the connector sent is simply never read, which is the strongest form of
+// "we do not store it" available.
+// ---------------------------------------------------------------------------
+
+/**
+ * What one scope contributes, before it is combined with anything else.
+ *
+ * Fragments are what gets STORED, keyed by scope. The merged `Evidence` is
+ * derived from them at scoring time and never persisted.
+ *
+ * This is a correctness property, not a preference. Reads get retried: a
+ * network blip, a cold instance, a user refreshing the page mid-settle. Merging
+ * on arrival means a retry adds the same months and the same vouch counts a
+ * second time, and somebody's score quietly inflates every time their
+ * connection stutters. Keyed by scope, a re-read REPLACES its fragment and the
+ * arithmetic lands identically however many times it runs.
+ */
+export type Fragment = Partial<SourceEvidence>;
+
+const NORMALIZERS: Record<string, (payload: unknown) => Fragment | undefined> = {
+  // --- GitHub ------------------------------------------------------------
+
+  "github.profile": (p) => {
+    const followers = toNumber(pick(p, "followers"));
+    const orgs = asArray(pick(p, "organizations")).length;
+    const badges = asArray(pick(p, "achievements")).length;
+    // Somebody else had to let you in, which is worth more per unit than a
+    // follower, but carries no date so it counts as an undated vouch.
+    const vouches = orgs + badges;
+    if (followers === undefined && vouches === 0) return undefined;
+    return { ...(followers !== undefined ? { followers } : {}), ...(vouches ? { vouches } : {}) };
+  },
+
+  /**
+   * The best Continuity signal in the catalogue: up to four years of daily
+   * contribution counts, plus per-year totals that reach back further than the
+   * daily grid does.
+   */
+  "github.contributions": (p) => {
+    const months: Months = {};
+
+    for (const day of asArray(pick(p, "days"))) {
+      const date = toDate(pick(day, "date"));
+      const count = toNumber(pick(day, "count")) ?? 0;
+      if (!date || count <= 0) continue;
+      const key = monthKey(date);
+      months[key] = (months[key] ?? 0) + count;
+    }
+
+    // monthlyTotals covers the same ground when days[] is absent. Only used as
+    // a fallback, never added on top, or every month would be counted twice.
+    if (Object.keys(months).length === 0) {
+      for (const entry of asArray(pick(p, "monthlyTotals"))) {
+        const date = toDate(pick(entry, "month"));
+        const count = toNumber(pick(entry, "count")) ?? 0;
+        if (!date || count <= 0) continue;
+        months[monthKey(date)] = count;
+      }
+    }
+
+    // yearTotals reaches past the daily grid, so it is the oldest thing this
+    // scope can prove. A year with contributions in it means the account
+    // existed by January of that year at the latest.
+    const years = asArray(pick(p, "yearTotals"))
+      .filter((entry) => (toNumber(pick(entry, "total")) ?? 0) > 0)
+      .map((entry) => toNumber(pick(entry, "year")))
+      .filter((year): year is number => year !== undefined && year >= 1990);
+
+    const earliestFromYears = years.length ? new Date(Date.UTC(Math.min(...years), 0, 1)) : null;
+    const earliestFromMonths = Object.keys(months).sort()[0];
+    const earliest =
+      earliestFromYears ?? (earliestFromMonths ? toDate(`${earliestFromMonths}-01`) : null);
+
+    if (Object.keys(months).length === 0 && !earliest) return undefined;
+
+    return {
+      months,
+      ...(earliest
+        ? { earliest: earliest.toISOString(), earliestLabel: "first GitHub contribution" }
+        : {}),
+    };
+  },
+
+  /**
+   * The full lifetime of pull requests and issues, which is the only place a
+   * desktop read gets a real GitHub age from. Titles and bodies are never read.
+   */
+  "github.history": (p) => {
+    const items = [...asArray(pick(p, "pullRequests")), ...asArray(pick(p, "issues"))];
+    if (items.length === 0) return undefined;
+
+    const { months, earliest } = bucket(items, "createdAt");
+
+    // Comments and reactions received are other people responding to your work.
+    // Undated at the item level, so they count as undated vouches.
+    const engagement = items.reduce<number>(
+      (sum, item) =>
+        sum + (toNumber(pick(item, "comments")) ?? 0) + (toNumber(pick(item, "reactionsTotal")) ?? 0),
+      0,
+    );
+
+    return {
+      months,
+      ...(earliest
+        ? { earliest: earliest.toISOString(), earliestLabel: "first GitHub contribution" }
+        : {}),
+      made: [{ count: items.length, label: "pull requests and issues" }],
+      ...(engagement > 0 ? { vouches: Math.min(engagement, 200) } : {}),
+    };
+  },
+
+  /**
+   * Repository count and stars. Deliberately contributes NO months: `updatedAt`
+   * is the last time a repo changed, not when it was made, so a decade-old repo
+   * touched yesterday would otherwise register as activity yesterday and
+   * nothing before it.
+   */
+  "github.repositories": (p) => {
+    const repos = asArray(pick(p, "repositories"));
+    if (repos.length === 0) return undefined;
+    return { made: [{ count: repos.length, label: "repos" }] };
+  },
+
+  // --- LinkedIn ----------------------------------------------------------
+
+  /**
+   * The strongest new signal desktop unlocks. Every connection carries the date
+   * it was made, so this measures when other people chose to associate with you
+   * rather than how many of them there are.
+   *
+   * Names, headlines and profile URLs are dropped here and never stored. They
+   * belong to people who did not agree to anything.
+   */
+  "linkedin.connections": (p) => {
+    const connections = asArray(pick(p, "connections"));
+    if (connections.length === 0) return undefined;
+    const { months } = bucket(connections, "dateConnected", "connectedOn", "date");
+    if (Object.keys(months).length === 0) return undefined;
+    return { vouchMonths: months };
+  },
+
+  "linkedin.experience": (p) => {
+    const roles = asArray(pick(p, "experiences", "experience"));
+    const dates = roles
+      .map((role) => earliestYearIn(pick(role, "dates", "dateRange", "duration")))
+      .filter((date): date is Date => date !== null)
+      .sort((a, b) => a.getTime() - b.getTime());
+    if (dates.length === 0) return undefined;
+    return {
+      earliest: dates[0].toISOString(),
+      earliestLabel: "LinkedIn work history",
+      softDate: true,
+    };
+  },
+
+  "linkedin.education": (p) => {
+    const schools = asArray(pick(p, "education"));
+    const dates = schools
+      .map((school) => earliestYearIn(pick(school, "years", "dates", "dateRange")))
+      .filter((date): date is Date => date !== null)
+      .sort((a, b) => a.getTime() - b.getTime());
+    if (dates.length === 0) return undefined;
+    return {
+      earliest: dates[0].toISOString(),
+      earliestLabel: "LinkedIn education history",
+      softDate: true,
+    };
+  },
+
+  "linkedin.profile": (p) => {
+    // Arrives as "500+" more often than as a number.
+    const followers = toNumber(pick(p, "connections"));
+    if (followers === undefined) return undefined;
+    return { followers };
+  },
+
+  // --- Spotify -----------------------------------------------------------
+
+  /**
+   * Spotify goes from a dead source on the web path to one of the best here. A
+   * decade of `added_at` timestamps is the cheapest dense Continuity signal in
+   * the catalogue. Track names, artists and albums are never read: what somebody
+   * listens to is none of Patina's business.
+   */
+  "spotify.savedTracks": (p) => {
+    const tracks = asArray(pick(p, "savedTracks", "items"));
+    if (tracks.length === 0) return undefined;
+    const { months, earliest } = bucket(tracks, "added_at", "addedAt");
+    return {
+      months,
+      ...(earliest ? { earliest: earliest.toISOString(), earliestLabel: "first saved track" } : {}),
+      made: [{ count: toNumber(pick(p, "total")) ?? tracks.length, label: "saved tracks" }],
+    };
+  },
+
+  "spotify.playlists": (p) => {
+    const playlists = asArray(pick(p, "playlists"));
+    if (playlists.length === 0) return undefined;
+
+    const tracks = playlists.flatMap((playlist) => asArray(pick(playlist, "tracks")));
+    const { months, earliest } = bucket(tracks, "added_at", "addedAt");
+
+    return {
+      ...(Object.keys(months).length ? { months } : {}),
+      ...(earliest
+        ? { earliest: earliest.toISOString(), earliestLabel: "first playlist track" }
+        : {}),
+      made: [{ count: playlists.length, label: "playlists" }],
+    };
+  },
+
+  "spotify.profile": (p) => {
+    const followers = toNumber(pick(p, "followers"));
+    return followers === undefined ? undefined : { followers };
+  },
+
+  // --- Instagram ---------------------------------------------------------
+
+  /**
+   * Only `taken_at` survives. Captions, images, like counts and the entire
+   * `who_liked[]` array are dropped, the last of those being a list of usernames
+   * and profile pictures belonging to everyone who ever liked one of these
+   * posts. That is a large amount of other people's data arriving as a side
+   * effect of asking for a date, and it must not reach the store.
+   */
+  "instagram.posts": (p) => {
+    const posts = asArray(pick(p, "posts"));
+    if (posts.length === 0) return undefined;
+    const { months, earliest } = bucket(posts, "taken_at", "takenAt", "timestamp");
+    return {
+      months,
+      ...(earliest
+        ? { earliest: earliest.toISOString(), earliestLabel: "earliest Instagram post" }
+        : {}),
+      made: [{ count: posts.length, label: "posts" }],
+    };
+  },
+
+  "instagram.profile": (p) => {
+    const followers = toNumber(pick(p, "follower_count", "followerCount", "followers"));
+    const posts = toNumber(pick(p, "media_count", "mediaCount"));
+    if (followers === undefined && posts === undefined) return undefined;
+    return {
+      ...(followers !== undefined ? { followers } : {}),
+      // Only used when instagram.posts did not come back; otherwise the posts
+      // scope has already counted them and this would double up.
+      ...(posts !== undefined ? { made: [{ count: posts, label: "posts" }] } : {}),
+    };
+  },
+
+  // --- Steam -------------------------------------------------------------
+
+  "steam.profile": (p) => {
+    const created = toDate(pick(p, "accountCreated", "timecreated", "createdAt"));
+    if (!created) return undefined;
+    return { earliest: created.toISOString(), earliestLabel: "Steam account opened" };
+  },
+
+  /**
+   * `friendSince` is the same class of signal as LinkedIn's `dateConnected`: a
+   * timestamped record of another person choosing to associate with you. Persona
+   * names and avatars are dropped.
+   */
+  "steam.friends": (p) => {
+    // This one arrives as a bare top-level array in the published schema.
+    const friends = Array.isArray(p) ? p : asArray(pick(p, "friends"));
+    if (friends.length === 0) return undefined;
+    const { months } = bucket(friends, "friendSince", "friend_since");
+    if (Object.keys(months).length === 0) return undefined;
+    return { vouchMonths: months };
+  },
+
+  /**
+   * Owned games and their last-played dates. Game names are dropped: a library
+   * is a surprisingly precise description of a person.
+   */
+  "steam.games": (p) => {
+    const owned = asArray(pick(p, "owned", "games"));
+    if (owned.length === 0) return undefined;
+    const { months } = bucket(owned, "lastPlayed", "last_played");
+    return {
+      ...(Object.keys(months).length ? { months } : {}),
+      made: [{ count: owned.length, label: "games" }],
+    };
+  },
+
+  // --- YouTube -----------------------------------------------------------
+
+  /**
+   * The desktop version of this scope also returns the account's EMAIL ADDRESS.
+   * Nothing in the score uses it and it is a direct identifier, so it is not
+   * read here and there is a test that fails if it ever appears in the output.
+   */
+  "youtube.profile": (p) => {
+    const joined = toDate(pick(p, "joinedDate", "joined_date"));
+    const subscribers = toNumber(pick(p, "subscriberCount", "subscribers"));
+    const videos = toNumber(pick(p, "videoCount", "videos"));
+    if (!joined && subscribers === undefined && videos === undefined) return undefined;
+
+    return {
+      ...(joined
+        ? { earliest: joined.toISOString(), earliestLabel: "YouTube account opened" }
+        : {}),
+      ...(subscribers !== undefined ? { followers: subscribers } : {}),
+      ...(videos ? { made: [{ count: videos, label: "videos" }] } : {}),
+    };
+  },
+
+  // --- Commerce ----------------------------------------------------------
+  //
+  // Four connectors, one shape: a list of orders with a date on each. Item
+  // names, merchants, restaurants, totals and delivery addresses are all
+  // dropped. A long, dull paper trail is exactly as useful to the score with
+  // the contents removed, and far less dangerous to hold.
+
+  "amazon.orders": (p) =>
+    orders(p, "orders", ["orderDate", "date", "placedAt"], "Amazon orders", "first Amazon order"),
+
+  "doordash.orders": (p) =>
+    orders(p, "orders", ["date", "orderDate", "placedAt"], "DoorDash orders", "first DoorDash order"),
+
+  "shop.orders": (p) =>
+    orders(p, "orders", ["placedAt", "date", "orderDate"], "Shop orders", "first Shop order"),
+
+  "uber.trips": (p) =>
+    orders(p, "trips", ["requestTime", "requestedAt", "date"], "Uber trips", "first Uber trip"),
+};
+
+/** The shared shape behind Amazon, DoorDash, Shop and Uber. */
+function orders(
+  payload: unknown,
+  key: string,
+  dateKeys: string[],
+  label: string,
+  earliestLabel: string,
+): Fragment | undefined {
+  const items = Array.isArray(payload) ? payload : asArray(pick(payload, key));
+  if (items.length === 0) return undefined;
+
+  const { months, earliest } = bucket(items, ...dateKeys);
+  return {
+    ...(Object.keys(months).length ? { months } : {}),
+    ...(earliest ? { earliest: earliest.toISOString(), earliestLabel } : {}),
+    made: [{ count: toNumber(pick(payload, "total")) ?? items.length, label }],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Folding reads into a profile
+// ---------------------------------------------------------------------------
+
+function mergeMonths(a: Months | undefined, b: Months | undefined): Months | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const merged: Months = { ...a };
+  for (const [month, count] of Object.entries(b)) {
+    merged[month] = (merged[month] ?? 0) + count;
+  }
+  return merged;
+}
+
+/**
+ * Combine two reads of the same source.
+ *
+ * GitHub arrives as four separate scopes and Spotify as three, so this runs
+ * several times per source. The rules that matter:
+ *
+ * - `earliest` keeps the OLDER date, and a hard date always beats a soft one
+ *   even when the soft one is older. Somebody's typed LinkedIn history must not
+ *   displace a real account-creation date as the thing we name on their page.
+ * - `made` concatenates rather than sums, so the breakdown can still say
+ *   "32 repos, 240 pull requests" instead of "272 things".
+ */
+function merge(existing: SourceEvidence | undefined, fragment: Fragment): SourceEvidence {
+  if (!existing) return fragment as SourceEvidence;
+
+  const next: SourceEvidence = { ...existing };
+
+  if (fragment.earliest) {
+    const incomingSoft = fragment.softDate === true;
+    const currentSoft = existing.softDate === true;
+    const older =
+      !existing.earliest || new Date(fragment.earliest) < new Date(existing.earliest);
+
+    // A hard date replaces a soft one regardless of age; a soft date only fills
+    // a gap; otherwise the older of two like-for-like dates wins.
+    const wins = currentSoft && !incomingSoft ? true : incomingSoft && !currentSoft ? false : older;
+
+    if (wins) {
+      next.earliest = fragment.earliest;
+      next.earliestLabel = fragment.earliestLabel;
+      next.softDate = incomingSoft;
+    }
+  }
+
+  const months = mergeMonths(existing.months, fragment.months);
+  if (months) next.months = months;
+
+  const vouchMonths = mergeMonths(existing.vouchMonths, fragment.vouchMonths);
+  if (vouchMonths) next.vouchMonths = vouchMonths;
+
+  if (fragment.made?.length) {
+    const seen = new Set((existing.made ?? []).map((kind) => kind.label));
+    next.made = [...(existing.made ?? []), ...fragment.made.filter((k) => !seen.has(k.label))];
+  }
+
+  if (fragment.vouches) next.vouches = (existing.vouches ?? 0) + fragment.vouches;
+  if (fragment.followers !== undefined) {
+    next.followers = Math.max(existing.followers ?? 0, fragment.followers);
+  }
+
+  return next;
+}
+
+/**
+ * Normalise ONE read. Pure: no merging, no memory of previous reads.
+ *
+ * Never throws. An unknown scope, an unrecognised envelope, or a payload with
+ * nothing usable in it all return undefined, which the caller reports to the
+ * user as an empty source they can go and fix.
+ */
+export function readScope(scope: string, raw: unknown): Fragment | undefined {
+  if (!SCOPE_SOURCE[scope] || !NORMALIZERS[scope]) return undefined;
+
+  try {
+    const fragment = NORMALIZERS[scope](payloadFor(raw, scope));
+    return fragment && Object.keys(fragment).length > 0 ? fragment : undefined;
+  } catch (err) {
+    // A shape we did not anticipate is a source that scores nothing, never a
+    // broken page for somebody who connected successfully.
+    console.error("[normalize] failed to read a payload", { scope, error: String(err) });
     return undefined;
   }
-
-  return {
-    profileUrl,
-    fullName: pick(p, ["fullName", "full_name", "name"], isStr),
-    headline: pick(p, ["headline"], isStr),
-    location: pick(p, ["location"], isStr),
-    connections,
-    about: pick(p, ["about", "summary"], isStr),
-    // Not in the published schema; keep the door open the way GitHub's createdAt works.
-    createdAt: pick(p, ["createdAt", "created_at", "joinedDate", "joined_date"], isStr),
-  };
-}
-
-/** Parse a value that may be an ISO string or a unix timestamp into an ISO date. */
-function toIsoDate(value: unknown): string | undefined {
-  if (typeof value === "string" && value.trim()) {
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
-  }
-  if (typeof value === "number" && Number.isFinite(value)) {
-    const ms = value < 1e12 ? value * 1000 : value; // seconds vs milliseconds
-    const d = new Date(ms);
-    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
-  }
-  return undefined;
-}
-
-/** The oldest date across a list of records, trying several field spellings. */
-function earliestIso(items: Json[], keys: string[]): string | undefined {
-  let earliest: number | null = null;
-  for (const item of items) {
-    for (const key of keys) {
-      const iso = toIsoDate(item[key]);
-      if (iso) {
-        const t = new Date(iso).getTime();
-        if (earliest === null || t < earliest) earliest = t;
-      }
-    }
-  }
-  return earliest === null ? undefined : new Date(earliest).toISOString();
-}
-
-/** First non-empty raw value among several field spellings. */
-function firstDefined(source: Json | undefined, keys: string[]): unknown {
-  if (!source) return undefined;
-  for (const key of keys) {
-    if (source[key] !== undefined && source[key] !== null) return source[key];
-  }
-  return undefined;
 }
 
 /**
- * Amazon, Uber, Steam. Desktop-collected. We keep only the derived signals
- * (oldest date, a count), never the raw orders or trips. Read defensively: the
- * real payload shape is only truly known once one is captured, exactly as with
- * the web sources above.
- */
-export function normalizeAmazonOrders(raw: unknown): AmazonOrders | undefined {
-  const orders = listOf(raw, "orders");
-  if (!orders.length) return undefined;
-  return {
-    earliestOrder: earliestIso(orders, ["orderDate", "order_date", "date"]),
-    orderCount: orders.length,
-  };
-}
-
-export function normalizeUberTrips(raw: unknown): UberTrips | undefined {
-  const trips = listOf(raw, "trips");
-  if (!trips.length) return undefined;
-  return {
-    earliestTrip: earliestIso(trips, ["requestTime", "request_time", "dropoffTime", "date"]),
-    tripCount: trips.length,
-  };
-}
-
-export function normalizeSteam(raw: unknown): SteamProfile | undefined {
-  const p = payloadOf(raw);
-  if (!p) return undefined;
-
-  const steamId = pick(p, ["steamId", "steam_id", "steamid"], isStr);
-  const personaName = pick(p, ["personaName", "persona_name", "personaname"], isStr);
-  const accountCreated = toIsoDate(
-    firstDefined(p, ["accountCreated", "account_created", "timecreated", "created"]),
-  );
-  const steamLevel = pick(p, ["steamLevel", "steam_level", "level"], isNum);
-
-  // Refuse an empty read so it does not claim the slot and block a better one.
-  if (!steamId && !personaName && !accountCreated) return undefined;
-
-  return { steamId, personaName, accountCreated, steamLevel };
-}
-
-/**
- * A stable id for the ACCOUNT behind a read.
+ * Fold every stored fragment into the evidence the scorer reads.
  *
- * This is how the reward split stays honest. Wallets and cookies are free to
- * make, so neither can stop one person claiming several shares. The underlying
- * YouTube channel or GitHub username cannot be duplicated, which makes it the
- * only key worth counting on.
+ * Deterministic: the same fragments always produce the same evidence, in the
+ * manifest's order rather than in whatever order the user happened to connect
+ * things. Two people with identical history score identically even if one of
+ * them did Spotify first.
  */
-export function identityOf(scope: string, raw: unknown): string | undefined {
-  const p = payloadOf(raw);
-  if (!p) return undefined;
+export function evidenceFrom(fragments: Record<string, Fragment | undefined>): Evidence {
+  const evidence: Evidence = {};
 
-  switch (scope) {
-    case "github.profile":
-      return pick(p, ["username", "login"], isStr);
-    case "youtube.profile":
-      return pick(p, ["channelId", "handle", "channelUrl", "email"], isStr);
-    case "instagram.profile":
-      return pick(p, ["username"], isStr);
-    case "instagram.posts": {
-      // A posts payload may put the account on the envelope rather than on each
-      // record, and `payloadOf` can legitimately land on the first POST, which
-      // carries no account at all. Without an id here the same Instagram
-      // account connected twice is invisible to the self-referral check, so it
-      // is worth looking in both places.
-      const direct = pick(p, ["username", "owner", "ownerUsername", "user"], isStr);
-      if (direct) return direct;
-      for (const item of itemsOf(raw)) {
-        const owned = pick(item, ["username", "owner", "ownerUsername", "user"], isStr);
-        if (owned) return owned;
-      }
-      return undefined;
+  // instagram.profile reports a post count that instagram.posts has already
+  // counted individually. Prefer the dated version, or Depth counts them twice.
+  const postsCounted = fragments["instagram.posts"]?.made?.some((k) => k.label === "posts");
+
+  for (const scope of ALL_SCOPES) {
+    let fragment = fragments[scope];
+    if (!fragment) continue;
+
+    if (scope === "instagram.profile" && postsCounted) {
+      fragment = { ...fragment, made: undefined };
     }
-    case "spotify.profile":
-      return pick(p, ["id"], isStr);
-    case "steam.profile":
-      // steamId is the stable account id. Amazon orders and Uber trips carry no
-      // account id in the payload; they are collected from a real logged-in
-      // account, so there is no externalId to dedup on here (undefined).
-      return pick(p, ["steamId", "steam_id", "steamid"], isStr);
-    case "linkedin.profile": {
-      const url = pick(p, ["profileUrl", "profile_url", "url"], isStr);
-      return linkedInSlug(url) ?? pick(p, ["vanityName", "publicIdentifier", "username"], isStr);
-    }
-    default:
-      return undefined;
+
+    const source = SCOPE_SOURCE[scope];
+    evidence[source] = merge(evidence[source], fragment);
   }
+
+  return evidence;
 }
 
 /**
- * Fold one approved read into the evidence we score from.
- *
- * `scope` is the canonical scope string the Personal Server reported, which is
- * more reliable than whatever the caller thought it asked for.
+ * Convenience wrapper for a single read. Used by tests and anywhere only one
+ * scope is in play; the live path stores fragments and calls `evidenceFrom`.
  */
 export function foldRead(evidence: Evidence, scope: string, raw: unknown): Evidence {
-  switch (scope) {
-    case "github.profile":
-      return { ...evidence, github: normalizeGitHub(raw) ?? evidence.github };
-    case "youtube.profile":
-      return { ...evidence, youtube: normalizeYouTube(raw) ?? evidence.youtube };
-    case "instagram.profile":
-      return { ...evidence, instagram: normalizeInstagramProfile(raw) ?? evidence.instagram };
-    case "instagram.posts":
-      return { ...evidence, instagramPosts: normalizeInstagramPosts(raw) ?? evidence.instagramPosts };
-    case "spotify.profile":
-      return { ...evidence, spotify: normalizeSpotify(raw) ?? evidence.spotify };
-    case "linkedin.profile":
-      return { ...evidence, linkedin: normalizeLinkedIn(raw) ?? evidence.linkedin };
-    case "amazon.orders":
-      return { ...evidence, amazon: normalizeAmazonOrders(raw) ?? evidence.amazon };
-    case "uber.trips":
-      return { ...evidence, uber: normalizeUberTrips(raw) ?? evidence.uber };
-    case "steam.profile":
-      return { ...evidence, steam: normalizeSteam(raw) ?? evidence.steam };
-    default:
-      return evidence;
-  }
+  const fragment = readScope(scope, raw);
+  if (!fragment) return evidence;
+
+  const source = SCOPE_SOURCE[scope];
+  const alreadyCountedPosts =
+    scope === "instagram.profile" && evidence.instagram?.made?.some((k) => k.label === "posts");
+
+  return {
+    ...evidence,
+    [source]: merge(evidence[source], alreadyCountedPosts ? { ...fragment, made: undefined } : fragment),
+  };
+}
+
+/**
+ * A stable identifier for the account behind a read, for detecting when two
+ * people connect the same account.
+ *
+ * Returns a handle or id where the scope carries one, and never anything that
+ * was not already public. Hashing happens in the store, not here.
+ */
+export function identityOf(scope: string, raw: unknown): string | undefined {
+  const payload = payloadFor(raw, scope);
+  const value = pick(
+    payload,
+    "username",
+    "handle",
+    "steamId",
+    "id",
+    "profileUrl",
+    "channelUrl",
+    "channelId",
+  );
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }

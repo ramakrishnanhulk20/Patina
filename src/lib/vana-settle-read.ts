@@ -7,41 +7,52 @@ import {
   getDirectEndpoints,
   parsePersonalServerPaymentRequired,
   PaymentRequiredError,
-  paymentResponseMetadataFromHeader,
   PersonalServerReadError,
-  type ApprovedDataResult,
   type EscrowPaymentConfig,
   type PersonalServerPaymentOperation,
 } from "@opendatalabs/vana-sdk/server";
 import { CONTRACTS, createEscrowGatewayClient } from "@opendatalabs/vana-sdk";
 import { privateKeyToAccount } from "viem/accounts";
-import { controllerFor, SOURCES, type SourceId } from "./vana";
+import { controllerFor, env, network } from "./vana";
+import { scopesFor, SOURCE_SPECS } from "./sources";
+import type { SourceId } from "./score";
 
 /**
- * Paid Personal Server read, settled through the escrow gateway.
+ * Paid Personal Server reads, settled through the escrow gateway.
+ *
+ * TWO PROBLEMS ARE SOLVED HERE, and the second one is new in v2.
+ *
+ * 1. THE 402 THAT DOES NOT SETTLE ITSELF.
  *
  * The Vana docs say `readApprovedData` handles the 402 automatically by signing
  * an X-PAYMENT header and letting the Personal Server settle server-side. On
- * mainnet, for this app, that path does NOT settle. The read comes back 402
+ * mainnet, for this app, that path does NOT settle: the read comes back 402
  * with `"registrationOwed": true`. The gateway itself tells us what it wants:
  *
  *   POST /v1/escrow/pay -> 400 "accessRecord is required when dataAccessFee > 0"
  *
  * So we settle client-side through the gateway, INCLUDING the accessRecord the
- * Personal Server handed us in the 402 challenge (`authorizeGrantPayment` passes
- * it through). That single call pays the data-access fee AND clears the pending
- * registration. Then we re-read; the Personal Server now sees a settled op and
- * returns the data.
+ * Personal Server handed us in the 402 challenge. That single call pays the
+ * data-access fee AND clears the pending registration. Then we re-read.
  *
- * The one remaining failure is a real one the user can fix: if the source they
- * connected collected EMPTY on Vana's side, the gateway has no data point to
- * charge for and answers "dataPointId ... not found in gateway". That is not a
- * payment fault, it is an empty source, so it is raised as SourceEmptyError
- * and turned into "check your source" guidance rather than a scary error.
+ * 2. READING EVERY SCOPE ON ONE GRANT, AND ONLY THEN ACKNOWLEDGING.
+ *
+ * A source now covers up to four scopes. `readApprovedData` reads exactly one
+ * (whichever `status.scope` reports) and then calls `acknowledgeRead`, which
+ * moves the request to `completed`. The SDK is explicit that `completed` is
+ * terminal and NOT read-ready, because "the browser Personal Server may no
+ * longer be serving it".
+ *
+ * So acknowledging after the first scope would burn the grant with three scopes
+ * unread, and the user would have paid for data they never received. Every
+ * scope is read first, in parallel, and the acknowledgement happens once at the
+ * very end.
+ *
+ * The same sentence explains why reads cannot be deferred: the Personal Server
+ * is up while the USER is. There is one window, it is now, and it closes when
+ * they close the tab.
  */
 
-const network = process.env.VANA_NETWORK === "moksha" ? "moksha" : "mainnet";
-const env = process.env.VANA_ENV === "dev" ? "dev" : "production";
 const chainId = network === "mainnet" ? 1480 : 14800;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -49,23 +60,37 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * The escrow gateway reports a dataPointId as "not found" when the source the
  * user connected collected EMPTY on Vana's side (or has not finished collecting
- * yet). There is no data to charge for, so the read can never settle. This is
- * a user-fixable situation, not a payment fault.
+ * yet). There is no data to charge for, so the read can never settle. This is a
+ * user-fixable situation, not a payment fault.
  */
 function isDataPointMissing(text: string | undefined): boolean {
   return typeof text === "string" && /not found in gateway/i.test(text);
 }
 
+/**
+ * Whether a failure means "this grant does not cover that scope" rather than
+ * "something broke".
+ *
+ * Logged loudly and separately, because it is the one assumption in v2 that has
+ * not been confirmed against a live grant: that a grant issued for four scopes
+ * will serve reads for all four rather than only for `status.scope`. If that
+ * assumption is wrong, this is the message that will say so, and the fallback is
+ * one grant per scope at four times the approval trips.
+ */
+function isScopeNotGranted(text: string | undefined): boolean {
+  return typeof text === "string" && /scope|not granted|unauthorized|forbidden/i.test(text);
+}
+
 /** Friendly, source-named explanation shown when a source collected no data. */
 export function emptySourceMessage(source: SourceId): string {
-  const label = SOURCES[source]?.label ?? source;
-  return `We couldn't read any data from your ${label}. It may be empty, private, or still collecting on Vana.`;
+  const label = SOURCE_SPECS[source]?.label ?? source;
+  return `We couldn't read any data from your ${label}. It may be empty, private, or still importing in Vana Desktop.`;
 }
 
 /**
- * Thrown when the source has no readable data. Carries a `code` the API route
- * turns into a 422 and the connect UI turns into "check your source" guidance,
- * instead of a scary payment error.
+ * Thrown when a source has no readable data at all. Carries a `code` the API
+ * route turns into a 422 and the connect UI turns into "check your source"
+ * guidance, instead of a scary payment error.
  */
 export class SourceEmptyError extends Error {
   readonly code = "SOURCE_EMPTY";
@@ -91,47 +116,40 @@ function escrowConfig(account: ReturnType<typeof privateKeyToAccount>): EscrowPa
   };
 }
 
-export async function readApprovedDataSettled(
+export type ScopeRead = { scope: string; data: unknown };
+export type ScopeFailure = { scope: string; error: string; notGranted: boolean };
+
+export type SourceRead = {
+  source: SourceId;
+  reads: ScopeRead[];
+  failures: ScopeFailure[];
+};
+
+type ReadContext = {
+  personalServerUrl: string;
+  grantId: string;
+  account: ReturnType<typeof privateKeyToAccount>;
+  escrow: EscrowPaymentConfig;
+  signMessage: (message: string | Uint8Array) => Promise<`0x${string}`>;
+};
+
+/**
+ * Read ONE scope against an already-approved grant, settling the 402 if the
+ * Personal Server asks for payment. Throws on failure; the caller decides
+ * whether one dead scope kills the whole source.
+ */
+async function readScopeSettled(
   source: SourceId,
   requestId: string,
-): Promise<ApprovedDataResult> {
-  const privateKey = process.env.VANA_APP_PRIVATE_KEY;
-  if (!privateKey) throw new Error("Missing VANA_APP_PRIVATE_KEY");
-
-  const account = privateKeyToAccount(privateKey as `0x${string}`);
-  const controller = controllerFor(source);
-  const status = await controller.getAccessRequestStatus(requestId);
-
-  if (
-    (status.status !== "approved" && status.status !== "ready_for_read") ||
-    !status.personalServerUrl ||
-    !status.grantId ||
-    !status.scope
-  ) {
-    throw new AccessNotApprovedError(
-      "Request is not approved or is missing grantId/scope/personalServerUrl",
-      {
-        requestId,
-        status: status.status,
-        hasPersonalServerUrl: Boolean(status.personalServerUrl),
-        hasGrantId: Boolean(status.grantId),
-        hasScope: Boolean(status.scope),
-      },
-    );
-  }
-
-  const escrow = escrowConfig(account);
-  const signMessage = (message: string | Uint8Array) =>
-    account.signMessage({
-      message: typeof message === "string" ? message : { raw: message },
-    });
-
+  scope: string,
+  ctx: ReadContext,
+): Promise<unknown> {
   const buildRequest = () =>
     buildPersonalServerDataReadRequest({
-      personalServerUrl: status.personalServerUrl!,
-      scope: status.scope!,
-      grantId: status.grantId!,
-      signMessage,
+      personalServerUrl: ctx.personalServerUrl,
+      scope,
+      grantId: ctx.grantId,
+      signMessage: ctx.signMessage,
     });
 
   let req = await buildRequest();
@@ -140,12 +158,13 @@ export async function readApprovedDataSettled(
   if (res.status === 402) {
     const required = (await parsePersonalServerPaymentRequired(
       res,
-      status.grantId!,
+      ctx.grantId,
     )) as PersonalServerPaymentOperation;
 
     console.info("[vana/settle] challenge", {
       requestId,
       source,
+      scope,
       opType: required.opType,
       amount: required.amount,
       asset: required.asset,
@@ -155,7 +174,7 @@ export async function readApprovedDataSettled(
 
     // Settle through the escrow gateway WITH the accessRecord. This pays the
     // data-access fee and clears any owed registration. A "not found in gateway"
-    // means the data point is not there yet (empty source, or Vana still
+    // means the data point is not there yet (empty scope, or Vana still
     // registering it), so retry once briefly before deciding it is empty.
     let settleError: string | undefined;
     let settled = false;
@@ -163,15 +182,16 @@ export async function readApprovedDataSettled(
       if (attempt > 0) await sleep(1500);
       try {
         const receipt = await authorizeGrantPayment({
-          payerAddress: account.address,
+          payerAddress: ctx.account.address,
           required,
-          config: escrow,
+          config: ctx.escrow,
         });
         settled = true;
         settleError = undefined;
         console.info("[vana/settle] gateway settle ok", {
           requestId,
           source,
+          scope,
           opId: receipt.opId,
           amount: receipt.amount,
           registrationPaid: receipt.breakdown?.registrationPaid,
@@ -181,6 +201,7 @@ export async function readApprovedDataSettled(
         console.error("[vana/settle] gateway settle failed", {
           requestId,
           source,
+          scope,
           attempt,
           error: settleError,
         });
@@ -189,10 +210,9 @@ export async function readApprovedDataSettled(
       }
     }
 
-    // A missing data point after retrying means the source is empty/unreadable.
-    // Surface it as user-fixable guidance, not a payment failure.
     if (!settled && isDataPointMissing(settleError)) {
-      throw new SourceEmptyError(source, {
+      throw new PersonalServerReadError(`No data collected for ${scope}`, 404, {
+        scope,
         grantId: required.grantId,
         dataPointId: required.accessRecord?.dataPointId,
         settleError,
@@ -207,9 +227,9 @@ export async function readApprovedDataSettled(
 
     if (res.status === 402) {
       const paymentHeader = await buildEscrowPaymentHeader({
-        payerAddress: account.address,
+        payerAddress: ctx.account.address,
         required,
-        config: escrow,
+        config: ctx.escrow,
       });
       req = await buildRequest();
       res = await fetch(req.url, {
@@ -223,27 +243,13 @@ export async function readApprovedDataSettled(
       console.error("[vana/settle] still 402 after settlement", {
         requestId,
         source,
+        scope,
         settleError,
         body: body.slice(0, 1500),
       });
-      // If the data point is missing here too, it is the empty-source case.
-      if (isDataPointMissing(settleError) || isDataPointMissing(body)) {
-        throw new SourceEmptyError(source, {
-          grantId: required.grantId,
-          settleError,
-          personalServerBody: body.slice(0, 500),
-        });
-      }
       throw new PaymentRequiredError(
         "Personal Server still requires payment after escrow settlement",
-        {
-          scope: status.scope,
-          grantId: required.grantId,
-          asset: required.asset,
-          amount: required.amount,
-          settleError,
-          personalServerBody: body.slice(0, 1000),
-        },
+        { scope, grantId: required.grantId, settleError, personalServerBody: body.slice(0, 1000) },
       );
     }
   }
@@ -253,14 +259,122 @@ export async function readApprovedDataSettled(
     throw new PersonalServerReadError(
       `Personal Server read failed: ${res.status} ${res.statusText}`,
       res.status,
-      { scope: status.scope, body: detail.slice(0, 500) },
+      { scope, body: detail.slice(0, 500) },
     );
   }
 
-  const data = await res.json();
-  const payment = paymentResponseMetadataFromHeader(res.headers.get("X-PAYMENT-RESPONSE"));
+  return res.json();
+}
 
-  // Best-effort: tells Vana the read is done so the approval tab can close.
+/**
+ * Read every scope this source's grant covers, then acknowledge once.
+ *
+ * Partial success is success. If GitHub returns three of four scopes, that is a
+ * good read and the person keeps their source; the missing scope simply scores
+ * nothing. Only a source where EVERY scope failed is an empty source, because
+ * that is the case the user can actually do something about.
+ */
+export async function readSourceSettled(
+  source: SourceId,
+  requestId: string,
+): Promise<SourceRead> {
+  const privateKey = process.env.VANA_APP_PRIVATE_KEY;
+  if (!privateKey) throw new Error("Missing VANA_APP_PRIVATE_KEY");
+
+  const account = privateKeyToAccount(privateKey as `0x${string}`);
+  const controller = controllerFor(source);
+  const status = await controller.getAccessRequestStatus(requestId);
+
+  if (
+    (status.status !== "approved" && status.status !== "ready_for_read") ||
+    !status.personalServerUrl ||
+    !status.grantId
+  ) {
+    throw new AccessNotApprovedError(
+      "Request is not approved or is missing grantId/personalServerUrl",
+      {
+        requestId,
+        status: status.status,
+        hasPersonalServerUrl: Boolean(status.personalServerUrl),
+        hasGrantId: Boolean(status.grantId),
+        hasScope: Boolean(status.scope),
+      },
+    );
+  }
+
+  const signMessage = (message: string | Uint8Array) =>
+    account.signMessage({
+      message: typeof message === "string" ? message : { raw: message },
+    });
+
+  const ctx: ReadContext = {
+    personalServerUrl: status.personalServerUrl,
+    grantId: status.grantId,
+    account,
+    escrow: escrowConfig(account),
+    signMessage,
+  };
+
+  /**
+   * `status.scope` first, then the rest.
+   *
+   * The reported scope is the one guaranteed to be readable. Putting it first
+   * means that if the multi-scope assumption turns out to be wrong, we still
+   * come away with one good read instead of a coin flip, and the logs say
+   * exactly which of the others were refused.
+   */
+  const declared = scopesFor(source);
+  const ordered = status.scope
+    ? [status.scope, ...declared.filter((scope) => scope !== status.scope)]
+    : declared;
+
+  const settled = await Promise.allSettled(
+    ordered.map(async (scope) => ({ scope, data: await readScopeSettled(source, requestId, scope, ctx) })),
+  );
+
+  const reads: ScopeRead[] = [];
+  const failures: ScopeFailure[] = [];
+
+  settled.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      reads.push(result.value);
+      return;
+    }
+    const error = result.reason instanceof Error ? result.reason.message : String(result.reason);
+    const notGranted = isScopeNotGranted(error) && ordered[index] !== status.scope;
+    failures.push({ scope: ordered[index], error, notGranted });
+  });
+
+  if (failures.some((failure) => failure.notGranted)) {
+    // The one v2 assumption that has not been proven against a live grant. If
+    // this fires, the fix is one access request per scope: more approval trips,
+    // same money, no change to anything else.
+    console.error("[vana/settle] MULTI-SCOPE GRANT REFUSED", {
+      requestId,
+      source,
+      readableScope: status.scope,
+      refused: failures.filter((f) => f.notGranted).map((f) => f.scope),
+    });
+  }
+
+  console.info("[vana/settle] source read", {
+    requestId,
+    source,
+    ok: reads.map((read) => read.scope),
+    failed: failures.map((failure) => failure.scope),
+  });
+
+  if (reads.length === 0) {
+    throw new SourceEmptyError(source, { requestId, failures });
+  }
+
+  /**
+   * Acknowledge exactly once, after every scope has been read.
+   *
+   * This moves the request to `completed`, which is terminal. Doing it any
+   * earlier would strand the remaining scopes behind a Personal Server that is
+   * no longer serving them.
+   */
   const endpoints = getDirectEndpoints(env);
   const accessClient = createDefaultAccessRequestClient({
     baseUrl: endpoints.accessRequestBaseUrl,
@@ -277,9 +391,5 @@ export async function readApprovedDataSettled(
     });
   }
 
-  return {
-    scope: status.scope!,
-    data,
-    payment,
-  };
+  return { source, reads, failures };
 }
