@@ -739,5 +739,25 @@ export function identityOf(scope: string, raw: unknown): string | undefined {
     "channelUrl",
     "channelId",
   );
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  /**
+   * Reduce a URL to the segment a person could actually type.
+   *
+   * LinkedIn has no username field, so the best available id is `profileUrl`,
+   * a full "https://www.linkedin.com/in/priya-r". Stored raw, it never matches
+   * a lookup: the resolver normalises an incoming handle down to its last path
+   * segment, so the index held a URL while every query asked for a slug, and
+   * LinkedIn resolution silently returned nothing for everybody.
+   *
+   * `email` is deliberately absent from the pick list above and must stay that
+   * way. Desktop's youtube.profile returns one, and an account index keyed on
+   * email addresses would turn an open, keyless resolver into a way to test
+   * which addresses belong to real people.
+   */
+  const trimmed = value.trim().replace(/\/+$/, "");
+  const last = trimmed.includes("/") ? trimmed.split("/").filter(Boolean).pop() : trimmed;
+  const cleaned = (last ?? "").split(/[?#]/)[0]?.replace(/^@+/, "").trim();
+
+  return cleaned || undefined;
 }

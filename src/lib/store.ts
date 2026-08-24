@@ -474,7 +474,16 @@ export async function deleteProfile(id: string, sessionId?: string): Promise<voi
 // Usernames
 // ---------------------------------------------------------------------------
 
-const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,20}[a-z0-9])$/;
+/**
+ * Underscores are allowed alongside hyphens.
+ *
+ * They are the older and more widespread username convention, they are safe in
+ * a URL path, and somebody whose handle everywhere else is `real_name` should
+ * not be told it is invalid here for no reason they can see. Must still start
+ * and end alphanumeric, so a name cannot be padded with separators to squat on
+ * a near-identical one.
+ */
+const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9_-]{1,20}[a-z0-9])$/;
 
 const RESERVED = new Set([
   "admin", "api", "about", "connect", "docs", "help", "login", "logout", "mcp",
@@ -487,7 +496,7 @@ export function usernameProblem(name: string): string | null {
   if (value.length < 3) return "A little longer, please. Three characters minimum.";
   if (value.length > 22) return "That is too long. Twenty-two characters maximum.";
   if (!USERNAME_PATTERN.test(value)) {
-    return "Letters, numbers and hyphens only, starting and ending with a letter or number.";
+    return "Letters, numbers, hyphens and underscores only, starting and ending with a letter or number.";
   }
   if (RESERVED.has(value)) return "That one is reserved. Try another.";
   return null;

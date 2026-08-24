@@ -14,7 +14,7 @@
  * Nothing here writes. Every export is a read.
  */
 
-import { evidenceOf, getProfile, profileForUsername, profilesClaiming } from "./store.ts";
+import { evidenceOf, getProfile, profileForUsername, profileIdForAccount } from "./store.ts";
 import { scorePatina, verdict, type SourceId } from "./score.ts";
 import { attestationSigner, buildAttestation } from "./attest.ts";
 import { PATINA_APP_ADDRESS } from "./patina-address.ts";
@@ -53,8 +53,28 @@ export const SCORE_MEANING =
   "60-79 (Well established) is a solid multi-year record. 40-59 (Some real history) " +
   "is genuine but shorter or thinner. 20-39 (Thin, but genuine so far) is an early " +
   "account with a little history. Under 20 (Not much to go on yet) looks freshly " +
-  "created, or has almost nothing connected. Age is the heaviest single input: " +
-  "12 years of provable history earns full marks on it.";
+  "created, or has almost nothing connected. The inputs, heaviest first: Age (30, " +
+  "full marks at 12 years), Continuity (25, how many separate months the person " +
+  "was actually present for), Corroboration (15, independent sources agreeing on " +
+  "the date), Vouches (12, WHEN other people connected to them rather than how " +
+  "many), Depth (10, things made) and Breadth (8, independent accounts). Follower " +
+  "counts are deliberately worth almost nothing, because they are purchasable.";
+
+/**
+ * What a caller must understand about an unsigned score.
+ *
+ * Patina refuses to sign a profile below three sources, or fewer than two
+ * carrying dates, because a credential built on one account is noise to whoever
+ * consumes it. Those profiles still return a real number, and an agent that
+ * treats a provisional 41 as equivalent to a signed 41 is making exactly the
+ * mistake the floor exists to prevent.
+ */
+export const PROVISIONAL_MEANING =
+  "A provisional score has too little behind it for Patina to sign: fewer than " +
+  "three connected sources, or fewer than two that carry a date. The number is " +
+  "still computed honestly, but it carries no attestation and should not be used " +
+  "as a trust gate on its own. Treat provisional:true as 'not enough evidence " +
+  "either way', never as 'suspicious'.";
 
 /**
  * Sources whose stored account id is a handle a person could actually type.
@@ -121,6 +141,13 @@ export type ProfileFound = {
   oldestSource: string | null;
   sourcesConnected: SourceId[];
   components: ScoreComponent[];
+  /**
+   * True when the profile is below the signing floor. The score is real; the
+   * evidence behind it is too thin to certify. See PROVISIONAL_MEANING for what
+   * a caller should do with it, which is not "distrust this person".
+   */
+  provisional: boolean;
+  provisionalReason: string | null;
   profileUrl: string;
   docs: string;
   /**
@@ -281,15 +308,21 @@ export async function lookupByUsername(rawUsername: string): Promise<ProfileLook
       max: component.max,
       detail: component.detail,
     })),
+    provisional: score.provisional,
+    provisionalReason: score.provisionalReason,
     profileUrl: siteUrl(`/u/${encodeURIComponent(profile.username)}`),
     docs: siteUrl("/docs"),
-    attestation: await attestationFor({
-      username: profile.username,
-      score: score.total,
-      verdict: theVerdict,
-      oldestYear,
-      sources: score.sourcesConnected.length,
-    }),
+    // A provisional profile gets no signature, because signing one would make
+    // the attestation mean less for everybody who earned theirs.
+    attestation: score.provisional
+      ? null
+      : await attestationFor({
+          username: profile.username,
+          score: score.total,
+          verdict: theVerdict,
+          oldestYear,
+          sources: score.sourcesConnected.length,
+        }),
   };
 
   remember(key, found);
@@ -515,24 +548,28 @@ export async function resolveIdentity(params: {
     };
   }
 
-  const profileIds = await profilesClaiming(source as SourceId, handle);
+  /**
+   * One profile per account now, rather than the set v1 kept.
+   *
+   * That index existed because a browser cookie was the identity, so the same
+   * person connecting from a phone and a laptop produced two profiles claiming
+   * one GitHub, and the resolver had to pick between them. Identity is the
+   * Personal Server now: the second browser folds into the first profile before
+   * anything is recorded, so the duplicate the set existed to reconcile is
+   * created far more rarely.
+   */
+  const profileId = await profileIdForAccount(source as SourceId, handle);
+  const profile = profileId ? await getProfile(profileId) : null;
 
-  // The index is a set, and more than one profile claiming the same account is
-  // an expected state (the same person connecting from two browser sessions is
-  // exactly what it exists to catch). Report the strongest, which is the one a
-  // caller asking "can I trust this account" cares about, and which reveals
-  // nothing about how many profiles there were.
-  let best: { score: number; yearsOfHistory: number | null } | null = null;
-
-  for (const id of profileIds) {
-    const profile = await getProfile(id);
-    if (!profile || !profile.username) continue;
-
-    const score = scorePatina(evidenceOf(profile));
-    if (best === null || score.total > best.score) {
-      best = { score: score.total, yearsOfHistory: score.oldestSignal?.years ?? null };
-    }
-  }
+  // A profile with no username has never opted into being public anywhere else
+  // in the product, and an agent lookup is not the place to make it so.
+  const best =
+    profile && profile.username
+      ? (() => {
+          const score = scorePatina(evidenceOf(profile));
+          return { score: score.total, yearsOfHistory: score.oldestSignal?.years ?? null };
+        })()
+      : null;
 
   if (!best) {
     return {

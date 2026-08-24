@@ -16,7 +16,8 @@ import {
 } from "./mcp-lookup.ts";
 import { verdict, type PatinaScore } from "./score.ts";
 import { PATINA_APP_ADDRESS, PATINA_APP_ADDRESS_LOWER } from "./patina-address.ts";
-import { ensureProfile, newProfileId, recordSource, setUsername } from "./store.ts";
+import { claimUsername, ensureProfileId, recordSource } from "./store.ts";
+import { readScope } from "./normalize.ts";
 import { getAddress } from "viem";
 
 /**
@@ -28,22 +29,51 @@ import { getAddress } from "viem";
 const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
 const yearsAgo = (years: number) => new Date(Date.now() - years * YEAR_MS).toISOString();
 
-/** A profile with a GitHub account of a given age, published under a name. */
+/**
+ * A profile with a GitHub history of a given age, published under a name.
+ *
+ * THREE sources, deliberately. Below the signing floor a profile is provisional
+ * and gets no attestation, so a one-source fixture would make every signature
+ * assertion below fail for a reason that has nothing to do with what is being
+ * tested.
+ */
+let seq = 0;
 async function publishProfile(username: string, accountAgeYears: number, handle = username) {
-  const id = newProfileId();
-  await ensureProfile(id);
+  const id = await ensureProfileId(`mcp-session-${(seq += 1)}-${Date.now()}`);
+
   await recordSource(
     id,
     "github",
-    {
-      scope: "github.profile",
-      readAt: new Date().toISOString(),
-      externalId: handle,
-      evidence: { github: { username: handle, createdAt: yearsAgo(accountAgeYears), repositoryCount: 12 } },
-    },
-    50,
+    [
+      {
+        scope: "github.history",
+        fragment: readScope("github.history", {
+          pullRequests: [{ id: "1", createdAt: yearsAgo(accountAgeYears) }],
+        })!,
+      },
+      { scope: "github.profile", fragment: readScope("github.profile", { followers: 30 })! },
+    ],
+    { externalId: handle },
   );
-  const claimed = await setUsername(id, username);
+
+  await recordSource(id, "steam", [
+    {
+      scope: "steam.profile",
+      fragment: readScope("steam.profile", { accountCreated: yearsAgo(accountAgeYears) })!,
+    },
+  ]);
+
+  await recordSource(id, "spotify", [
+    {
+      scope: "spotify.savedTracks",
+      fragment: readScope("spotify.savedTracks", {
+        savedTracks: [{ added_at: yearsAgo(accountAgeYears / 2) }],
+        total: 200,
+      })!,
+    },
+  ]);
+
+  const claimed = await claimUsername(id, username);
   assert.equal(claimed.ok, true, `test setup failed to claim the name ${username}`);
   clearLookupCache();
   return id;
@@ -88,6 +118,8 @@ test("the documented verdict bands match what score.ts actually returns", () => 
     components: [],
     oldestSignal: null,
     sourcesConnected: [],
+    provisional: false,
+    provisionalReason: null,
   });
 
   for (const band of VERDICT_BANDS) {
@@ -202,18 +234,19 @@ test("a handle nobody has connected resolves to a clean not-found", async () => 
 test("a profile with no public username is not resolvable by handle", async () => {
   // Connected accounts, but never claimed a name. Being findable here would
   // publish somebody who never opted into being public.
-  const id = newProfileId();
-  await ensureProfile(id);
+  const id = await ensureProfileId(`mcp-private-${Date.now()}`);
   await recordSource(
     id,
     "github",
-    {
-      scope: "github.profile",
-      readAt: new Date().toISOString(),
-      externalId: "private-person",
-      evidence: { github: { username: "private-person", createdAt: yearsAgo(11), repositoryCount: 4 } },
-    },
-    60,
+    [
+      {
+        scope: "github.history",
+        fragment: readScope("github.history", {
+          pullRequests: [{ id: "1", createdAt: yearsAgo(11) }],
+        })!,
+      },
+    ],
+    { externalId: "private-person" },
   );
   clearLookupCache();
 
@@ -249,7 +282,54 @@ test("a published profile carries tenure to one decimal place", async () => {
     components: [],
     oldestSignal: null,
     sourcesConnected: [],
+    provisional: false,
+    provisionalReason: null,
   }));
+});
+
+/**
+ * A verifier must be told when a score has too little behind it to be signed.
+ *
+ * An agent that treats a provisional 41 as equivalent to a signed 41 is making
+ * exactly the mistake the floor exists to prevent, so the flag travels with the
+ * number and the attestation is withheld rather than issued quietly.
+ */
+test("a profile below the signing floor is provisional and carries no signature", async () => {
+  const name = `thin-${Date.now() % 100000}`;
+  const id = await ensureProfileId(`mcp-thin-${Date.now()}`);
+
+  // One source, and a genuinely old one. The number will be respectable; the
+  // evidence behind it is still a single account.
+  await recordSource(id, "github", [
+    {
+      scope: "github.history",
+      fragment: readScope("github.history", {
+        pullRequests: [{ id: "1", createdAt: yearsAgo(11) }],
+      })!,
+    },
+  ]);
+  assert.equal((await claimUsername(id, name)).ok, true);
+  clearLookupCache();
+
+  const result = await lookupByUsername(name);
+  assert.equal(result.found, true);
+  if (!result.found) return;
+
+  assert.equal(result.provisional, true, "one source is below the floor");
+  assert.match(result.provisionalReason ?? "", /more source/i);
+  assert.equal(result.attestation, null, "a provisional score must not be signed");
+  assert.ok(result.score > 0, "the number itself is still real and still reported");
+});
+
+test("a profile above the floor is signable and says it is not provisional", async () => {
+  await publishProfile("well-backed", 10, "well-backed-dev");
+
+  const result = await lookupByUsername("well-backed");
+  assert.equal(result.found, true);
+  if (!result.found) return;
+
+  assert.equal(result.provisional, false);
+  assert.equal(result.provisionalReason, null);
 });
 
 test("check_threshold refuses to answer without a bar", async () => {

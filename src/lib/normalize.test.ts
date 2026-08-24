@@ -461,3 +461,27 @@ test("identityOf finds a handle without inventing one", () => {
   assert.equal(identityOf("steam.profile", { steamId: "7656119" }), "7656119");
   assert.equal(identityOf("amazon.orders", { orders: [] }), undefined);
 });
+
+test("identityOf stores the segment a person could type, not a URL", () => {
+  // LinkedIn has no username field, so profileUrl is the best id available.
+  // Stored raw it would never match a lookup, which normalises to the slug.
+  assert.equal(
+    identityOf("linkedin.profile", { profileUrl: "https://www.linkedin.com/in/priya-r/" }),
+    "priya-r",
+  );
+  assert.equal(
+    identityOf("youtube.profile", { handle: "@ramkumar", channelUrl: "https://youtube.com/@x" }),
+    "ramkumar",
+  );
+});
+
+test("identityOf never returns an email, however the payload is shaped", () => {
+  // Desktop's youtube.profile really does return one. An account index keyed on
+  // email addresses would turn an open resolver into a way to test which of
+  // them belong to real people.
+  assert.equal(identityOf("youtube.profile", { email: "ram@example.com" }), undefined);
+  assert.equal(
+    identityOf("youtube.profile", { email: "ram@example.com", handle: "@ram" }),
+    "ram",
+  );
+});

@@ -142,7 +142,7 @@ export function ClaimName({
           </div>
 
           <p className="mt-3 text-xs leading-relaxed text-text-4">
-            Letters, numbers and hyphens. Three to twenty-two characters.
+            Letters, numbers, hyphens and underscores. Three to twenty-two characters.
           </p>
         </>
       )}
