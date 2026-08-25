@@ -70,13 +70,64 @@ function clean(value: unknown, max: number): string | null {
 }
 
 /**
- * Apps worth sending someone to.
+ * The apps we actually recommend, chosen by hand.
+ *
+ * Pinned rather than pulled from the live leaderboard, for two reasons the
+ * leaderboard itself demonstrated. Career Quest carries no description there,
+ * and the quality bar below drops anything without one, so the best app on the
+ * list was the one that never appeared. And the feed holds a duplicate
+ * Joblessing entry whose URL is missing its last character, which would have
+ * sent our users to a dead domain.
+ *
+ * Descriptions are the builders' own words, taken from the leaderboard or from
+ * the app's own page. We do not write copy about somebody else's product.
+ *
+ * This list is destined for the admin page, so it can be edited without a
+ * deploy. Until that ships it lives here.
+ */
+const PINNED: EcosystemApp[] = [
+  {
+    name: "Career Quest",
+    url: "https://vana-career-coach.vercel.app",
+    description:
+      "Connect your LinkedIn and get instant, honest insights about your career trajectory.",
+    icon: "https://vana-career-coach.vercel.app/icon.svg",
+  },
+  {
+    name: "DreamTape",
+    url: "https://hello-friend--senadii555.replit.app/",
+    description:
+      "Turns your Vana data into cinematic short films with poetic narrative and chapter cards.",
+    icon: "https://hello-friend--senadii555.replit.app/icon-512.png",
+  },
+  {
+    name: "Joblessing",
+    url: "https://joblessing.vercel.app",
+    description:
+      "Turns your LinkedIn profile into an honest signal check, one practical edit and a clear next step.",
+    icon: "https://joblessing.vercel.app/app-icon.png",
+  },
+  {
+    name: "67 Card",
+    url: "https://vana-six.vercel.app",
+    description: "Get your viral AI persona status card and roast powered by Vana data.",
+    icon: "https://vana-six.vercel.app/icon.png",
+  },
+];
+
+/** Apps worth sending someone to. */
+export async function ecosystemApps(limit = 4): Promise<EcosystemApp[]> {
+  return PINNED.slice(0, limit);
+}
+
+/**
+ * The live leaderboard feed, kept for the admin page to suggest from.
  *
  * Cached for an hour: this is a third-party API and the list changes a few
  * times a day at most, so hammering it on every page view would be rude and
  * would put their availability in our critical path.
  */
-export async function ecosystemApps(limit = 4): Promise<EcosystemApp[]> {
+export async function leaderboardApps(limit = 12): Promise<EcosystemApp[]> {
   try {
     const response = await fetch(LEADERBOARD, {
       next: { revalidate: 3600 },

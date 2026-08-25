@@ -394,7 +394,21 @@ export function useConnect(onConnected: () => void | Promise<void>) {
     [connect],
   );
 
-  const dismissError = useCallback(() => {
+  /**
+   * Abandon whatever is in flight and return to idle.
+   *
+   * Backs both "try again" after a failure and an outright cancel, because the
+   * teardown is identical: reset the SDK flow, forget the source, and drop the
+   * localStorage mirror so the resume effect does not pick it up on the next
+   * load.
+   *
+   * WHAT IT DOES NOT DO is un-approve anything on Vana's side. There is no such
+   * call, and after approval the grant exists whether we read it or not.
+   * Cancelling before approval costs nothing; cancelling mid-read abandons a
+   * read that may already have been paid for. The UI says which is which rather
+   * than pretending cancel is always free.
+   */
+  const cancel = useCallback(() => {
     connect.reset();
     sourceRef.current = null;
     setSource(null);
@@ -435,5 +449,6 @@ export function useConnect(onConnected: () => void | Promise<void>) {
     }
   })();
 
-  return { phase, start, dismissError };
+  // `dismissError` is the same teardown under the name the error UI uses.
+  return { phase, start, cancel, dismissError: cancel };
 }

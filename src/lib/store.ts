@@ -60,6 +60,15 @@ const serverKey = (hash: string) => `${PREFIX}:server:${hash}`;
 const accountKey = (source: SourceId, externalId: string) =>
   `${PREFIX}:account:${source}:${externalId.toLowerCase()}`;
 
+/**
+ * Every profile that exists, so the count is answerable at all.
+ *
+ * Membership only, never used to enumerate people publicly. It is what makes
+ * "how many people use Patina" a question with an answer rather than a promise
+ * nobody can compute, which is the state it was in until somebody asked.
+ */
+const ALL_PROFILES = `${PREFIX}:profiles`;
+
 export type SourceRecord = {
   /** When this source was last read in full. */
   readAt: string;
@@ -106,6 +115,20 @@ interface Backend {
   /** `ttlSeconds`, when given, makes the key expire. Persistent data omits it. */
   set(key: string, value: unknown, ttlSeconds?: number): Promise<void>;
   /**
+   * Add to a set, and report the set's size afterwards.
+   *
+   * Patina could not count its own users. Every profile sat under its own key
+   * with nothing tying them together, because the index that once did this went
+   * out with the leaderboard, and "how many people use this" turned out to be
+   * unanswerable at the moment somebody asked. A set is the cheapest thing that
+   * makes it answerable, and it has to exist BEFORE the page that reads it, or
+   * everybody who arrives in between is invisible.
+   */
+  addToSet(key: string, member: string): Promise<void>;
+  removeFromSet(key: string, member: string): Promise<void>;
+  setSize(key: string): Promise<number>;
+  setMembers(key: string): Promise<string[]>;
+  /**
    * Write only if the key is absent. True when this caller won it.
    *
    * The point of contact with reality: claiming a username was a read followed
@@ -121,6 +144,7 @@ let warned = false;
 function memoryBackend(): Backend {
   const map = new Map<string, unknown>();
   const expiries = new Map<string, number>();
+  const sets = new Map<string, Set<string>>();
 
   if (!warned) {
     warned = true;
@@ -154,6 +178,20 @@ function memoryBackend(): Backend {
     async remove(key) {
       map.delete(key);
     },
+    async addToSet(key, member) {
+      const set = sets.get(key) ?? new Set<string>();
+      set.add(member);
+      sets.set(key, set);
+    },
+    async removeFromSet(key, member) {
+      sets.get(key)?.delete(member);
+    },
+    async setSize(key) {
+      return sets.get(key)?.size ?? 0;
+    },
+    async setMembers(key) {
+      return [...(sets.get(key) ?? [])];
+    },
   };
 }
 
@@ -169,6 +207,18 @@ function redisBackend(redis: Redis): Backend {
     },
     async remove(key) {
       await redis.del(key);
+    },
+    async addToSet(key, member) {
+      await redis.sadd(key, member);
+    },
+    async removeFromSet(key, member) {
+      await redis.srem(key, member);
+    },
+    async setSize(key) {
+      return (await redis.scard(key)) ?? 0;
+    },
+    async setMembers(key) {
+      return (await redis.smembers(key)) ?? [];
     },
   };
 }
@@ -372,7 +422,10 @@ async function absorb(fromId: string, intoId: string): Promise<void> {
     updatedAt: new Date().toISOString(),
   });
 
+  // The absorbed profile stops existing, so it stops being counted. Two browser
+  // sessions folding into one person must not read as two people.
   await db().remove(profileKey(fromId));
+  await db().removeFromSet(ALL_PROFILES, fromId);
 }
 
 // ---------------------------------------------------------------------------
@@ -385,6 +438,9 @@ export async function getProfile(id: string): Promise<Profile | null> {
 
 export async function saveProfile(profile: Profile): Promise<void> {
   await db().set(profileKey(profile.id), profile);
+  // Indexed on every save rather than only on creation, so a profile written by
+  // any path lands in the count. Adding to a set is idempotent.
+  await db().addToSet(ALL_PROFILES, profile.id);
 }
 
 async function ensureProfile(id: string): Promise<Profile> {
@@ -457,6 +513,9 @@ export async function deleteProfile(id: string, sessionId?: string): Promise<voi
   const profile = await getProfile(id);
 
   await db().remove(profileKey(id));
+  // Out of the count too. A deletion that left the number unchanged would make
+  // the erasure promise on the privacy page quietly untrue.
+  await db().removeFromSet(ALL_PROFILES, id);
   if (sessionId) await unlinkSession(sessionId);
   if (!profile) return;
 
@@ -468,6 +527,110 @@ export async function deleteProfile(id: string, sessionId?: string): Promise<voi
       await db().remove(accountKey(source as SourceId, record.externalId));
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Counting
+// ---------------------------------------------------------------------------
+
+export type Stats = {
+  /** Profiles that exist, including ones that never connected anything. */
+  profiles: number;
+  /** Profiles with at least one source read. The number worth quoting. */
+  connected: number;
+  /** Profiles that have claimed a public name. */
+  named: number;
+  /** Total sources connected across everybody. */
+  sources: number;
+  /** Sources connected, broken down by which. */
+  bySource: Record<string, number>;
+  /** Mean score across profiles that have connected something. */
+  averageScore: number;
+  /** How many are above the signing floor. */
+  signable: number;
+};
+
+/**
+ * Every number the admin page needs, computed by reading each profile.
+ *
+ * Deliberately NOT incrementally maintained counters. Counters drift the moment
+ * any write path forgets one, and a drifted number is worse than a slow one
+ * because nothing announces it. This walks the set instead: correct by
+ * construction, and at Patina's size it is a few hundred reads at most. If that
+ * ever stops being true, the fix is a cache in front of it, not a counter.
+ */
+export async function stats(): Promise<Stats> {
+  const ids = await db().setMembers(ALL_PROFILES);
+
+  const out: Stats = {
+    profiles: ids.length,
+    connected: 0,
+    named: 0,
+    sources: 0,
+    bySource: {},
+    averageScore: 0,
+    signable: 0,
+  };
+
+  let scoreTotal = 0;
+
+  for (const id of ids) {
+    const profile = await getProfile(id);
+    // A member with no profile behind it is a stale index entry, not a person.
+    if (!profile) continue;
+
+    const sources = Object.keys(profile.sources ?? {});
+    if (sources.length === 0) continue;
+
+    out.connected += 1;
+    out.sources += sources.length;
+    for (const source of sources) {
+      out.bySource[source] = (out.bySource[source] ?? 0) + 1;
+    }
+    if (profile.username) out.named += 1;
+
+    const score = scorePatina(evidenceFrom(profile.fragments ?? {}));
+    scoreTotal += score.total;
+    if (!score.provisional) out.signable += 1;
+  }
+
+  out.averageScore = out.connected === 0 ? 0 : Math.round(scoreTotal / out.connected);
+  return out;
+}
+
+/**
+ * One-time backfill for profiles written before the index existed.
+ *
+ * Scans the keyspace for profile keys and adds each to the set. Only needed
+ * once, and only for anybody who connected between the v2 launch and counting
+ * being added. Returns how many it found so the caller can report it.
+ *
+ * SCAN rather than KEYS: KEYS blocks Redis for the length of the scan, which is
+ * fine on a handful of profiles and a way to take the site down later.
+ */
+export async function backfillProfileIndex(): Promise<{ found: number; added: number }> {
+  const creds = credentials();
+  if (!creds) return { found: 0, added: 0 };
+
+  const redis = new Redis(creds);
+  const prefix = `${PREFIX}:profile:`;
+  let cursor = "0";
+  let found = 0;
+  let added = 0;
+
+  do {
+    const [next, keys] = await redis.scan(cursor, { match: `${prefix}*`, count: 200 });
+    cursor = String(next);
+    for (const key of keys) {
+      const id = key.slice(prefix.length);
+      if (!id) continue;
+      found += 1;
+      await db().addToSet(ALL_PROFILES, id);
+      added += 1;
+    }
+  } while (cursor !== "0");
+
+  return { found, added };
 }
 
 // ---------------------------------------------------------------------------

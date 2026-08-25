@@ -23,6 +23,7 @@ export function OpenSlot({
   phase,
   onStart,
   onDismissError,
+  onCancel,
   recommended = false,
   reason,
 }: {
@@ -30,6 +31,8 @@ export function OpenSlot({
   phase: ConnectPhase;
   onStart: (source: string) => void;
   onDismissError: () => void;
+  /** Abandon this connection and go back to the board, so another can be started. */
+  onCancel: () => void;
   /** The one worth doing next. Gets the solid button and a line of argument. */
   recommended?: boolean;
   reason?: string;
@@ -141,7 +144,7 @@ export function OpenSlot({
         </div>
       )}
 
-      {busy && <ConnectProgress phase={phase} label={spec.label} />}
+      {busy && <ConnectProgress phase={phase} label={spec.label} onCancel={onCancel} />}
 
       {errored && phase.type === "error" && (
         <div className="sheet-up border-t border-line pt-4">
@@ -203,7 +206,20 @@ function readingMessage(seconds: number): string {
   return "Nearly there. Long histories take longer, which is a good sign";
 }
 
-function ConnectProgress({ phase, label }: { phase: ConnectPhase; label: string }) {
+function ConnectProgress({
+  phase,
+  label,
+  onCancel,
+}: {
+  phase: ConnectPhase;
+  label: string;
+  onCancel: () => void;
+}) {
+  // Before approval nothing has been spent, so cancelling really is free. Once
+  // the read starts, a fee may already have been settled and the honest word is
+  // "stop", not "cancel".
+  const free = phase.type === "starting" || phase.type === "awaiting";
+
   return (
     <div className="sheet-up border-t border-line pt-4">
       <div className="flex items-center gap-3">
@@ -216,6 +232,21 @@ function ConnectProgress({ phase, label }: { phase: ConnectPhase; label: string 
         {phase.type === "reading" && (
           <span className="t-mono ml-auto text-xs text-text-4">{phase.seconds}s</span>
         )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap t-label text-text-3 underline-offset-4 hover:text-text hover:underline"
+        >
+          {free ? "Cancel" : "Stop waiting"}
+        </button>
+        <span className="text-xs leading-relaxed text-text-4">
+          {free
+            ? "Nothing has been read yet, so this costs you nothing. You can connect something else instead."
+            : "The read may already have gone through. Stopping frees the page up; reconnect later to pick it up again."}
+        </span>
       </div>
 
       {/*

@@ -11,6 +11,7 @@ import {
   profileIdForAccount,
   recordSource,
   resolveProfileId,
+  stats,
   usernameProblem,
 } from "./store.ts";
 import { readScope } from "./normalize.ts";
@@ -223,6 +224,79 @@ test("changing a username releases the old one", async () => {
 test("a username cannot be claimed before anything is connected", async () => {
   const result = await claimUsername(await ensureProfileId(unique("session")), uniqueName("early"));
   assert.equal(result.ok, false);
+});
+
+// ---------------------------------------------------------------------------
+// Counting. Patina could not answer "how many people use this" at all until
+// the index existed, so these guard the number rather than the plumbing.
+// ---------------------------------------------------------------------------
+
+test("stats counts connected profiles, sources and names", async () => {
+  const before = await stats();
+
+  const a = await ensureProfileId(unique("session"));
+  await recordSource(a, "github", githubReads());
+  await recordSource(a, "steam", [
+    { scope: "steam.profile", fragment: readScope("steam.profile", { accountCreated: iso(12) })! },
+  ]);
+  await claimUsername(a, uniqueName("counted"));
+
+  const b = await ensureProfileId(unique("session"));
+  await recordSource(b, "github", githubReads());
+
+  const after = await stats();
+
+  assert.equal(after.connected - before.connected, 2, "two people connected something");
+  assert.equal(after.sources - before.sources, 3, "three sources between them");
+  assert.equal(after.named - before.named, 1, "only one claimed a name");
+  assert.equal((after.bySource.github ?? 0) - (before.bySource.github ?? 0), 2);
+  assert.equal((after.bySource.steam ?? 0) - (before.bySource.steam ?? 0), 1);
+  assert.ok(after.averageScore > 0, "an average is only meaningful once somebody scored");
+});
+
+test("a profile that connected nothing is not counted as a user", async () => {
+  const before = await stats();
+  // Created the moment a Personal Server is recognised, before any read.
+  await profileForServer(unique("session"), `https://${unique("ps")}.vana.org`);
+  const after = await stats();
+
+  assert.equal(after.connected, before.connected, "an empty profile is not a user yet");
+  assert.ok(after.profiles > before.profiles, "it does exist, and is counted as existing");
+});
+
+test("two browsers folding into one person count as one", async () => {
+  const server = `https://${unique("ps")}.vana.org`;
+  const before = await stats();
+
+  const first = await profileForServer(unique("session"), server);
+  await recordSource(first, "github", githubReads());
+
+  // A second browser that connected on its own, then proved it was the same
+  // Vana account. Counting it twice would inflate every number we quote.
+  const straySession = unique("session");
+  const stray = await ensureProfileId(straySession);
+  await recordSource(stray, "steam", [
+    { scope: "steam.profile", fragment: readScope("steam.profile", { accountCreated: iso(9) })! },
+  ]);
+  await profileForServer(straySession, server);
+
+  const after = await stats();
+  assert.equal(after.connected - before.connected, 1, "one human, one row");
+});
+
+test("deleting a profile removes it from the count", async () => {
+  const sessionId = unique("session");
+  const id = await ensureProfileId(sessionId);
+  await recordSource(id, "github", githubReads());
+
+  const before = await stats();
+  await deleteProfile(id, sessionId);
+  const after = await stats();
+
+  // A deletion that left the number unchanged would make the erasure promise on
+  // the privacy page quietly untrue.
+  assert.equal(after.connected, before.connected - 1);
+  assert.equal(after.profiles, before.profiles - 1);
 });
 
 // ---------------------------------------------------------------------------

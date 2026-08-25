@@ -111,9 +111,9 @@ export function ConnectFlow({
   const [exhibits, setExhibits] = useState(initialExhibits);
   const [scopesRead, setScopesRead] = useState(initialScopesRead);
   const [username, setUsername] = useState<string | null>(initialUsername);
-  const [showStrengthen, setShowStrengthen] = useState(
-    () => strengthen.some((source) => initialScopesRead[source.id]),
-  );
+  // Closed by default. Connected sources show regardless, so opening this is
+  // only ever about seeing what else is on offer.
+  const [showStrengthen, setShowStrengthen] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -139,7 +139,7 @@ export function ConnectFlow({
     return () => clearTimeout(id);
   }, [refresh]);
 
-  const { phase, start, dismissError } = useConnect(refresh);
+  const { phase, start, cancel, dismissError } = useConnect(refresh);
 
   /**
    * A one-shot "this source just landed" flag, so its exhibit can arrive rather
@@ -159,9 +159,6 @@ export function ConnectFlow({
     if (prev === "reading" && phase.type === "idle" && readingSourceRef.current) {
       const done = readingSourceRef.current;
       setJustConnected(done);
-      // The first success is also the moment the rest of the manifest becomes
-      // worth showing: they have seen a number now, so the ask is cheaper.
-      setShowStrengthen(true);
       const timer = setTimeout(
         () => setJustConnected((current) => (current === done ? null : current)),
         1600,
@@ -176,9 +173,20 @@ export function ConnectFlow({
   const factsFor = new Map(exhibits.map((facts) => [facts.source, facts]));
   const connectedIds = new Set(exhibits.map((facts) => facts.source));
 
-  const all = [...core, ...(showStrengthen ? strengthen : [])];
-  const onBoard = all.filter((source) => connectedIds.has(source.id));
-  const open = all.filter((source) => !connectedIds.has(source.id));
+  /**
+   * A connected source is ALWAYS an exhibit, whichever tier it came from.
+   *
+   * Collapsing the extra six used to take a connected Steam down with them, so
+   * a card somebody had just earned vanished when they tidied the board. Only
+   * the UNCONNECTED extras are hideable, which is also what the toggle should
+   * be counting.
+   */
+  const onBoard = [...core, ...strengthen].filter((source) => connectedIds.has(source.id));
+  const hideableStrengthen = strengthen.filter((source) => !connectedIds.has(source.id));
+  const open = [
+    ...core.filter((source) => !connectedIds.has(source.id)),
+    ...(showStrengthen ? hideableStrengthen : []),
+  ];
   const recommended = nextBest(connectedIds, [...core, ...strengthen], score.components);
 
   return (
@@ -244,19 +252,32 @@ export function ConnectFlow({
             phase={phase}
             onStart={start}
             onDismissError={dismissError}
+            onCancel={cancel}
             recommended={recommended?.id === spec.id}
             reason={REASONS[spec.id] ?? FALLBACK_REASON}
           />
         ))}
       </div>
 
-      {!showStrengthen && (
+      {/*
+        A toggle, not a one-way door.
+
+        Connecting a source used to force this open and there was no way to
+        close it again, so a board that had been four tidy cards became ten the
+        moment anything succeeded, right at the point somebody was reading their
+        new score. It opens when asked and closes the same way. Sources already
+        on the board are never hidden by it, however they got there.
+      */}
+      {hideableStrengthen.length > 0 && (
         <button
           type="button"
-          onClick={() => setShowStrengthen(true)}
+          onClick={() => setShowStrengthen((was) => !was)}
+          aria-expanded={showStrengthen}
           className="tap t-label mx-auto text-text-3 underline-offset-4 hover:text-text hover:underline"
         >
-          Show {strengthen.length} more sources
+          {showStrengthen
+            ? `Hide ${hideableStrengthen.length} more ${hideableStrengthen.length === 1 ? "source" : "sources"}`
+            : `Show ${hideableStrengthen.length} more ${hideableStrengthen.length === 1 ? "source" : "sources"}`}
         </button>
       )}
 
