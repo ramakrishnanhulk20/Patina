@@ -156,6 +156,7 @@ export default async function ProfilePage({
           message={proof.message}
           signature={proof.signature}
           issuedAt={proof.issuedAt}
+          expiresAt={proof.expiresAt}
           verifyUrl={siteUrl(`/api/verify/${encodeURIComponent(profile.username ?? "")}`)}
           apiPath={`/api/verify/${encodeURIComponent(profile.username ?? "")}`}
         />

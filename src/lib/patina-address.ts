@@ -16,7 +16,7 @@
  * address in `.app-identity.txt`, which holds an older testnet identity
  * (0x4791d4...) that production does not sign with.
  */
-export const PATINA_APP_ADDRESS = "0x620dDbEceaD28Bbf1b979bfaB8e3a7B893aa54A1";
+export const PATINA_APP_ADDRESS = "0x3989bdFaf3BA242d27B4D0cEed98F446d0c52DAD";
 
 /** The comparison form. Recovered addresses should be lowercased to match. */
 export const PATINA_APP_ADDRESS_LOWER = PATINA_APP_ADDRESS.toLowerCase();

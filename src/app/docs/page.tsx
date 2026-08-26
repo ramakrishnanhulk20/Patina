@@ -17,7 +17,7 @@ const EXAMPLE_RESPONSE = `{
   "verdict": "Well established",
   "oldestYear": 2012,
   "yearsOfHistory": 14.2,
-  "sourcesConnected": ["github", "steam", "spotify"],
+  "sourcesConnected": ["github", "linkedin", "spotify"],
   "components": [
     { "key": "age", "label": "Age", "points": 30, "max": 30, "detail": "..." },
     { "key": "continuity", "label": "Continuity", "points": 19.6, "max": 25, "detail": "..." },
@@ -29,11 +29,13 @@ const EXAMPLE_RESPONSE = `{
   "provisional": false,
   "provisionalReason": null,
   "issuedAt": "2026-08-24T12:00:00.000Z",
+  "expiresAt": "2026-09-23T12:00:00.000Z",
   "attestation": {
     "app": "${APP_ADDRESS}",
-    "message": "Patina score attestation\\n\\nusername: alice\\nscore: 71/100\\n...",
+    "message": "Patina score attestation\\n\\nusername: alice\\nscore: 71/100\\n...\\nexpiresAt: 2026-09-23T12:00:00.000Z\\napp: 0x…",
     "signature": "0x…",
-    "howToVerify": "Recover the EIP-191 signer of \`message\` from \`signature\`; it equals \`app\`."
+    "expiresAt": "2026-09-23T12:00:00.000Z",
+    "howToVerify": "Recover the EIP-191 signer of \`message\` from \`signature\`; it equals \`app\`. Then check the expiresAt line inside the message is still in the future."
   }
 }`;
 
@@ -47,13 +49,25 @@ const signer = await recoverMessageAddress({
   signature: attestation.signature,
 });
 
-// True only if Patina really signed this exact score.
-const genuine = signer.toLowerCase() === attestation.app.toLowerCase();`;
+// Did Patina really sign this exact score?
+const genuine = signer.toLowerCase() === attestation.app.toLowerCase();
+
+// Is it still current? The expiry lives INSIDE the signed message, which is
+// what keeps this check offline. Reading the field next to it instead would
+// let anyone passing on a stale score simply edit the date.
+const expiresAt = new Date(attestation.message.match(/^expiresAt: (.+)$/m)[1]);
+const current = expiresAt > new Date();
+
+// You need both. Genuine but expired means fetch a fresh one, not reject them.
+const trustworthy = genuine && current;`;
 
 const ETHERS_SNIPPET = `import { verifyMessage } from "ethers";
 
 const signer = verifyMessage(attestation.message, attestation.signature);
-const genuine = signer.toLowerCase() === attestation.app.toLowerCase();`;
+const genuine = signer.toLowerCase() === attestation.app.toLowerCase();
+
+const expiresAt = new Date(attestation.message.match(/^expiresAt: (.+)$/m)[1]);
+const trustworthy = genuine && expiresAt > new Date();`;
 
 /**
  * No published prices, deliberately.
@@ -249,6 +263,17 @@ export default function DocsPage() {
             <dd className="mt-1 leading-relaxed">
               When this attestation was signed. Scores rise as people connect more, so an attestation is
               a snapshot, re-fetch for a fresh one.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-text">expiresAt</dt>
+            <dd className="mt-1 leading-relaxed">
+              When it stops being good, thirty days after signing. The value that counts is the{" "}
+              <code className="t-mono text-[0.9em] text-text">expiresAt</code> line inside{" "}
+              <code className="t-mono text-[0.9em] text-text">attestation.message</code>, because
+              that is the part the signature covers; the copy beside it is a convenience. A genuine
+              signature past its expiry does not mean anybody lied. It means the score was true when
+              it was issued and you should ask for a current one.
             </dd>
           </div>
         </dl>

@@ -1,5 +1,6 @@
 import { createMcpHandler } from "mcp-handler";
 import { recoverMessageAddress } from "viem";
+import { expiryOf } from "@/lib/attest";
 import { z } from "zod";
 
 import {
@@ -192,7 +193,10 @@ const handler = createMcpHandler(
           "recoverMessageAddress or ethers' verifyMessage. If you ask Patina's own " +
           "server whether Patina's own signature is good, you are trusting Patina again " +
           "and the signature has bought you nothing. That is why this returns the " +
-          "recovered address rather than a bare yes: compare it yourself.",
+          "recovered address rather than a bare yes: compare it yourself. Attestations also " +
+          "EXPIRE: the message carries an `expiresAt` line inside the signed bytes, and a " +
+          "genuine signature past that date means the score was true when issued and should " +
+          "be fetched again, not that anybody forged anything.",
         inputSchema: z.object({
           message: z
             .string()
@@ -221,11 +225,30 @@ const handler = createMcpHandler(
         const matchesCanonical = is(canonical);
         // True only on a preview or local deployment holding its own test key.
         const matchesThisDeployment = is(configured);
-        const matches = matchesCanonical || matchesThisDeployment;
+        const signatureValid = matchesCanonical || matchesThisDeployment;
+
+        /**
+         * A genuine signature is not the same as a current claim.
+         *
+         * Attestations carry their expiry inside the signed message. An agent
+         * gating access on one must be told the difference between "somebody
+         * forged this" and "this was true last spring", because those call for
+         * opposite responses: refuse the first, ask for a fresh copy for the
+         * second. Reporting only `matches` would collapse them.
+         */
+        const expiresAt = expiryOf(message);
+        const expired = expiresAt === null || expiresAt.getTime() <= Date.now();
+        const matches = signatureValid && !expired;
+
+        const staleNote = expiresAt
+          ? ` The signature is genuine, but this attestation expired on ${expiresAt.toISOString().slice(0, 10)}. That is not a forgery: the score was true when it was issued. Fetch a current one with get_patina_score before relying on it.`
+          : " The signature is genuine, but this attestation carries no expiry date, which means it predates Patina's expiry rule. Fetch a current one with get_patina_score before relying on it.";
 
         const text = error
           ? `Could not recover a signer from that signature: ${error}. ` +
             "The message or signature is malformed, so nothing can be concluded from it."
+          : signatureValid && expired
+            ? `Genuine but STALE.${staleNote}`
           : matchesCanonical
             ? `Genuine. The signature recovers to ${recovered}, which is Patina's published ` +
               "signing address. You can reproduce this check offline, without Patina."
@@ -241,13 +264,21 @@ const handler = createMcpHandler(
           structuredContent: {
             recovered,
             expected: canonical,
+            /** Genuine AND current. The only field worth gating on. */
             matches,
+            /** Genuine, whatever the date says. */
+            signatureValid,
+            /** Genuine but out of date. Ask for a fresh one; do not refuse the person. */
+            expired,
+            expiresAt: expiresAt?.toISOString() ?? null,
             matchedPublishedAddress: matchesCanonical,
             error,
             howToCheckYourself:
               "recoverMessageAddress({ message, signature }) from viem, or " +
               "verifyMessage(message, signature) from ethers, then compare to `expected`. " +
-              "No network call to Patina is involved, which is the entire point.",
+              "Then read the `expiresAt` line out of the message itself and check it is still " +
+              "in the future. Both checks run offline, with no network call to Patina, which " +
+              "is the entire point.",
           },
         };
       },
@@ -268,7 +299,7 @@ const handler = createMcpHandler(
           "other platforms that person has connected, because doing so would turn this " +
           "into a cross-platform de-anonymisation tool. Do not ask it for those; it " +
           "cannot provide them. " +
-          "Other platforms (youtube, spotify, steam, amazon, uber) are NOT supported " +
+          "Other platforms (youtube, spotify, amazon, uber) are NOT supported " +
           "here, because for those Patina stores an internal platform id rather than a " +
           "handle a person could type. Those platforms still count fully toward the " +
           "score itself; only this lookup is limited. Email addresses are refused " +

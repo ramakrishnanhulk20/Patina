@@ -80,14 +80,31 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
       provisional: score.provisional,
       provisionalReason: score.provisionalReason,
       issuedAt: attestation?.issuedAt ?? null,
+      /**
+       * When this statement stops being good.
+       *
+       * Surfaced beside the attestation as well as inside it, so a caller can
+       * decide how long to cache without parsing the signed message. The value
+       * that COUNTS is the one inside `attestation.message`, because that is
+       * the one covered by the signature; this copy is a convenience and a
+       * verifier must never trust it on its own.
+       */
+      expiresAt: attestation?.expiresAt ?? null,
       docs: siteUrl("/docs"),
       attestation: attestation
         ? {
             app: attestation.app,
             message: attestation.message,
             signature: attestation.signature,
+            expiresAt: attestation.expiresAt,
             howToVerify:
-              "Recover the EIP-191 signer of `message` from `signature` (e.g. viem recoverMessageAddress, ethers verifyMessage). It equals `app`, Patina's public app address on Vana.",
+              "Two checks, and you need both. Recover the EIP-191 signer of `message` from " +
+              "`signature` (e.g. viem recoverMessageAddress, ethers verifyMessage) and confirm " +
+              "it equals `app`, Patina's public signing address. Then read the `expiresAt` " +
+              "line out of `message` itself and confirm it is still in the future. The expiry " +
+              "is inside the signed bytes precisely so you can check it offline, with no call " +
+              "back to Patina. A genuine signature past its expiry means the score was true " +
+              "when it was issued and should be fetched again, not that anybody lied.",
           }
         : null,
     },

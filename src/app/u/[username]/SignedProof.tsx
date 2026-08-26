@@ -23,6 +23,7 @@ export function SignedProof({
   message,
   signature,
   issuedAt,
+  expiresAt,
   verifyUrl,
   apiPath,
 }: {
@@ -32,6 +33,12 @@ export function SignedProof({
   message: string;
   signature: string;
   issuedAt: string;
+  /**
+   * When this copy stops being good. Included in what gets copied, so somebody
+   * who saves the proof today can tell later whether it is still current
+   * without having to parse the signed message themselves.
+   */
+  expiresAt: string;
   /** Absolute URL to the JSON attestation, included in the copied proof. */
   verifyUrl: string;
   /** Relative path to the machine-readable endpoint, for the "any app" link. */
@@ -49,7 +56,11 @@ export function SignedProof({
     }
   }
 
-  const proof = JSON.stringify({ app, message, signature, issuedAt, verify: verifyUrl }, null, 2);
+  const proof = JSON.stringify(
+    { app, message, signature, issuedAt, expiresAt, verify: verifyUrl },
+    null,
+    2,
+  );
   const shortApp = `${app.slice(0, 6)}…${app.slice(-4)}`;
 
   return (

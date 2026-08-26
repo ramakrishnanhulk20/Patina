@@ -93,7 +93,6 @@ export const PROVISIONAL_MEANING =
  *   linkedin  -> the vanity slug from the URL   (resolvable)
  *   youtube   -> prefers `channelId` (UC...), and can fall back to an EMAIL
  *   spotify   -> an opaque Spotify user id
- *   steam     -> a 64-bit numeric id
  *   amazon    -> nothing at all; the payload carries no account id
  *   uber      -> nothing at all; same
  *
@@ -127,6 +126,15 @@ export type Attestation = {
   message: string;
   signature: string;
   issuedAt: string;
+  /**
+   * When this statement stops being good, copied out of the signed message.
+   *
+   * The authoritative value is the one inside `message`, which is what the
+   * signature covers. This field is here so an agent can decide how long to
+   * hold on to the answer without parsing anything, and must never be the only
+   * thing a verifier checks.
+   */
+  expiresAt: string;
   howToVerify: string;
 };
 
@@ -222,9 +230,10 @@ export function expectedSigner(): string {
  * short window. Serverless instances are short-lived, so this is a cheap
  * per-instance win rather than a real cache tier, which is all it needs to be.
  *
- * The attestation is cached with the payload deliberately. It stays valid: the
- * signature covers `issuedAt`, so a verifier recovers the same address either
- * way. It only means `issuedAt` can trail the clock by up to five minutes.
+ * The attestation is cached with the payload deliberately, and stays valid.
+ * The signature covers both `issuedAt` and `expiresAt`, so a verifier
+ * recovers the same address either way; the only effect is that both dates can
+ * trail the clock by up to five minutes, against a lifetime of thirty days.
  */
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500;
@@ -355,11 +364,13 @@ async function attestationFor(input: {
       message: attestation.message,
       signature: attestation.signature,
       issuedAt: attestation.issuedAt,
+      expiresAt: attestation.expiresAt,
       howToVerify:
-        "Recover the EIP-191 signer of `message` from `signature` (viem " +
-        "recoverMessageAddress, or ethers verifyMessage) and check it equals `app`. " +
-        "This works entirely offline and needs no call to Patina, which is the " +
-        "point: you are not being asked to take Patina's word for it.",
+        "Two checks, both offline. Recover the EIP-191 signer of `message` from " +
+        "`signature` (viem recoverMessageAddress, or ethers verifyMessage) and check it " +
+        "equals `app`. Then read the `expiresAt` line out of `message` and check it is " +
+        "still in the future. Neither needs a call to Patina, which is the point: you are " +
+        "not being asked to take Patina's word for any of it.",
     };
   } catch {
     return null;

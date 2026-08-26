@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { recoverMessageAddress } from "viem";
 import { PATINA_APP_ADDRESS, PATINA_APP_ADDRESS_LOWER } from "@/lib/patina-address";
+import { expiryOf } from "@/lib/attest";
 
 /**
  * Checks a Patina attestation without asking Patina anything.
@@ -18,8 +19,17 @@ import { PATINA_APP_ADDRESS, PATINA_APP_ADDRESS_LOWER } from "@/lib/patina-addre
  * should I expect" can be told whatever the server likes.
  */
 
+/**
+ * "Stale" is its own outcome, not a kind of failure.
+ *
+ * A signature that recovers to Patina but has passed its expiry is not a
+ * forgery, and telling somebody it is would accuse an honest person of one.
+ * The right answer is that the score was true when it was issued and a current
+ * copy should be fetched, which is a different sentence from "not genuine".
+ */
 type Result =
-  | { state: "match"; recovered: string }
+  | { state: "match"; recovered: string; expiresAt: Date }
+  | { state: "stale"; recovered: string; expiresAt: Date | null }
   | { state: "mismatch"; recovered: string }
   | { state: "error"; message: string };
 
@@ -39,10 +49,20 @@ export function OfflineChecker() {
         signature: signature.trim() as `0x${string}`,
       });
 
-      setResult({
-        state: recovered.toLowerCase() === PATINA_APP_ADDRESS_LOWER ? "match" : "mismatch",
-        recovered,
-      });
+      if (recovered.toLowerCase() !== PATINA_APP_ADDRESS_LOWER) {
+        setResult({ state: "mismatch", recovered });
+        return;
+      }
+
+      // The expiry is read out of the pasted MESSAGE, which is the half the
+      // signature covers. Anything alongside it could have been edited on the
+      // way here without breaking anything.
+      const expiresAt = expiryOf(message);
+      setResult(
+        expiresAt !== null && expiresAt.getTime() > Date.now()
+          ? { state: "match", recovered, expiresAt }
+          : { state: "stale", recovered, expiresAt },
+      );
     } catch (error) {
       setResult({
         state: "error",
@@ -106,10 +126,31 @@ export function OfflineChecker() {
             <>
               <p className="font-semibold text-accent-ink">Genuine.</p>
               <p className="mt-2 leading-relaxed text-text-2">
-                This message really was signed by Patina, and not a character of it has been
-                altered since. You did not have to trust Patina to learn that, and neither does
-                anyone you pass it on to.
+                This message really was signed by Patina, not a character of it has been altered
+                since, and it is still current. You did not have to trust Patina to learn that, and
+                neither does anyone you pass it on to.
               </p>
+              <p className="mt-2 leading-relaxed text-text-3">
+                Good until {result.expiresAt.toISOString().slice(0, 10)}.
+              </p>
+            </>
+          )}
+
+          {result.state === "stale" && (
+            <>
+              <p className="font-semibold text-warn">Genuine, but out of date.</p>
+              <p className="mt-2 leading-relaxed text-text-2">
+                Patina really did sign this and nothing in it has been altered. It has simply passed
+                its expiry{result.expiresAt ? ` on ${result.expiresAt.toISOString().slice(0, 10)}` : ""},
+                so it describes what was true then rather than now. That is not a reason to doubt
+                the person: ask them for a current one, or look their score up directly.
+              </p>
+              {result.expiresAt === null && (
+                <p className="mt-2 leading-relaxed text-text-3">
+                  This one carries no expiry line at all, which means it was signed before Patina
+                  started dating them.
+                </p>
+              )}
             </>
           )}
 

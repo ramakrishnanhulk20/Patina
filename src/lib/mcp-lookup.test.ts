@@ -56,10 +56,10 @@ async function publishProfile(username: string, accountAgeYears: number, handle 
     { externalId: handle },
   );
 
-  await recordSource(id, "steam", [
+  await recordSource(id, "youtube", [
     {
-      scope: "steam.profile",
-      fragment: readScope("steam.profile", { accountCreated: yearsAgo(accountAgeYears) })!,
+      scope: "youtube.profile",
+      fragment: readScope("youtube.profile", { joinedDate: yearsAgo(accountAgeYears) })!,
     },
   ]);
 
@@ -162,7 +162,7 @@ test("only the three handle-bearing sources are resolvable", () => {
 
   // These store an internal platform id, or no id at all. Offering them would
   // be a tool that silently never matches.
-  for (const source of ["youtube", "spotify", "steam", "amazon", "uber", "", "twitter"]) {
+  for (const source of ["youtube", "spotify", "amazon", "uber", "", "twitter"]) {
     assert.equal(isResolvableSource(source), false, `${source} must not resolve`);
   }
 });
