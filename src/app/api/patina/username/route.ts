@@ -1,6 +1,7 @@
 import { readSessionId } from "@/lib/session";
-import { claimUsername, resolveProfileId } from "@/lib/store";
+import { claimUsername, getProfile, resolveProfileId } from "@/lib/store";
 import { checkUsernameRate } from "@/lib/ratelimit";
+import { countAsync } from "@/lib/metrics";
 
 export async function POST(request: Request) {
   const sessionId = await readSessionId();
@@ -32,7 +33,11 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, reason: "Connect a source first." }, { status: 400 });
   }
 
+  const hadName = Boolean((await getProfile(profileId))?.username);
   const result = await claimUsername(profileId, name);
+  // Only a first claim counts. A rename is the same person, and counting it
+  // would make the number drift upwards on its own.
+  if (result.ok && !hadName) countAsync("name_claimed");
 
   // A taken name is not a server error: it is a normal thing to type.
   return Response.json(result, { status: result.ok ? 200 : 409 });

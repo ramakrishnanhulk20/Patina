@@ -5,6 +5,7 @@ import { ensureProfileId, rememberRequest } from "@/lib/store";
 import { checkConnectRate } from "@/lib/ratelimit";
 import { altchaConfigured, verifyAltcha } from "@/lib/altcha";
 import { siteUrl } from "@/lib/site";
+import { countAsync } from "@/lib/metrics";
 
 /**
  * Start one connection: create the access request and hand back the URL that
@@ -70,6 +71,11 @@ export async function POST(request: Request) {
   const accessRequest = await controllerFor(source).createAccessRequest({
     returnUrl: siteUrl("/connect"),
   });
+
+  // Counted here rather than at the button, because a click that never becomes
+  // a request is not a start, and counting it would flatter the funnel at
+  // exactly the point being measured.
+  countAsync("connect_started", source);
 
   await rememberRequest(accessRequest.requestId, {
     source,

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { readSessionId } from "@/lib/session";
 import { deleteProfile, resolveProfileId, unlinkSession } from "@/lib/store";
+import { countAsync } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,10 @@ export async function POST() {
   if (!sessionId) return Response.json({ ok: true });
 
   const profileId = await resolveProfileId(sessionId);
-  if (profileId) await deleteProfile(profileId);
+  if (profileId) {
+    await deleteProfile(profileId);
+    countAsync("profile_deleted");
+  }
 
   // Dropped even when there was no profile, so a stale link can never outlive
   // the thing it referred to.
