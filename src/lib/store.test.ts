@@ -10,6 +10,7 @@ import {
   profileForUsername,
   profileIdForAccount,
   recordSource,
+  removeSource,
   resolveProfileId,
   stats,
   usernameProblem,
@@ -95,10 +96,10 @@ test("a later read adds scopes without dropping the earlier ones", async () => {
   const profileId = await ensureProfileId(unique("session"));
   await recordSource(profileId, "github", [githubReads()[0]]);
 
-  const steam = readScope("steam.profile", { accountCreated: iso(12) })!;
-  const profile = await recordSource(profileId, "steam", [{ scope: "steam.profile", fragment: steam }]);
+  const youtube = readScope("youtube.profile", { joinedDate: iso(12) })!;
+  const profile = await recordSource(profileId, "youtube", [{ scope: "youtube.profile", fragment: youtube }]);
 
-  assert.deepEqual(Object.keys(profile.sources).sort(), ["github", "steam"]);
+  assert.deepEqual(Object.keys(profile.sources).sort(), ["github", "youtube"]);
   assert.equal(Object.keys(profile.fragments).length, 2);
 });
 
@@ -142,17 +143,17 @@ test("a browser that already had reads keeps them when its Personal Server is re
   const anchored = await profileForServer(unique("session"), server);
   await recordSource(anchored, "github", githubReads());
 
-  // A second browser that connected Steam before ever proving who it was.
+  // A second browser that connected YouTube before ever proving who it was.
   const strayS = unique("session");
   const stray = await ensureProfileId(strayS);
-  const steam = readScope("steam.profile", { accountCreated: iso(14) })!;
-  await recordSource(stray, "steam", [{ scope: "steam.profile", fragment: steam }]);
+  const youtube = readScope("youtube.profile", { joinedDate: iso(14) })!;
+  await recordSource(stray, "youtube", [{ scope: "youtube.profile", fragment: youtube }]);
 
   const merged = await profileForServer(strayS, server);
   assert.equal(merged, anchored, "the stray browser folds into the proven profile");
 
   const profile = await getProfile(anchored);
-  assert.deepEqual(Object.keys(profile!.sources).sort(), ["github", "steam"]);
+  assert.deepEqual(Object.keys(profile!.sources).sort(), ["github", "youtube"]);
   assert.equal(await getProfile(stray), null, "the stray profile is gone, not orphaned");
 });
 
@@ -232,33 +233,33 @@ test("a username cannot be claimed before anything is connected", async () => {
 // ---------------------------------------------------------------------------
 
 test("stats counts connected profiles, sources and names", async () => {
-  const before = await stats();
+  const before = await stats({ fresh: true });
 
   const a = await ensureProfileId(unique("session"));
   await recordSource(a, "github", githubReads());
-  await recordSource(a, "steam", [
-    { scope: "steam.profile", fragment: readScope("steam.profile", { accountCreated: iso(12) })! },
+  await recordSource(a, "youtube", [
+    { scope: "youtube.profile", fragment: readScope("youtube.profile", { joinedDate: iso(12) })! },
   ]);
   await claimUsername(a, uniqueName("counted"));
 
   const b = await ensureProfileId(unique("session"));
   await recordSource(b, "github", githubReads());
 
-  const after = await stats();
+  const after = await stats({ fresh: true });
 
   assert.equal(after.connected - before.connected, 2, "two people connected something");
   assert.equal(after.sources - before.sources, 3, "three sources between them");
   assert.equal(after.named - before.named, 1, "only one claimed a name");
   assert.equal((after.bySource.github ?? 0) - (before.bySource.github ?? 0), 2);
-  assert.equal((after.bySource.steam ?? 0) - (before.bySource.steam ?? 0), 1);
+  assert.equal((after.bySource.youtube ?? 0) - (before.bySource.youtube ?? 0), 1);
   assert.ok(after.averageScore > 0, "an average is only meaningful once somebody scored");
 });
 
 test("a profile that connected nothing is not counted as a user", async () => {
-  const before = await stats();
+  const before = await stats({ fresh: true });
   // Created the moment a Personal Server is recognised, before any read.
   await profileForServer(unique("session"), `https://${unique("ps")}.vana.org`);
-  const after = await stats();
+  const after = await stats({ fresh: true });
 
   assert.equal(after.connected, before.connected, "an empty profile is not a user yet");
   assert.ok(after.profiles > before.profiles, "it does exist, and is counted as existing");
@@ -266,7 +267,7 @@ test("a profile that connected nothing is not counted as a user", async () => {
 
 test("two browsers folding into one person count as one", async () => {
   const server = `https://${unique("ps")}.vana.org`;
-  const before = await stats();
+  const before = await stats({ fresh: true });
 
   const first = await profileForServer(unique("session"), server);
   await recordSource(first, "github", githubReads());
@@ -275,12 +276,12 @@ test("two browsers folding into one person count as one", async () => {
   // Vana account. Counting it twice would inflate every number we quote.
   const straySession = unique("session");
   const stray = await ensureProfileId(straySession);
-  await recordSource(stray, "steam", [
-    { scope: "steam.profile", fragment: readScope("steam.profile", { accountCreated: iso(9) })! },
+  await recordSource(stray, "youtube", [
+    { scope: "youtube.profile", fragment: readScope("youtube.profile", { joinedDate: iso(9) })! },
   ]);
   await profileForServer(straySession, server);
 
-  const after = await stats();
+  const after = await stats({ fresh: true });
   assert.equal(after.connected - before.connected, 1, "one human, one row");
 });
 
@@ -289,9 +290,9 @@ test("deleting a profile removes it from the count", async () => {
   const id = await ensureProfileId(sessionId);
   await recordSource(id, "github", githubReads());
 
-  const before = await stats();
+  const before = await stats({ fresh: true });
   await deleteProfile(id, sessionId);
-  const after = await stats();
+  const after = await stats({ fresh: true });
 
   // A deletion that left the number unchanged would make the erasure promise on
   // the privacy page quietly untrue.
@@ -323,4 +324,97 @@ test("deleting a profile clears its name, its server anchor and its accounts", a
   // And the Personal Server no longer resolves to a profile that does not exist.
   const fresh = await profileForServer(unique("session"), server);
   assert.notEqual(fresh, profileId);
+});
+
+// ---------------------------------------------------------------------------
+// Removing one source.
+//
+// The only control anybody had was deleting everything, so correcting a single
+// wrong account meant destroying an evening's work and starting again. These
+// tests are about the two ways a partial removal goes quietly wrong: leaving
+// the fragments behind so it still scores, and leaving the account index behind
+// so the real owner looks like a duplicate.
+// ---------------------------------------------------------------------------
+
+test("removing a source takes its fragments and its score with it", async () => {
+  const profileId = await ensureProfileId(unique("session"));
+  await recordSource(profileId, "github", githubReads());
+  await recordSource(profileId, "youtube", [
+    { scope: "youtube.profile", fragment: readScope("youtube.profile", { joinedDate: iso(11) })! },
+  ]);
+
+  const before = await getProfile(profileId);
+  assert.deepEqual(Object.keys(before!.sources).sort(), ["github", "youtube"]);
+
+  const after = await removeSource(profileId, "github");
+
+  assert.deepEqual(Object.keys(after!.sources), ["youtube"], "only the other one is left");
+  assert.ok(
+    !Object.keys(after!.fragments).some((scope) => scope.startsWith("github.")),
+    "a fragment left behind would keep scoring after the card had gone",
+  );
+  assert.equal(evidenceOf(after!).github, undefined);
+  assert.ok(evidenceOf(after!).youtube, "the source that was kept is untouched");
+});
+
+test("removing a source releases its claim on the account", async () => {
+  const profileId = await ensureProfileId(unique("session"));
+  const handle = unique("handle");
+  await recordSource(profileId, "github", githubReads(), { externalId: handle });
+
+  assert.equal(await profileIdForAccount("github", handle), profileId);
+
+  await removeSource(profileId, "github");
+
+  assert.equal(
+    await profileIdForAccount("github", handle),
+    null,
+    "a profile that no longer holds an account must not keep its claim on it",
+  );
+});
+
+test("removing the last source leaves a profile rather than a hole", async () => {
+  const profileId = await ensureProfileId(unique("session"));
+  await recordSource(profileId, "github", githubReads());
+
+  const after = await removeSource(profileId, "github");
+
+  assert.ok(after, "the profile still exists");
+  assert.deepEqual(after!.sources, {});
+  assert.deepEqual(after!.fragments, {});
+  assert.equal(after!.score, 0);
+});
+
+test("removing something that was never there changes nothing", async () => {
+  const profileId = await ensureProfileId(unique("session"));
+  await recordSource(profileId, "github", githubReads());
+  const before = await getProfile(profileId);
+
+  const after = await removeSource(profileId, "spotify");
+
+  assert.deepEqual(after!.sources, before!.sources);
+  assert.deepEqual(after!.fragments, before!.fragments);
+});
+
+test("a read that proves ownership is recorded as proven", async () => {
+  const profileId = await ensureProfileId(unique("session"));
+  const profile = await recordSource(profileId, "github", githubReads(), { proven: true });
+  assert.equal(profile.sources.github?.proven, true);
+});
+
+test("stats counts sources recorded before the ownership check separately", async () => {
+  const before = await stats({ fresh: true });
+
+  const older = await ensureProfileId(unique("session"));
+  await recordSource(older, "github", githubReads());
+
+  const newer = await ensureProfileId(unique("session"));
+  await recordSource(newer, "github", githubReads(), { proven: true });
+
+  const after = await stats({ fresh: true });
+  assert.equal(
+    after.unproven - before.unproven,
+    1,
+    "only the one written without the check counts as unproven",
+  );
 });

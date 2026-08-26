@@ -39,7 +39,6 @@ export type SourceId =
   | "linkedin"
   | "spotify"
   | "instagram"
-  | "steam"
   | "youtube"
   | "amazon"
   | "uber"
@@ -51,7 +50,6 @@ export const SOURCE_IDS: SourceId[] = [
   "linkedin",
   "spotify",
   "instagram",
-  "steam",
   "youtube",
   "amazon",
   "uber",
@@ -88,7 +86,7 @@ export type Months = Record<string, number>;
 export type SourceEvidence = {
   /** Oldest date provable for this source, ISO. Feeds Age and Corroboration. */
   earliest?: string;
-  /** Plain-English name for that date, e.g. "Steam account opened". */
+  /** Plain-English name for that date, e.g. "YouTube account opened". */
   earliestLabel?: string;
   /**
    * True when `earliest` came from self-reported free text rather than a
@@ -110,7 +108,7 @@ export type SourceEvidence = {
   made?: Array<{ count: number; label: string }>;
   /**
    * Month histogram of TIMESTAMPED third-party actions: LinkedIn connections by
-   * dateConnected, Steam friends by friendSince. Feeds Vouches.
+   * dateConnected. Feeds Vouches.
    */
   vouchMonths?: Months;
   /**
@@ -447,7 +445,7 @@ function corroborationComponent(evidence: Evidence): Component {
  * The component desktop exists to unlock. Not how many people follow you, which
  * is the single most purchasable number on the internet, but WHEN specific other
  * humans chose to associate with you. LinkedIn hands us `dateConnected` on every
- * connection; Steam hands us `friendSince` on every friend. An account farm's
+ * connection, each with the date it was made on it. An account farm's
  * social graph forms in one week. A real one smears across a decade.
  *
  * Each vouch counts for how long ago it happened, so buying 500 connections

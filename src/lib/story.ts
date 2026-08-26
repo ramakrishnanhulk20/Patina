@@ -24,7 +24,7 @@ export type TimelineEntry = {
   source: SourceId;
   /** Four-digit year the account or its first trace appears. */
   year: number;
-  /** "Steam account opened", "earliest Instagram post". */
+  /** "YouTube account opened", "earliest Instagram post". */
   label: string;
   /** True when the date is self-reported rather than machine-generated. */
   soft: boolean;
@@ -36,7 +36,7 @@ export type Story = {
   /** The oldest provable year across everything, and how long ago that is. */
   startYear: number | null;
   spanYears: number | null;
-  /** Plain-English origin, e.g. "your Steam account, opened in 2011". */
+  /** Plain-English origin, e.g. "your YouTube account, opened in 2011". */
   origin: string | null;
 
   /** Every dated source, earliest first. The spine of the timeline. */
@@ -105,7 +105,7 @@ export type Exhibit = {
  * The two or three lines under the year, chosen per source.
  *
  * Every card would otherwise say the same thing in a different order. What is
- * worth reading differs: Steam's is its library, GitHub's is how many months it
+ * worth reading differs: Spotify's is its library, GitHub's is how many months it
  * covers, LinkedIn's is who showed up and when.
  */
 export function exhibitFacts(exhibit: Exhibit): string[] {
@@ -145,9 +145,9 @@ export function buildExhibits(evidence: Evidence): Exhibit[] {
 }
 
 /**
- * "Steam account opened" becomes "account opened".
+ * "YouTube account opened" becomes "account opened".
  *
- * The card already says Steam in the heading directly above, and repeating it
+ * The card already says YouTube in the heading directly above, and repeating it
  * under the date is the kind of thing that reads as filler in a layout this
  * tight.
  */
@@ -161,7 +161,6 @@ const SOURCE_LABEL: Record<SourceId, string> = {
   linkedin: "LinkedIn",
   spotify: "Spotify",
   instagram: "Instagram",
-  steam: "Steam",
   youtube: "YouTube",
   amazon: "Amazon",
   uber: "Uber",

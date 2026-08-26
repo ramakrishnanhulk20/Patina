@@ -46,6 +46,33 @@ export type SourceSpec = {
   /** One line, on the connect card. What this source is worth to the score. */
   blurb: string;
   /**
+   * The scope that proves the read came from somebody signed in as themselves.
+   *
+   * THIS IS THE WHOLE OWNERSHIP ARGUMENT, and until now it was an assumption
+   * rather than a check. Vana has two collection paths. Desktop runs a
+   * connector in a browser on the user's own machine and makes them sign in.
+   * The web path collects server-side, and server-side collection reads a
+   * PUBLIC PAGE: that is what v1's `buildProfileUrl` existed to feed, turning a
+   * typed handle into a profile URL for somebody else's infrastructure to
+   * scrape. Nothing in the protocol reports which path a read came through, and
+   * Vana's own documentation is explicit that the two server forms are meant to
+   * be interchangeable to builders. So Patina cannot ask.
+   *
+   * What it can do is ask for something the public page does not have. v1 ran
+   * on the web path and every scope it ever used was a `.profile` one, which is
+   * the public page and nothing more. A request that includes a scope only a
+   * signed-in session can produce cannot be served from a public page at all,
+   * so the person is pushed onto Desktop and has to log in.
+   *
+   * Requesting it is only half of it. `readSourceSettled` treats partial
+   * success as success, on purpose, so a source with three of four scopes still
+   * counts. That rule is right for scoring and wrong for proof: it would let
+   * the public scope succeed, the private one fail, and the source count
+   * anyway. So this scope is REQUIRED to come back, and the read is refused
+   * when it does not. See `requireProof` in api/vana/data.
+   */
+  proof: string;
+  /**
    * Core sources are asked for first. Between them they carry nearly all the
    * Continuity and Vouch signal, and the first run is one source, one score, one
    * visible jump. Everything else lives behind "strengthen this", because the
@@ -69,6 +96,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "github",
     label: "GitHub",
     blurb: "Years of commits, pull requests and the people who responded to them.",
+    /** Your pull request and issue history is not on your public profile page. */
+    proof: "github.history",
     tier: "core",
     maturity: "stable",
     scopes: [
@@ -103,6 +132,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "linkedin",
     label: "LinkedIn",
     blurb: "When other people chose to connect to you, going back years.",
+    /** Only you can see when each of your connections was made. */
+    proof: "linkedin.connections",
     tier: "core",
     maturity: "stable",
     thirdParty:
@@ -139,6 +170,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "spotify",
     label: "Spotify",
     blurb: "A decade of saved tracks, each one stamped with the day you saved it.",
+    /** Your saved tracks are private to your account. */
+    proof: "spotify.savedTracks",
     tier: "core",
     maturity: "stable",
     scopes: [
@@ -167,6 +200,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "instagram",
     label: "Instagram",
     blurb: "How far back your posts go, and how steadily they came.",
+    /** The dates on your own posts, read from your account rather than the public grid. */
+    proof: "instagram.posts",
     tier: "core",
     maturity: "stable",
     thirdParty:
@@ -187,40 +222,37 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     ],
   },
 
-  steam: {
-    id: "steam",
-    label: "Steam",
-    blurb: "Often the oldest account a person still has, plus friendships with dates on them.",
-    tier: "strengthen",
-    maturity: "experimental",
-    thirdParty:
-      "Your friends list has other people's names in it. We read only how long each friendship has existed, and the names are discarded before anything is saved.",
-    scopes: [
-      {
-        id: "steam.profile",
-        vanaLabel: "Profile",
-        reads: "The day your Steam account was created.",
-        keeps: "That date.",
-      },
-      {
-        id: "steam.friends",
-        vanaLabel: "Friends",
-        reads: "How far back each friendship goes.",
-        keeps: "Only those dates. Never names, avatars or profile links.",
-      },
-      {
-        id: "steam.games",
-        vanaLabel: "Games",
-        reads: "How many games you own and when you last played them.",
-        keeps: "The count and the dates. Never which games.",
-      },
-    ],
-  },
+  /**
+   * STEAM IS GONE, and it is the one source that could not be saved.
+   *
+   * Every other connector opens a browser and asks for a password. Steam's does
+   * not. It asks the user to paste a Steam Web API key and a Steam ID, then
+   * calls Steam's public Web API, and its own prompt links to steamid.io to
+   * look one up. A Steam ID is public. An API key authorises the caller, not
+   * the subject. So anyone could take their own key, a stranger's Steam ID, and
+   * hand Patina that stranger's account age, friendship dates and library as
+   * their own evidence.
+   *
+   * It was also the worst possible source to lose that argument on. Steam is
+   * usually the oldest account a person still has, and Age is the heaviest
+   * component in the score. A forged Steam connection moved five of the six.
+   *
+   * The `proof` scope above cannot rescue it: Steam has no private scope to
+   * require, because none of the three is private. Nothing here is fixable at
+   * our end, so the source is withdrawn rather than qualified. If Valve or Vana
+   * ship a connector that signs the user in, it can come back unchanged.
+   *
+   * Fragments already stored under steam.* are orphaned by this, which is the
+   * intended outcome: `evidenceFrom` walks ALL_SCOPES, so a scope that is no
+   * longer in the manifest stops being read and stops being scored.
+   */
 
   youtube: {
     id: "youtube",
     label: "YouTube",
     blurb: "The day your account was opened.",
+    /** Watch Later is never public. Nobody can see it but you. */
+    proof: "youtube.watchLater",
     tier: "strengthen",
     maturity: "beta",
     scopes: [
@@ -232,6 +264,29 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
         reads: "Your join date, video count and subscriber count. Google also sends your email address.",
         keeps: "The join date and the counts. Your email is never read or stored.",
       },
+      {
+        /**
+         * Asked for as PROOF, and for nothing else.
+         *
+         * YouTube was the one source whose entire request was a `.profile`
+         * scope, which is the public About page and can be collected without
+         * anybody signing in. Every other source already asked for something
+         * private and so already forced the desktop path; this one did not, so
+         * a join date could arrive for an account the person had never logged
+         * into.
+         *
+         * Watch Later is the lightest private thing YouTube has. It is never
+         * public, it is small, and it says far less about a person than their
+         * watch history or their subscriptions would. Patina reads NOTHING out
+         * of it: there is no reader for this scope in normalize.ts, so it
+         * contributes no dates, no counts and no score. Its only job is to be
+         * impossible to answer from a public page.
+         */
+        id: "youtube.watchLater",
+        vanaLabel: "Watch later",
+        reads: "Nothing. We ask for it only to prove you are signed in to this account.",
+        keeps: "Nothing at all. Not the videos, not how many, not that it was empty.",
+      },
     ],
   },
 
@@ -239,6 +294,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "amazon",
     label: "Amazon",
     blurb: "A long, dull, unmistakably human paper trail.",
+    /** There is no public page anywhere that lists what you ordered. */
+    proof: "amazon.orders",
     tier: "strengthen",
     maturity: "beta",
     scopes: [
@@ -255,6 +312,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "uber",
     label: "Uber",
     blurb: "How far back your rides go.",
+    /** There is no public page anywhere that lists your trips. */
+    proof: "uber.trips",
     tier: "strengthen",
     maturity: "beta",
     scopes: [
@@ -271,6 +330,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "doordash",
     label: "DoorDash",
     blurb: "Another independent record of ordinary weeks.",
+    /** There is no public page anywhere that lists your orders. */
+    proof: "doordash.orders",
     tier: "strengthen",
     maturity: "beta",
     scopes: [
@@ -287,6 +348,8 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
     id: "shop",
     label: "Shop",
     blurb: "Orders across many merchants, from one connection.",
+    /** There is no public page anywhere that lists your orders. */
+    proof: "shop.orders",
     tier: "strengthen",
     maturity: "beta",
     scopes: [
@@ -305,7 +368,6 @@ export const CORE_ORDER: SourceId[] = ["github", "linkedin", "spotify", "instagr
 
 /** Offered afterwards, under "strengthen this". */
 export const STRENGTHEN_ORDER: SourceId[] = [
-  "steam",
   "youtube",
   "amazon",
   "uber",
@@ -319,6 +381,26 @@ export function scopesFor(source: SourceId): string[] {
   return SOURCE_SPECS[source].scopes.map((scope) => scope.id);
 }
 
+/**
+ * The scope this source must return before the read is allowed to count.
+ *
+ * Read through this helper rather than off the spec directly, so the one place
+ * that decides what "proved" means is the same one the tests assert against.
+ */
+export function proofScopeFor(source: SourceId): string {
+  return SOURCE_SPECS[source].proof;
+}
+
+/**
+ * Why a source with no proof scope in it was refused, in the words the person
+ * needs to hear. It names the missing thing without naming the scope, because
+ * "youtube.watchLater did not come back" means nothing to anybody.
+ */
+export function proofMissingMessage(source: SourceId): string {
+  const { label } = SOURCE_SPECS[source];
+  return `Patina could not confirm you are signed in to ${label}. Connect it through Vana Desktop, which signs you in on your own machine, rather than through the browser.`;
+}
+
 export function isSourceId(value: string | null | undefined): value is SourceId {
   return typeof value === "string" && value in SOURCE_SPECS;
 }
@@ -326,10 +408,9 @@ export function isSourceId(value: string | null | undefined): value is SourceId 
 /**
  * The warning shown on connectors Vana has not finished hardening.
  *
- * Six of the ten are beta or experimental, and Steam (which carries two of the
- * best signals here) is the least finished of all. When one of them returns
- * nothing, the person needs to understand it as a rough edge in the plumbing
- * rather than as Patina telling them they have no history.
+ * Five of the nine are beta. When one of them returns nothing, the person needs
+ * to understand it as a rough edge in the plumbing rather than as Patina
+ * telling them they have no history.
  */
 export function maturityNote(source: SourceId): string | null {
   const { maturity, label } = SOURCE_SPECS[source];

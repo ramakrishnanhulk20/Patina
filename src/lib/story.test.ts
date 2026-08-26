@@ -25,7 +25,11 @@ function story(evidence: Evidence) {
 }
 
 const LIVED: Evidence = {
-  steam: { earliest: iso(13), earliestLabel: "Steam account opened", made: [{ count: 90, label: "games" }] },
+  youtube: {
+    earliest: iso(13),
+    earliestLabel: "YouTube account opened",
+    made: [{ count: 90, label: "videos" }],
+  },
   github: {
     earliest: iso(9),
     earliestLabel: "first GitHub contribution",
@@ -47,7 +51,7 @@ test("the timeline is every dated source, earliest first", () => {
   const s = story(LIVED);
   assert.deepEqual(
     s.timeline.map((entry) => entry.source),
-    ["linkedin", "steam", "github"],
+    ["linkedin", "youtube", "github"],
   );
   assert.equal(s.timeline[0].soft, true, "the LinkedIn date is self-reported and says so");
   assert.equal(s.timeline[1].soft, false);
@@ -59,8 +63,8 @@ test("undated sources are listed separately rather than dropped", () => {
 
 test("the origin names the oldest MACHINE-generated date, not the typed one", () => {
   const s = story(LIVED);
-  // LinkedIn reaches back further but is self-reported, so Steam is the origin.
-  assert.match(s.origin!, /Steam account opened/);
+  // LinkedIn reaches back further but is self-reported, so YouTube is the origin.
+  assert.match(s.origin!, /YouTube account opened/);
   assert.equal(s.startYear, year(13));
 });
 
@@ -103,7 +107,7 @@ test("vouches are counted by the year they happened", () => {
 
 test("things made keep their labels", () => {
   const s = story(LIVED);
-  assert.deepEqual(s.made.map((kind) => kind.label).sort(), ["games", "repos", "saved tracks"]);
+  assert.deepEqual(s.made.map((kind) => kind.label).sort(), ["repos", "saved tracks", "videos"]);
   assert.equal(s.madeTotal, 90 + 40 + 800);
 });
 
@@ -159,15 +163,15 @@ test("the share line names the number and the span", () => {
 test("an exhibit carries its own year, not the profile's oldest", () => {
   const exhibits = buildExhibits(LIVED);
   const github = exhibits.find((e) => e.source === "github")!;
-  const steam = exhibits.find((e) => e.source === "steam")!;
+  const youtube = exhibits.find((e) => e.source === "youtube")!;
 
-  assert.equal(steam.year, year(13));
-  assert.equal(github.year, year(9), "GitHub shows its own date, not Steam's");
+  assert.equal(youtube.year, year(13));
+  assert.equal(github.year, year(9), "GitHub shows its own date, not YouTube's");
 });
 
 test("an exhibit label drops the source name the heading already says", () => {
-  const steam = buildExhibits(LIVED).find((e) => e.source === "steam")!;
-  assert.equal(steam.yearLabel, "account opened", "not 'Steam account opened'");
+  const youtube = buildExhibits(LIVED).find((e) => e.source === "youtube")!;
+  assert.equal(youtube.yearLabel, "account opened", "not 'YouTube account opened'");
 });
 
 test("a self-reported date is marked on the exhibit", () => {
@@ -217,7 +221,7 @@ test("garbage evidence does not throw", () => {
       // @ts-expect-error deliberately malformed
       github: { earliest: "nonsense", months: { bad: "x" }, made: [{ count: NaN, label: "x" }] },
       // @ts-expect-error deliberately malformed
-      steam: { followers: "many", vouchMonths: null },
+      youtube: { followers: "many", vouchMonths: null },
     }),
   );
 });

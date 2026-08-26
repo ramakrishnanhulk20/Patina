@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VANA_DESKTOP_DOWNLOAD } from "@/lib/device";
 import { SectionLabel } from "../components/SectionLabel";
 import { SourceGlyph } from "../components/SourceGlyph";
 import { CORE_ORDER, SOURCE_SPECS, STRENGTHEN_ORDER } from "@/lib/sources";
@@ -91,7 +92,16 @@ export default function HowItWorksPage() {
         </h2>
 
         <p className="mt-5 leading-relaxed text-text-2">
-          Connecting runs through <strong className="text-text">Vana Desktop</strong>, an app that
+          Connecting runs through{" "}
+          <a
+            href={VANA_DESKTOP_DOWNLOAD}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-accent underline underline-offset-4"
+          >
+            Vana Desktop
+          </a>
+          , a free app for Mac, Windows and Linux that
           opens a browser window on your own machine and asks you to sign in to the account you are
           connecting. That sign-in happens locally. Patina never sees a password, never holds a
           token, and cannot sign in as you afterwards.
@@ -106,8 +116,10 @@ export default function HowItWorksPage() {
         <div className="mt-6 border-l-2 border-accent-line bg-panel py-3 pl-4 pr-4">
           <p className="text-sm leading-relaxed text-text-2">
             The old version of Patina read public pages from a username you typed, which meant
-            anybody could type anybody&apos;s. This one cannot be done on somebody else&apos;s
-            behalf, which is the whole reason it now needs a computer.
+            anybody could type anybody&apos;s. Vana can still collect that way, and it does not tell
+            us which way it used. So every source is asked for one thing a public page does not
+            have, like the dates on your LinkedIn connections or your saved Spotify tracks. If that
+            part does not come back, the connection is refused rather than scored.
           </p>
         </div>
       </section>

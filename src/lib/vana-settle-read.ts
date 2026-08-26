@@ -15,6 +15,7 @@ import { CONTRACTS, createEscrowGatewayClient } from "@opendatalabs/vana-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { controllerFor, env, network } from "./vana.ts";
 import { scopesFor, SOURCE_SPECS } from "./sources.ts";
+import { countAsync } from "./metrics.ts";
 import type { SourceId } from "./score.ts";
 
 /**
@@ -123,9 +124,44 @@ export type SourceRead = {
   source: SourceId;
   reads: ScopeRead[];
   failures: ScopeFailure[];
+  /** True when a fee was actually settled during this attempt. */
+  paid: boolean;
 };
 
+/**
+ * Thrown when the money moved and the data did not.
+ *
+ * Its own class because it is the one failure the user is owed an explanation
+ * for. Everything else here is "try again"; this one is "you were charged and
+ * you got nothing", and saying that plainly is the difference between a bug and
+ * a betrayal.
+ */
+export class PaidButFailedError extends Error {
+  readonly code = "PAID_BUT_FAILED";
+  readonly details: unknown;
+  constructor(source: SourceId, cause: unknown) {
+    super(
+      `Your ${SOURCE_SPECS[source]?.label ?? source} data was paid for but did not come back. ` +
+        "Nothing was saved and you were not charged for it: Patina covers the fee, not you. " +
+        "Try connecting it again.",
+    );
+    this.name = "PaidButFailedError";
+    this.details = cause instanceof Error ? cause.message : cause;
+  }
+}
+
 type ReadContext = {
+  /**
+   * Set the moment the escrow gateway accepts a payment for any scope.
+   *
+   * The distinction it exists to preserve: a read that fails BEFORE settlement
+   * cost the user nothing and can simply be retried, while one that fails
+   * AFTER has spent real money for nothing. Those look identical from the
+   * outside and need opposite things said about them. Without this, both came
+   * back as "something went wrong" and the second case was invisible to
+   * everybody, including the person who paid for it.
+   */
+  paid: { any: boolean };
   personalServerUrl: string;
   grantId: string;
   account: ReturnType<typeof privateKeyToAccount>;
@@ -188,6 +224,7 @@ async function readScopeSettled(
         });
         settled = true;
         settleError = undefined;
+        ctx.paid.any = true;
         console.info("[vana/settle] gateway settle ok", {
           requestId,
           source,
@@ -307,7 +344,10 @@ export async function readSourceSettled(
       message: typeof message === "string" ? message : { raw: message },
     });
 
+  const paid = { any: false };
+
   const ctx: ReadContext = {
+    paid,
     personalServerUrl: status.personalServerUrl,
     grantId: status.grantId,
     account,
@@ -355,6 +395,10 @@ export async function readSourceSettled(
       readableScope: status.scope,
       refused: failures.filter((f) => f.notGranted).map((f) => f.scope),
     });
+    // Counted as well as logged, so this reaches the admin page instead of
+    // sitting in a log stream nobody opens. It is the loudest thing in the
+    // codebase and it was, until now, completely silent in practice.
+    countAsync("multi_scope_refused", source);
   }
 
   console.info("[vana/settle] source read", {
@@ -365,6 +409,18 @@ export async function readSourceSettled(
   });
 
   if (reads.length === 0) {
+    /**
+     * Empty and paid-for are different problems with different owners.
+     *
+     * An empty source is the user's to fix: nothing imported, or the wrong
+     * account. A source that was PAID for and still returned nothing is ours,
+     * and telling somebody to go check their import when the fault was at this
+     * end would send them off to fix something that was never broken.
+     */
+    if (paid.any) {
+      console.error("[vana/settle] PAID AND GOT NOTHING", { requestId, source, failures });
+      throw new PaidButFailedError(source, failures[0]?.error);
+    }
     throw new SourceEmptyError(source, { requestId, failures });
   }
 
@@ -391,5 +447,5 @@ export async function readSourceSettled(
     });
   }
 
-  return { source, reads, failures };
+  return { source, reads, failures, paid: paid.any };
 }

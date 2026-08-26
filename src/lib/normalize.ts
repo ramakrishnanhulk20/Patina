@@ -55,9 +55,6 @@ export const SCOPE_SOURCE: Record<string, SourceId> = {
   "spotify.playlists": "spotify",
   "instagram.profile": "instagram",
   "instagram.posts": "instagram",
-  "steam.profile": "steam",
-  "steam.friends": "steam",
-  "steam.games": "steam",
   "youtube.profile": "youtube",
   "amazon.orders": "amazon",
   "uber.trips": "uber",
@@ -146,7 +143,7 @@ function pick(node: unknown, ...keys: string[]): unknown {
 /**
  * A Date from whatever the connector felt like sending.
  *
- * Strings are the common case. Steam sends unix SECONDS for account creation
+ * Strings are the common case. Some connectors send unix SECONDS for a date
  * where the schema says date-time, and a naive `new Date(1375315200)` is
  * January 1970, which would hand somebody a fifty-six year old account.
  */
@@ -487,41 +484,14 @@ const NORMALIZERS: Record<string, (payload: unknown) => Fragment | undefined> = 
     };
   },
 
-  // --- Steam -------------------------------------------------------------
-
-  "steam.profile": (p) => {
-    const created = toDate(pick(p, "accountCreated", "timecreated", "createdAt"));
-    if (!created) return undefined;
-    return { earliest: created.toISOString(), earliestLabel: "Steam account opened" };
-  },
-
   /**
-   * `friendSince` is the same class of signal as LinkedIn's `dateConnected`: a
-   * timestamped record of another person choosing to associate with you. Persona
-   * names and avatars are dropped.
+   * The Steam readers are gone along with the source. See the note in
+   * sources.ts: Steam's connector never signs anybody in, so its data could
+   * belong to any Steam ID a person could look up, and there is no private
+   * scope to require in its place. Removing the readers as well as the scopes
+   * means a stale steam.* fragment cannot be revived by a future change that
+   * only puts the scope back.
    */
-  "steam.friends": (p) => {
-    // This one arrives as a bare top-level array in the published schema.
-    const friends = Array.isArray(p) ? p : asArray(pick(p, "friends"));
-    if (friends.length === 0) return undefined;
-    const { months } = bucket(friends, "friendSince", "friend_since");
-    if (Object.keys(months).length === 0) return undefined;
-    return { vouchMonths: months };
-  },
-
-  /**
-   * Owned games and their last-played dates. Game names are dropped: a library
-   * is a surprisingly precise description of a person.
-   */
-  "steam.games": (p) => {
-    const owned = asArray(pick(p, "owned", "games"));
-    if (owned.length === 0) return undefined;
-    const { months } = bucket(owned, "lastPlayed", "last_played");
-    return {
-      ...(Object.keys(months).length ? { months } : {}),
-      made: [{ count: owned.length, label: "games" }],
-    };
-  },
 
   // --- YouTube -----------------------------------------------------------
 
@@ -733,7 +703,6 @@ export function identityOf(scope: string, raw: unknown): string | undefined {
     payload,
     "username",
     "handle",
-    "steamId",
     "id",
     "profileUrl",
     "channelUrl",

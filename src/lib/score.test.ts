@@ -288,7 +288,7 @@ test("corroboration: three fresh accounts agreeing on last Tuesday corroborate n
     {
       github: { earliest: yearsAgo(0.05), earliestLabel: "GitHub account opened" },
       instagram: { earliest: yearsAgo(0.05), earliestLabel: "earliest Instagram post" },
-      steam: { earliest: yearsAgo(0.05), earliestLabel: "Steam account opened" },
+      youtube: { earliest: yearsAgo(0.05), earliestLabel: "YouTube account opened" },
     },
     "corroboration",
   );
@@ -299,7 +299,7 @@ test("corroboration: two decade-old accounts max it out", () => {
   const points = componentOf(
     {
       github: { earliest: yearsAgo(10), earliestLabel: "GitHub account opened" },
-      steam: { earliest: yearsAgo(12), earliestLabel: "Steam account opened" },
+      youtube: { earliest: yearsAgo(12), earliestLabel: "YouTube account opened" },
     },
     "corroboration",
   );
@@ -409,7 +409,7 @@ test("cadence: an ordinary busy fortnight is not punished", () => {
 
 test("gating: manufactured breadth and volume are worth little without time", () => {
   const overnight: Evidence = {};
-  for (const id of ["github", "instagram", "spotify", "steam", "uber", "shop"] as const) {
+  for (const id of ["github", "instagram", "spotify", "youtube", "uber", "shop"] as const) {
     overnight[id] = {
       earliest: yearsAgo(0.03),
       earliestLabel: "account opened",
@@ -518,7 +518,7 @@ test("garbage dates and malformed months are ignored, not fatal", () => {
     // @ts-expect-error deliberately malformed, because Vana's shapes have moved before
     spotify: { months: null, made: "lots", vouches: "many", followers: undefined },
     // @ts-expect-error same
-    steam: { made: [null, { count: "12" }, { label: "games" }] },
+    amazon: { made: [null, { count: "12" }, { label: "orders" }] },
   });
 
   assert.ok(Number.isFinite(score.total), "total must always be a number");
@@ -538,7 +538,7 @@ test("components always sum to the total, so the breakdown can be trusted", () =
 
 test("no component ever exceeds its stated maximum", () => {
   const maxed: Evidence = {};
-  for (const id of ["github", "linkedin", "spotify", "instagram", "steam"] as const) {
+  for (const id of ["github", "linkedin", "spotify", "instagram", "youtube"] as const) {
     maxed[id] = {
       earliest: yearsAgo(20),
       earliestLabel: "account opened",

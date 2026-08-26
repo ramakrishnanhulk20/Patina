@@ -45,9 +45,12 @@ test("envelope: prefers the scope-keyed connector format over a sibling data key
   assert.deepEqual(payloadFor(raw, "github.profile"), { followers: 99 });
 });
 
-test("envelope: a top-level array survives, because steam.friends is one", () => {
-  const raw = [{ steamId: "1", friendSince: iso(4) }];
-  assert.ok(Array.isArray(payloadFor(raw, "steam.friends")));
+test("envelope: a bare top-level array survives unwrapping", () => {
+  // Connectors have shipped scopes as a bare array rather than an object with
+  // a named key, so payloadFor has to hand one back untouched instead of
+  // hunting for a `data` or scope key that is not there.
+  const raw = [{ dateConnected: iso(4) }];
+  assert.ok(Array.isArray(payloadFor(raw, "linkedin.connections")));
 });
 
 // ---------------------------------------------------------------------------
@@ -65,7 +68,7 @@ test("nothing sensitive survives normalisation", () => {
     "Chennai Central",
     "my terrible caption",
     "sneaky_liker_92",
-    "Half-Life 3",
+    "Late Night Drives",
     "Goldman Sachs",
     "Priya Ramanathan",
     "linkedin.com/in/priya-r",
@@ -126,8 +129,8 @@ test("nothing sensitive survives normalisation", () => {
   );
 
   evidence = fold(
-    "steam.games",
-    { owned: [{ appId: 1, name: "Half-Life 3", playtimeMinutes: 900, lastPlayed: iso(2) }] },
+    "spotify.playlists",
+    { playlists: [{ id: "1", name: "Late Night Drives", tracks: [{ added_at: iso(2) }] }] },
     evidence,
   );
 
@@ -192,17 +195,17 @@ test("instagram: who_liked is dropped even when there are hundreds of them", () 
 // Dates
 // ---------------------------------------------------------------------------
 
-test("steam: a unix timestamp for account creation is not 1970", () => {
-  const evidence = fold("steam.profile", { steamId: "76", timecreated: 1375315200 });
-  assert.equal(new Date(evidence.steam!.earliest!).getUTCFullYear(), 2013);
+test("a unix timestamp for account creation is not 1970", () => {
+  const evidence = fold("youtube.profile", { joinedDate: 1375315200 });
+  assert.equal(new Date(evidence.youtube!.earliest!).getUTCFullYear(), 2013);
 });
 
 test("dates: impossible ones are refused rather than scored", () => {
   const epoch = fold("youtube.profile", { joinedDate: "1970-01-01T00:00:00Z" });
   assert.equal(epoch.youtube?.earliest, undefined, "1970 is a parse failure, not an account");
 
-  const future = fold("steam.profile", { accountCreated: iso(-5) });
-  assert.equal(future.steam, undefined, "nothing has happened in five years' time");
+  const future = fold("youtube.profile", { joinedDate: iso(-5) });
+  assert.equal(future.youtube, undefined, "nothing has happened in five years' time");
 });
 
 test("linkedin: free-text date ranges yield the earliest year, marked soft", () => {
@@ -304,13 +307,15 @@ test("spotify: saved tracks and playlists both feed the same months", () => {
 // Vouches
 // ---------------------------------------------------------------------------
 
-test("steam.friends: a bare array of friends yields dated vouches", () => {
-  const evidence = fold("steam.friends", [
-    { steamId: "1", friendSince: "2016-05-02T00:00:00Z" },
-    { steamId: "2", friendSince: "2016-05-20T00:00:00Z" },
-    { steamId: "3", friendSince: null },
-  ]);
-  assert.equal(evidence.steam?.vouchMonths?.["2016-05"], 2);
+test("linkedin.connections: two in a month count as two, an undated one as none", () => {
+  const evidence = fold("linkedin.connections", {
+    connections: [
+      { fullName: "A", dateConnected: "2016-05-02T00:00:00Z" },
+      { fullName: "B", dateConnected: "2016-05-20T00:00:00Z" },
+      { fullName: "C", dateConnected: null },
+    ],
+  });
+  assert.equal(evidence.linkedin?.vouchMonths?.["2016-05"], 2);
 });
 
 test("connections with no usable dates record nothing rather than a bare count", () => {
@@ -332,7 +337,7 @@ test("empty and malformed payloads claim no source", () => {
   const cases: Array<[string, unknown]> = [
     ["instagram.posts", { posts: [] }],
     ["amazon.orders", { orders: [] }],
-    ["steam.profile", {}],
+    ["youtube.profile", {}],
     ["github.history", { pullRequests: [], issues: [] }],
     ["spotify.savedTracks", null],
     ["uber.trips", "not an object"],
@@ -353,9 +358,12 @@ test("every declared scope has a normaliser and survives junk without throwing",
   }
 });
 
-test("the manifest is 21 scopes across 10 sources", () => {
-  assert.equal(ALL_SCOPES.length, 21);
-  assert.equal(Object.keys(SCOPES_BY_SOURCE).length, 10);
+test("the manifest is 18 scopes across 9 sources", () => {
+  // Steam's three left with the source. youtube.watchLater is NOT among these:
+  // it is requested as proof of a signed-in session and has no reader, so it
+  // never becomes evidence and never belongs in the scope-to-source map.
+  assert.equal(ALL_SCOPES.length, 18);
+  assert.equal(Object.keys(SCOPES_BY_SOURCE).length, 9);
   assert.deepEqual(SCOPES_BY_SOURCE.github, [
     "github.profile",
     "github.contributions",
@@ -377,8 +385,8 @@ test("re-reading every scope changes nothing", () => {
     "github.contributions": { days: [{ date: iso(3), count: 5 }], yearTotals: [{ year: 2019, total: 90 }] },
     "github.history": { pullRequests: [{ id: "1", createdAt: iso(6), comments: 4 }] },
     "github.profile": { followers: 30, organizations: [{ login: "o" }] },
-    "steam.friends": [{ friendSince: iso(5) }, { friendSince: iso(4) }],
-    "steam.profile": { accountCreated: iso(11) },
+    "linkedin.connections": { connections: [{ dateConnected: iso(5) }, { dateConnected: iso(4) }] },
+    "youtube.profile": { joinedDate: iso(11) },
     "spotify.savedTracks": { savedTracks: [{ added_at: iso(7) }], total: 1 },
     "instagram.posts": { posts: [{ taken_at: iso(4) }] },
     "instagram.profile": { media_count: 1, follower_count: 200 },
@@ -402,7 +410,7 @@ test("re-reading every scope changes nothing", () => {
 
 test("the fold is deterministic regardless of the order sources were connected", () => {
   const reads: Record<string, unknown> = {
-    "steam.profile": { accountCreated: iso(12) },
+    "youtube.profile": { joinedDate: iso(12) },
     "github.history": { pullRequests: [{ id: "1", createdAt: iso(8) }] },
     "spotify.savedTracks": { savedTracks: [{ added_at: iso(6) }], total: 1 },
   };
@@ -441,8 +449,12 @@ test("a realistic multi-source read produces a sensible score", () => {
     yearTotals: [{ year: new Date().getUTCFullYear() - 9, total: 500 }],
   }, evidence);
   evidence = fold("github.profile", { followers: 60, organizations: [{ login: "o" }] }, evidence);
-  evidence = fold("steam.profile", { accountCreated: iso(14) }, evidence);
-  evidence = fold("steam.friends", Array.from({ length: 40 }, (_, i) => ({ friendSince: iso(9 - i * 0.15) })), evidence);
+  evidence = fold("youtube.profile", { joinedDate: iso(14) }, evidence);
+  evidence = fold(
+    "linkedin.connections",
+    { connections: Array.from({ length: 40 }, (_, i) => ({ dateConnected: iso(9 - i * 0.15) })) },
+    evidence,
+  );
   evidence = fold("spotify.savedTracks", {
     savedTracks: Array.from({ length: 600 }, (_, i) => ({ added_at: iso(8 - i * 0.012) })),
     total: 600,
@@ -450,15 +462,15 @@ test("a realistic multi-source read produces a sensible score", () => {
 
   const score = scorePatina(evidence);
 
-  assert.equal(score.sourcesConnected.length, 3);
-  assert.equal(score.provisional, false, "three sources with dates is signable");
-  assert.equal(score.oldestSignal?.source, "Steam account opened");
+  assert.equal(score.sourcesConnected.length, 4);
+  assert.equal(score.provisional, false, "four sources with dates is signable");
+  assert.equal(score.oldestSignal?.source, "YouTube account opened");
   assert.ok(score.total >= 60, `a real fourteen-year history should score well, got ${score.total}`);
 });
 
 test("identityOf finds a handle without inventing one", () => {
   assert.equal(identityOf("github.profile", { username: "ram" }), "ram");
-  assert.equal(identityOf("steam.profile", { steamId: "7656119" }), "7656119");
+  assert.equal(identityOf("youtube.profile", { channelId: "UCabc" }), "UCabc");
   assert.equal(identityOf("amazon.orders", { orders: [] }), undefined);
 });
 

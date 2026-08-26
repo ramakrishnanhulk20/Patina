@@ -1,5 +1,10 @@
-import { isSourceId } from "@/lib/sources";
-import { emptySourceMessage, readSourceSettled, SourceEmptyError } from "@/lib/vana-settle-read";
+import { isSourceId, proofMissingMessage, proofScopeFor } from "@/lib/sources";
+import {
+  emptySourceMessage,
+  PaidButFailedError,
+  readSourceSettled,
+  SourceEmptyError,
+} from "@/lib/vana-settle-read";
 import { controllerFor } from "@/lib/vana";
 import { readSessionId } from "@/lib/session";
 import {
@@ -14,6 +19,7 @@ import {
 } from "@/lib/store";
 import { identityOf, readScope, type Fragment } from "@/lib/normalize";
 import { scorePatina, verdict } from "@/lib/score";
+import { countAsync } from "@/lib/metrics";
 
 /**
  * Finish one connection: read every scope the grant covers, normalise, record,
@@ -43,6 +49,16 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unknown source" }, { status: 400 });
   }
 
+  // A restore request was approved on the promise that nothing would be read
+  // from it. Reading one here would settle a fee the person was told they would
+  // not pay, so the flows are kept strictly apart.
+  if (pending.restoreOnly) {
+    return Response.json(
+      { error: "That request was for restoring a profile, not for reading data." },
+      { status: 400 },
+    );
+  }
+
   /**
    * Only the session that started this request may read its result. Without
    * this, anyone holding a request id could pull back someone else's data.
@@ -67,16 +83,60 @@ export async function GET(request: Request) {
      * them on arrival.
      */
     const cached = pending.reads !== undefined;
-    const { reads, externalId } = cached
-      ? { reads: pending.reads!, externalId: pending.externalId }
+    const { reads, scopesServed, externalId } = cached
+      ? {
+          reads: pending.reads!,
+          scopesServed: pending.scopesServed ?? [],
+          externalId: pending.externalId,
+        }
       : await collect(pending, requestId);
 
     if (!cached) {
-      await rememberRequest(requestId, { ...pending, reads, ...(externalId ? { externalId } : {}) });
+      await rememberRequest(requestId, {
+        ...pending,
+        reads,
+        scopesServed,
+        ...(externalId ? { externalId } : {}),
+      });
+    }
+
+    /**
+     * THE OWNERSHIP CHECK, and the only one Patina is able to make.
+     *
+     * Vana collects two ways. Desktop runs a connector on the user's own
+     * machine and makes them sign in. The web path collects server-side, and
+     * server-side collection reads a public page, which proves that an account
+     * exists and nothing whatsoever about who is holding it. Nothing in the
+     * protocol reports which path a read came through, so this cannot be asked
+     * directly; see the note on `proof` in sources.ts.
+     *
+     * What it can do is insist on a scope a public page does not have. Every
+     * source declares one, and it has to have been SERVED. Not "scored": an
+     * empty Watch Later is a perfectly good signed-in answer that yields no
+     * evidence, and refusing that would fail people for having a tidy account.
+     *
+     * Deliberately placed BEFORE recordSource and AFTER the cache write, so a
+     * refused read is refused identically on every retry and cannot be turned
+     * into an accepted one by replaying the request id.
+     */
+    const proof = proofScopeFor(pending.source);
+    if (!scopesServed.includes(proof)) {
+      console.warn("[vana/data] proof scope missing", {
+        requestId,
+        source: pending.source,
+        proof,
+        served: scopesServed,
+      });
+      countAsync("read_unproven", pending.source);
+      return Response.json(
+        { error: proofMissingMessage(pending.source), code: "PROOF_MISSING" },
+        { status: 422 },
+      );
     }
 
     if (reads.length === 0) {
       console.info("[vana/data] empty source", { requestId, source: pending.source });
+      countAsync("read_empty", pending.source);
       return Response.json(
         { error: emptySourceMessage(pending.source), code: "SOURCE_EMPTY" },
         { status: 422 },
@@ -98,7 +158,15 @@ export async function GET(request: Request) {
     // one. Caching used to happen before recording, so a failed write meant the
     // retry hit the cache, skipped recording and returned early: the user had
     // paid, the read had succeeded, and their source was silently lost.
-    const profile = await recordSource(profileId, pending.source, reads, { externalId });
+    const profile = await recordSource(profileId, pending.source, reads, {
+      externalId,
+      proven: true,
+    });
+
+    // Only counted on the uncached path. A retry that hits the cache is the
+    // same connection arriving twice, and counting it again would report more
+    // finished connections than there were people.
+    if (!cached) countAsync("connect_finished", pending.source);
 
     const score = scorePatina(evidenceOf(profile));
 
@@ -134,7 +202,30 @@ export async function GET(request: Request) {
 
     // An empty source is the user's to fix (nothing imported, wrong account,
     // still collecting), not a server fault. 422 so the UI shows guidance.
-    const status = err instanceof SourceEmptyError || code === "SOURCE_EMPTY" ? 422 : 502;
+    /**
+     * Three outcomes, not two, because they cost different things.
+     *
+     * An empty source is the user's to fix and gets 422 with guidance. A
+     * failure after payment cost real money and is ours; it gets its own
+     * counter so the rate of it is visible, and its own message so nobody is
+     * sent off to check an import that was never the problem. Everything else
+     * is an ordinary fault.
+     */
+    const paidAndFailed = err instanceof PaidButFailedError || code === "PAID_BUT_FAILED";
+    const empty = err instanceof SourceEmptyError || code === "SOURCE_EMPTY";
+    const status = empty || paidAndFailed ? 422 : 502;
+
+    countAsync(
+      paidAndFailed ? "read_paid_and_failed" : empty ? "read_empty" : "read_failed",
+      pending.source,
+    );
+    if (paidAndFailed) {
+      console.error("[vana/data] escrow spent with nothing returned", {
+        requestId,
+        source: pending.source,
+        message,
+      });
+    }
     return Response.json({ error: message, code, details }, { status });
   }
 }
@@ -149,7 +240,11 @@ export async function GET(request: Request) {
 async function collect(
   pending: PendingRequest,
   requestId: string,
-): Promise<{ reads: Array<{ scope: string; fragment: Fragment }>; externalId?: string }> {
+): Promise<{
+  reads: Array<{ scope: string; fragment: Fragment }>;
+  scopesServed: string[];
+  externalId?: string;
+}> {
   const result = await readSourceSettled(pending.source, requestId);
 
   const reads: Array<{ scope: string; fragment: Fragment }> = [];
@@ -167,7 +262,13 @@ async function collect(
     if (fragment) reads.push({ scope: read.scope, fragment });
   }
 
-  return { reads, ...(externalId ? { externalId } : {}) };
+  return {
+    reads,
+    // What the Personal Server answered, before normalize had an opinion about
+    // whether any of it was scorable. This is what the proof check reads.
+    scopesServed: result.reads.map((read) => read.scope),
+    ...(externalId ? { externalId } : {}),
+  };
 }
 
 /**

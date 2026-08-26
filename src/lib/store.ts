@@ -75,8 +75,20 @@ export type SourceRecord = {
   /** Which scopes actually came back. A source can be partial and still count. */
   scopes: string[];
   /**
+   * Whether this read returned the source's proof scope, meaning it came from
+   * somebody signed in as themselves rather than from a public page.
+   *
+   * Absent on anything recorded before the check existed. Those reads are not
+   * deleted, because they may well be honest and there is no way to tell from
+   * here, but they are counted separately on the admin page so the size of the
+   * unverified tail is a number somebody can look at rather than a guess. Every
+   * read written from now on has this set, because a read without it is refused
+   * before it reaches this function.
+   */
+  proven?: boolean;
+  /**
    * A stable identifier for the ACCOUNT behind this source (GitHub username,
-   * Steam id, and so on). Two profiles claiming the same account is worth
+   * Instagram username, and so on). Two profiles claiming the same account is worth
    * noticing: cookies can be cleared, but it is still the same GitHub.
    */
   externalId?: string;
@@ -459,7 +471,7 @@ export async function recordSource(
   profileId: string,
   source: SourceId,
   reads: Array<{ scope: string; fragment: Fragment }>,
-  meta: { externalId?: string } = {},
+  meta: { externalId?: string; proven?: boolean } = {},
 ): Promise<Profile> {
   const profile = await ensureProfile(profileId);
 
@@ -471,6 +483,7 @@ export async function recordSource(
     [source]: {
       readAt: new Date().toISOString(),
       scopes: reads.map((read) => read.scope),
+      ...(meta.proven !== undefined ? { proven: meta.proven } : {}),
       ...(meta.externalId ? { externalId: meta.externalId } : {}),
     },
   };
@@ -507,6 +520,55 @@ export async function profileIdForAccount(
 ): Promise<string | null> {
   const raw = await db().get(accountKey(source, externalId));
   return typeof raw === "string" ? raw : null;
+}
+
+/**
+ * Disconnect one source without losing the rest.
+ *
+ * The only way to remove anything used to be deleting everything, so somebody
+ * who connected the wrong account, or changed their mind about handing over
+ * their order history, had one option: throw away every other source too and
+ * start the whole evening again. That is not a real choice, and a product whose
+ * subject is trust should not be making people burn their own history to
+ * correct a mistake.
+ *
+ * Removes the FRAGMENTS as well as the source record. Leaving the fragments
+ * behind would take the card off the page while the months and vouches inside
+ * it carried on feeding the score, which is the worst of both: it would look
+ * deleted and still count.
+ */
+export async function removeSource(profileId: string, source: SourceId): Promise<Profile | null> {
+  const profile = await getProfile(profileId);
+  if (!profile) return null;
+
+  const record = profile.sources[source];
+  if (!record) return profile;
+
+  // Every scope belonging to this source, whether or not this particular read
+  // returned it. A scope stored by an earlier read of the same source must go
+  // too, or a re-connect followed by a disconnect would leave a residue.
+  const fragments = Object.fromEntries(
+    Object.entries(profile.fragments ?? {}).filter(([scope]) => !scope.startsWith(`${source}.`)),
+  );
+
+  const sources = { ...profile.sources };
+  delete sources[source];
+
+  const updated: Profile = {
+    ...profile,
+    fragments,
+    sources,
+    score: scorePatina(evidenceFrom(fragments)).total,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await saveProfile(updated);
+
+  // Release the account index too, or this profile keeps its claim on a GitHub
+  // it no longer holds, and the real owner reconnecting looks like a duplicate.
+  if (record.externalId) await db().remove(accountKey(source, record.externalId));
+
+  return updated;
 }
 
 export async function deleteProfile(id: string, sessionId?: string): Promise<void> {
@@ -548,6 +610,17 @@ export type Stats = {
   averageScore: number;
   /** How many are above the signing floor. */
   signable: number;
+  /**
+   * Sources recorded before ownership was checked at all.
+   *
+   * Every read written from now on has to return a scope a public page cannot
+   * serve, or it is refused. Reads written before that rule existed have no
+   * such guarantee: some came through Vana Desktop and are perfectly good, some
+   * may have been collected from a public page, and there is no way to tell
+   * from here which is which. Counting them is how the size of that tail stays
+   * a fact rather than a worry.
+   */
+  unproven: number;
 };
 
 /**
@@ -559,7 +632,35 @@ export type Stats = {
  * construction, and at Patina's size it is a few hundred reads at most. If that
  * ever stops being true, the fix is a cache in front of it, not a counter.
  */
-export async function stats(): Promise<Stats> {
+/**
+ * The last computed answer, kept briefly.
+ *
+ * `stats` walks every profile one at a time, which is correct by construction
+ * and gets slow in a very specific way: each profile is a separate network call
+ * to Upstash, so at a few thousand people a single page load makes a few
+ * thousand round trips and the request times out long before anybody would
+ * describe it as sluggish. It does not degrade, it falls over.
+ *
+ * A short cache is the right fix rather than incrementally maintained counters.
+ * Counters drift the moment any write path forgets one, and a drifted number is
+ * worse than a slow one because nothing announces it. A cached walk is still
+ * correct; it is just up to a few minutes old, which for "how many people use
+ * this" is not a distinction anybody can act on.
+ *
+ * Held in Redis rather than in memory, because serverless instances are
+ * short-lived and a per-instance cache would miss on almost every request.
+ */
+const STATS_CACHE_KEY = `${PREFIX}:stats`;
+const STATS_TTL_SECONDS = 300;
+
+export async function stats(options: { fresh?: boolean } = {}): Promise<Stats> {
+  if (!options.fresh) {
+    const cached = parse<Stats>(await db().get(STATS_CACHE_KEY));
+    // A cached shape from before a field was added would render as blanks, so
+    // the presence of the newest field is what makes a hit usable.
+    if (cached && typeof cached.unproven === "number") return cached;
+  }
+
   const ids = await db().setMembers(ALL_PROFILES);
 
   const out: Stats = {
@@ -570,6 +671,7 @@ export async function stats(): Promise<Stats> {
     bySource: {},
     averageScore: 0,
     signable: 0,
+    unproven: 0,
   };
 
   let scoreTotal = 0;
@@ -586,6 +688,9 @@ export async function stats(): Promise<Stats> {
     out.sources += sources.length;
     for (const source of sources) {
       out.bySource[source] = (out.bySource[source] ?? 0) + 1;
+      // Absent, not false: these predate the check rather than having failed
+      // it, and a read that fails it now is never written at all.
+      if (profile.sources[source as SourceId]?.proven !== true) out.unproven += 1;
     }
     if (profile.username) out.named += 1;
 
@@ -595,6 +700,10 @@ export async function stats(): Promise<Stats> {
   }
 
   out.averageScore = out.connected === 0 ? 0 : Math.round(scoreTotal / out.connected);
+
+  // Written after the walk rather than before, so a walk that throws leaves the
+  // previous answer in place instead of caching a half-finished one.
+  await db().set(STATS_CACHE_KEY, out, STATS_TTL_SECONDS);
   return out;
 }
 
@@ -751,6 +860,27 @@ export type PendingRequest = {
    * would undo the entire point of discarding them on arrival.
    */
   reads?: Array<{ scope: string; fragment: Fragment }>;
+  /**
+   * Every scope the Personal Server actually served, whether or not it yielded
+   * anything scorable.
+   *
+   * Kept apart from `reads` because the two answer different questions. A
+   * scope can be served successfully and still produce no fragment: an empty
+   * Watch Later list is a real, signed-in answer that scores nothing. Judging
+   * proof on `reads` would therefore fail somebody for having an empty
+   * playlist, which is not what is being asked.
+   */
+  scopesServed?: string[];
+  /**
+   * This request exists only to learn which Personal Server the browser
+   * belongs to, and its data must never be read.
+   *
+   * Kept on the request rather than inferred, so `/api/vana/data` can refuse
+   * one outright. Without the flag, a restore request id replayed against the
+   * read route would settle a real fee for a read nobody asked for, which is
+   * the exact cost the restore flow exists to avoid.
+   */
+  restoreOnly?: boolean;
   /**
    * The account handle behind those reads, captured from the raw payload before
    * normalize discarded it. Cached alongside the reads so a replayed request

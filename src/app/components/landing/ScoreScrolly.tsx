@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * The six components, showing a REAL profile rather than flattering numbers:
- * Steam opened in 2012 and eleven years of GitHub, which the scorer actually
+ * YouTube opened in 2012 and eleven years of GitHub, which the scorer actually
  * returns 76 for. The rows sum to the total on the card, so anybody who adds
  * them up gets the number we printed. Every marketing score card that does not
  * survive that check is a small lie about the thing it is selling.
@@ -214,7 +214,7 @@ export function ScoreScrolly() {
                 <div className="flex flex-col gap-1 text-right">
                   <span className="text-xs text-band-ink-2">Oldest signal</span>
                   <span className="t-mono text-[1.7rem] font-semibold tracking-tight">2012</span>
-                  <span className="text-xs text-band-ink-2">Steam, 14.2 years</span>
+                  <span className="text-xs text-band-ink-2">YouTube, 14.2 years</span>
                 </div>
               </div>
 
