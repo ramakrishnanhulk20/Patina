@@ -354,7 +354,7 @@ export default function Home() {
                 <Prow ico="GH" a="GitHub" b="Commits, and who replied" tag="Connect" />
                 <Prow ico="LI" a="LinkedIn" b="When people connected" tag="Connect" tagQuiet />
                 <Prow ico="SP" a="Spotify" b="A decade of dated saves" tag="Connect" tagQuiet />
-                <Prow ico="ST" a="Steam" b="Usually your oldest account" tag="Connect" tagQuiet />
+                <Prow ico="YT" a="YouTube" b="Usually your oldest account" tag="Connect" tagQuiet />
               </Window>
               <div className="mt-8">
                 <span className="t-mono grid h-10 w-10 place-items-center rounded-full border border-line text-text-4">
@@ -782,6 +782,7 @@ export default function Home() {
               ["Get your score", "/connect"],
               ["How it works", "/how-it-works"],
               ["Verify a score", "/verify"],
+              ["Your data", "/my-data"],
             ]}
           />
           <FootCol

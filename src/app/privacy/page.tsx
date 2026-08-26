@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { SectionLabel } from "../components/SectionLabel";
-import { DeleteData } from "../components/DeleteData";
 
 export const metadata = {
   title: "Privacy",
@@ -143,8 +142,18 @@ export default function PrivacyPage() {
         ))}
       </div>
 
-      <div className="mt-8">
-        <DeleteData />
+      <div className="mt-8 border border-line bg-panel p-5">
+        <p className="text-sm font-semibold text-text">See, download, or delete your data</p>
+        <p className="mt-1 max-w-[54ch] text-sm leading-relaxed text-text-2">
+          Everything above is checkable rather than a promise. Your data page lists every row
+          Patina stores, hands you a copy of it, and lets you remove one source or all of them.
+        </p>
+        <Link
+          href="/my-data"
+          className="btn btn-primary mt-4 inline-block px-5 py-2.5 text-sm"
+        >
+          Open your data page
+        </Link>
       </div>
 
       <div className="mt-12 border-t border-line pt-8 text-sm leading-relaxed text-text-3">
