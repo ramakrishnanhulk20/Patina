@@ -66,21 +66,33 @@ Patina answers **tenure**, not uniqueness. A freshly verified unique human can b
 
 ## Features
 
-### Ownership proved, not claimed
+### Ownership proved, not assumed
 
-Collection runs through **Vana Desktop**, which opens a browser on the user's own machine and asks them to sign in. Credentials never leave the device and Patina never sees a password, but nothing comes back unless the login succeeds. That turns a typed handle into a proven session.
+Collection is meant to run through **Vana Desktop**, which opens a browser on the user's own machine and asks them to sign in. Credentials never leave the device and Patina never sees a password.
 
-### Ten sources, twenty-one scopes
+But Vana has two collection paths and does not report which one it used. The other reads a **public page** from a profile URL, which proves an account exists and nothing about who holds it. So "desktop only" cannot be asked for; it has to be forced.
 
-GitHub, LinkedIn, Spotify, Instagram, Steam, YouTube, Amazon, Uber, DoorDash and Shop. All of a source's scopes go in one approval, so the whole manifest is ten approval trips rather than twenty-one.
+Every source therefore requires one scope a public page cannot serve, and the read is **refused** if it does not come back. LinkedIn must produce connection dates, Spotify saved tracks, YouTube its Watch Later list. A request containing something private cannot be answered from a public profile, so the person ends up on Desktop and has to log in. `sources.test.ts` fails if a source is ever added without one.
+
+Steam was withdrawn for the same reason. Its connector never signs anybody in: it takes a Steam Web API key and a Steam ID, and a Steam ID is public. Anyone could have handed Patina a stranger's account age and friend dates as their own, and unlike YouTube there was no private scope to require instead.
+
+### Nine sources, nineteen scopes
+
+GitHub, LinkedIn, Spotify, Instagram, YouTube, Amazon, Uber, DoorDash and Shop. All of a source's scopes go in one approval, so the whole manifest is nine approval trips rather than nineteen.
 
 ### Timestamps in, content out
 
 Every scope is requested for its dates. Captions, addresses, emails, track names, game titles and other people's names are discarded before anything is stored, and a test fails if any of them reach the store.
 
-### Signed and portable
+### Signed, portable, and dated
 
 Every non-provisional score carries an EIP-191 attestation anyone can verify offline against Patina's published address. No key, no OAuth, CORS open.
+
+Attestations **expire after thirty days**, and the expiry sits inside the signed message rather than beside it, so checking freshness stays offline too. A revocation list would have fixed the same problem by making every verifier call Patina, which is exactly the dependency people integrate to avoid. Scores are signed with a key separate from the one holding the escrow balance, so a leak of one is not a leak of both.
+
+### Answerable about itself
+
+`/api/health` does a real write-and-read against the database and a live read of the escrow balance, and returns **503** when the deployment cannot serve the next person, so ordinary uptime monitoring catches an outage without being taught what to look for. A password-gated `/admin` shows the funnel, the user numbers and how many more connections the balance will fund. Funnel counting is done server-side: no third-party script, no cookie banner, nothing that contradicts the privacy page.
 
 ### Readable by agents
 
@@ -122,6 +134,7 @@ Stated on the site itself, not buried here:
 - **A low score is not an accusation.** Young, private or quiet accounts score low and are doing nothing wrong.
 - **Aged accounts can be bought.** That turns a free attack into an expensive one whose price climbs with age. It does not make it impossible.
 - **Desktop proves session control, not ownership.** A bought account arrives with its password. The bar moves from "knows a username" to "holds the credentials", which is a large jump and not the same word.
+- **The proof scope is a floor, not a guarantee.** Requiring something private forces a real sign-in, and a real sign-in is still only a sign-in. What it rules out is somebody scoring a stranger's public profile, which is the failure that would make the whole number meaningless.
 
 ---
 
@@ -132,15 +145,14 @@ Every scope below is requested for its timestamps. This table is the trust argum
 | Scope | Kept | Discarded on arrival |
 |---|---|---|
 | `linkedin.connections` | `dateConnected[]`, count | names, headlines, profile URLs |
-| `steam.friends` | `friendSince[]`, count | steamIds, persona names, avatars |
 | `instagram.posts` | `taken_at[]`, count | captions, images, likes, the entire `who_liked[]` array |
 | `spotify.savedTracks` | `added_at[]`, total | track names, artists, albums |
 | `github.history` | `createdAt[]`, hashed repo, summed engagement | PR and issue titles and bodies |
 | `linkedin.experience` / `education` | parsed date ranges | companies, job titles, schools, grades |
-| `steam.games` | playtime, count, `lastPlayed[]` | game names |
 | `uber.trips` | `requestTime[]`, count | **pickup and dropoff addresses**, fares, cities |
 | `amazon` / `doordash` / `shop` orders | dates, count | items, merchants, totals, delivery addresses |
 | `youtube.profile` | `joinedDate`, counts | **email address** |
+| `youtube.watchLater` | nothing at all | everything; it is requested only as proof of a signed-in session |
 
 Timestamps collapse to **month buckets** before storage. The scorer only ever asks about months, so holding anything finer would be holding it for no reason.
 
@@ -249,12 +261,22 @@ curl https://patinadata.xyz/api/verify/ramkumar
   "score": 71,
   "verdict": "Well established",
   "oldestYear": 2012,
-  "sourcesConnected": ["github", "steam", "spotify"],
+  "yearsOfHistory": 13.6,
+  "sourcesConnected": ["github", "linkedin", "spotify"],
   "provisional": false,
+  "issuedAt": "2026-08-26T12:00:00.000Z",
+  "expiresAt": "2026-09-25T12:00:00.000Z",
   "attestation": {
-    "message": "patina:v2|ramkumar|71|...",
+    "app": "0x...",
+    "message": "Patina score attestation
+
+username: ramkumar
+score: 71/100
+...
+expiresAt: 2026-09-25T12:00:00.000Z
+app: 0x...",
     "signature": "0x...",
-    "app": "0x620dDbEceaD28Bbf1b979bfaB8e3a7B893aa54A1"
+    "expiresAt": "2026-09-25T12:00:00.000Z"
   }
 }
 ```
@@ -296,18 +318,21 @@ const ok = await verifyMessage({
 ## Test Results
 
 ```
-118 passing
+174 passing
 ```
 
 | Suite | Tests | Covers |
 |---|---:|---|
 | `normalize.test.ts` | 30 | Envelope shapes, discard guarantees, idempotency |
-| `score.test.ts` | 25 | Every component, the gating, the reference profiles |
+| `score.test.ts` | 27 | Every component, the gating, the reference profiles |
+| `store.test.ts` | 26 | Cross-device identity, usernames, removing one source, deletion |
+| `mcp-lookup.test.ts` | 20 | Privacy rules on the resolver, signing, verdict drift |
 | `story.test.ts` | 19 | Timeline, activity, exhibits, thin-history copy |
-| `mcp-lookup.test.ts` | 19 | Privacy rules on the resolver, signing, verdict drift |
-| `store.test.ts` | 16 | Cross-device identity, usernames, deletion |
+| `routes.test.ts` | 15 | Real HTTP requests: sessions, the signing floor, the admin gate |
+| `device.test.ts` | 12 | Which devices can finish a connection |
+| `attest.test.ts` | 10 | Signing, expiry, key separation, published-address drift |
+| `sources.test.ts` | 9 | The ownership invariant: no source may be answerable from a public page |
 | `ratelimit.test.ts` | 4 | Escrow abuse limits |
-| `attest.test.ts` | 3 | Signing and recovery |
 | `altcha.test.ts` | 2 | Proof-of-work bot check |
 
 The one worth knowing about: **`nothing sensitive survives normalisation`** feeds in a payload stuffed with a real-looking email address, two home addresses, a caption, a colleague's full name and LinkedIn URL, a game title, an employer, a song, a product and a restaurant, then asserts that none of the thirteen appear anywhere in what gets saved.
@@ -321,23 +346,30 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── vana/          request + data: the connect spine
-│   │   ├── patina/        me, username, delete
+│   │   ├── patina/        me, username, data, restore, delete
+│   │   ├── admin/         session, index rebuild
 │   │   ├── verify/        public score lookup
 │   │   ├── badge/         embeddable SVG badge
 │   │   └── mcp/           MCP server
-│   ├── connect/           the evidence board
+│   ├── connect/           the evidence board, and the phone handoff
+│   ├── my-data/           see it, download it, remove any of it
+│   ├── admin/             the funnel, the numbers, the money left
 │   ├── u/[username]/      public page and story
 │   ├── verify/            verifier, including an offline checker
 │   └── docs/              integration reference
 └── lib/
     ├── score.ts           the whole argument, weight by weight
-    ├── normalize.ts       21 scopes in, timestamps out
-    ├── sources.ts         the manifest, and what each scope keeps
+    ├── normalize.ts       18 scopes in, timestamps out
+    ├── sources.ts         the manifest, and the proof scope each source must return
+    ├── device.ts          whether this device can finish a connection at all
     ├── vana.ts            app identity, one controller per source
     ├── vana-settle-read.ts  paid reads, escrow settlement
+    ├── escrow-balance.ts  how many more connections the balance will fund
+    ├── metrics.ts         the funnel, counted server-side and nowhere else
     ├── store.ts           profiles keyed on Personal Server identity
+    ├── admin.ts           one operator, one password, fails closed
     ├── story.ts           evidence as a narrative, and exhibits
-    ├── attest.ts          signed attestations
+    ├── attest.ts          signed attestations, expiring, on their own key
     └── mcp-lookup.ts      what an agent is allowed to learn
 ```
 

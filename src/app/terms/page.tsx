@@ -20,6 +20,29 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
     ),
   },
   {
+    /**
+     * WHO IS ACTUALLY ON THE HOOK, said plainly.
+     *
+     * The terms named nobody at all: no person, no company, no country, no law.
+     * That is a real exposure for something that issues signed statements other
+     * businesses may act on, and it is also just unfair to the reader, who
+     * cannot tell who they are dealing with.
+     *
+     * It says one person rather than naming a company because there is no
+     * company. Inventing one would be exactly the kind of small dishonesty this
+     * product exists to argue against.
+     */
+    heading: "Who runs it",
+    body: (
+      <>
+        Patina is built and run by <strong className="text-text">one person, based in India</strong>
+        . It is not a registered company, and nothing here should be read as implying a business
+        larger than that. These terms are governed by the laws of India, and the courts of India
+        are where any dispute about them would be heard.
+      </>
+    ),
+  },
+  {
     heading: "Use it honestly",
     body: (
       <>
@@ -37,6 +60,28 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
         The score is evidence about the history it can see, not a certificate that you are human, and
         not advice. Patina is provided as-is, may be wrong or unavailable, and may change or stop.
         Parts of it depend on Vana and on the platforms you connect, which we do not control.
+      </>
+    ),
+  },
+  {
+    /**
+     * A limit, said in a way that does not read as a trapdoor.
+     *
+     * Patina is free, run by one person, and issues signed statements that
+     * other businesses might gate access on. Without any stated limit, a
+     * relying party who lost money acting on a score could reasonably come
+     * looking. Nothing here tries to disclaim being honest, only being
+     * infinitely liable for a free thing.
+     */
+    heading: "What we are responsible for",
+    body: (
+      <>
+        Patina is free, and there is a limit to what a free thing can promise. If you use a Patina
+        score to make a decision, that decision is yours. As far as the law allows, Patina is not
+        liable for losses that follow from using it, from it being wrong, or from it being
+        unavailable, and that includes lost business, lost profit and lost data. Nothing here
+        limits anything that cannot legally be limited, and nothing here is an attempt to escape
+        being honest with you.
       </>
     ),
   },
@@ -72,7 +117,7 @@ export default function TermsPage() {
       <h1 className="t-section mt-5 text-text">The deal, in plain English.</h1>
 
       <p className="mt-6 text-lg leading-relaxed text-text-2">
-        No dark patterns and no fine print you need a lawyer for. Last updated 1 August 2026.
+        No dark patterns and no fine print you need a lawyer for. Last updated 26 August 2026.
       </p>
 
       <div className="mt-10 divide-y divide-line border-y border-line">
