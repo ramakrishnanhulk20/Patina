@@ -139,6 +139,36 @@ export function countAsync(name: MetricName, source?: string): void {
   void count(name, source).catch(() => {});
 }
 
+/**
+ * How many of something happen on an average day lately.
+ *
+ * Exists so the escrow alarm can talk about TIME rather than about a count.
+ * "193 connections left" means nothing on its own: it is months of runway for
+ * a product with no users and four days for one with fifty a day. Only the
+ * burn rate turns the balance into a decision.
+ *
+ * Today is excluded. It is a partial day, and dividing by it would make the
+ * rate swing wildly every morning and settle every evening, which is the
+ * fastest way to build an alarm nobody believes.
+ */
+export async function dailyRate(name: MetricName, days = 7): Promise<number> {
+  const store = redis();
+  if (!store) return 0;
+
+  const window = lastDays(days + 1).slice(0, days);
+  try {
+    const values = await store.mget<Array<number | null>>(
+      ...window.map((day) => `${PREFIX}:${name}:${day}`),
+    );
+    const total = (values ?? []).reduce<number>((sum, value) => sum + Number(value ?? 0), 0);
+    return total / days;
+  } catch {
+    // A rate we cannot read is reported as no usage, which makes the alarm
+    // fall back to its absolute floor rather than inventing a burn rate.
+    return 0;
+  }
+}
+
 export type MetricRow = {
   name: MetricName;
   label: string;

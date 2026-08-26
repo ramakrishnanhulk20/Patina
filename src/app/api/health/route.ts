@@ -3,6 +3,7 @@ import { appAddress } from "@/lib/vana";
 import { altchaConfigured } from "@/lib/altcha";
 import { balanceAdvice, readEscrowBalance } from "@/lib/escrow-balance";
 import { signerCheck, usingSharedKey } from "@/lib/attest";
+import { dailyRate } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,16 @@ export async function GET() {
     // because a health endpoint that 500s tells you less than one that answers.
   }
 
-  const [store, balance] = await Promise.all([storeSelfTest(), readEscrowBalance()]);
+  /**
+   * The burn rate is read first, because the balance means nothing without it.
+   * A fixed "low" threshold told a deployment with no users and months of
+   * runway to top up urgently, which is how an alarm stops being believed.
+   */
+  const burnPerDay = await dailyRate("connect_finished");
+  const [store, balance] = await Promise.all([
+    storeSelfTest(),
+    readEscrowBalance({ burnPerDay }),
+  ]);
   const persistent = isPersistent();
   const signer = signerCheck();
 
@@ -117,6 +127,11 @@ export async function GET() {
         available: balance.ok ? balance.available : undefined,
         availableRaw: balance.ok ? balance.availableRaw : undefined,
         connectionsLeft: balance.ok ? balance.connectionsLeft : undefined,
+        // Null rather than zero when nothing is being spent. That is a fact
+        // about traffic, not about money, and rendering it as zero would read
+        // as an emergency.
+        daysLeft: balance.daysLeft === null ? null : Math.floor(balance.daysLeft),
+        connectionsPerDay: Number(balance.burnPerDay.toFixed(2)),
         low: balance.low,
         empty: balance.empty,
         advice: balanceAdvice(balance),

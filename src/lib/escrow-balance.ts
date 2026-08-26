@@ -43,13 +43,33 @@ const READS_PER_CONNECTION = 4;
 const COST_PER_CONNECTION = FEE_PER_READ * READS_PER_CONNECTION;
 
 /**
- * Below this many remaining connections, somebody needs to act.
+ * How much warning is enough warning.
  *
- * Set against how long a top-up takes rather than against how much money it is.
- * Two hundred connections is enough runway to notice, decide and deposit
- * without anybody being turned away in the meantime.
+ * THE FIRST VERSION OF THIS WAS WRONG, and wrong in the way that makes alarms
+ * useless. It fired below a fixed two hundred connections, so a live
+ * deployment with no users yet and months of runway was told to top up
+ * urgently. An alarm that cries wolf on day one is an alarm that gets ignored
+ * on the day it matters, which is worse than not having one.
+ *
+ * A balance only means something next to a burn rate. Two hundred connections
+ * is months for a product nobody has found yet and four days for one doing
+ * fifty a day, and only the second is an emergency. So the question asked here
+ * is how many DAYS are left, not how many connections.
+ *
+ * Fourteen days is set against how long acting takes, not how much money it
+ * is: long enough to notice, decide, and get a deposit confirmed, without
+ * anybody being turned away while that happens.
  */
-export const LOW_BALANCE_CONNECTIONS = 200;
+export const LOW_BALANCE_DAYS = 14;
+
+/**
+ * The floor for a product with no measurable usage yet.
+ *
+ * With nothing being spent there is no rate to divide by, and no urgency
+ * either. This is deliberately small: it is not "top up soon", it is "there is
+ * so little here that the first handful of real users would exhaust it".
+ */
+export const LOW_BALANCE_FLOOR = 25;
 
 export type BalanceReading = {
   ok: boolean;
@@ -61,6 +81,16 @@ export type BalanceReading = {
   availableRaw: string;
   /** Roughly how many more people can connect a source before this runs out. */
   connectionsLeft: number;
+  /**
+   * Days of runway at the recent rate, or null when nothing is being spent.
+   *
+   * Null is not zero and must not be rendered as it. It means there is no
+   * usage to divide by, which is a statement about traffic rather than about
+   * money.
+   */
+  daysLeft: number | null;
+  /** Connections finished per day lately, which is what daysLeft divides by. */
+  burnPerDay: number;
   /** True when the runway is short enough to need a person. */
   low: boolean;
   /** True when nothing more can be settled at all. The product is off. */
@@ -115,13 +145,27 @@ async function assetInfo(asset: string): Promise<{ symbol: string; decimals: num
  * gateway is a worse problem than the one it was added to detect, so a failure
  * comes back as `ok: false` with the reason attached.
  */
-export async function readEscrowBalance(): Promise<BalanceReading> {
+export async function readEscrowBalance(
+  options: {
+    /**
+     * Connections finished per day lately. Passed in rather than read here so
+     * this module stays a balance reader and does not grow a dependency on the
+     * metrics store, and so a caller with no interest in runway can skip the
+     * extra round trip.
+     */
+    burnPerDay?: number;
+  } = {},
+): Promise<BalanceReading> {
+  const burnPerDay = Math.max(0, options.burnPerDay ?? 0);
+
   const unknown: BalanceReading = {
     ok: false,
     symbol: "",
     available: 0,
     availableRaw: "0",
     connectionsLeft: 0,
+    daysLeft: null,
+    burnPerDay,
     low: false,
     empty: false,
   };
@@ -175,6 +219,7 @@ export async function readEscrowBalance(): Promise<BalanceReading> {
 
     const best = withInfo.reduce((a, b) => (b.value > a.value ? b : a));
     const connectionsLeft = Math.floor(best.value / COST_PER_CONNECTION);
+    const daysLeft = burnPerDay > 0 ? connectionsLeft / burnPerDay : null;
 
     return {
       ok: true,
@@ -182,7 +227,12 @@ export async function readEscrowBalance(): Promise<BalanceReading> {
       available: best.value,
       availableRaw: best.raw,
       connectionsLeft,
-      low: connectionsLeft < LOW_BALANCE_CONNECTIONS,
+      daysLeft,
+      burnPerDay,
+      // With a rate, runway decides. Without one, only a genuinely tiny
+      // balance is worth mentioning, because nothing is being spent.
+      low:
+        daysLeft !== null ? daysLeft < LOW_BALANCE_DAYS : connectionsLeft < LOW_BALANCE_FLOOR,
       empty: connectionsLeft <= 0,
     };
   } catch (error) {
@@ -202,10 +252,18 @@ export function balanceAdvice(reading: BalanceReading): string {
   if (reading.empty) {
     return "Out of funds. Connecting is failing for everybody right now. Top up the escrow account.";
   }
+
+  const days = reading.daysLeft;
+
   if (reading.low) {
-    return `About ${reading.connectionsLeft} more connections before connecting stops working. Top up soon.`;
+    return days !== null
+      ? `About ${Math.floor(days)} days of runway left at the current rate, roughly ${reading.connectionsLeft} more connections. Top up now.`
+      : `Only about ${reading.connectionsLeft} connections funded. Nobody is using it yet, so there is no rush, but the first real users would exhaust this.`;
   }
-  return `About ${reading.connectionsLeft} more connections funded.`;
+
+  return days !== null
+    ? `About ${reading.connectionsLeft} more connections funded, roughly ${Math.floor(days)} days at the current rate.`
+    : `About ${reading.connectionsLeft} more connections funded. Nothing is being spent yet, so there is no rate to project from.`;
 }
 
 function describe(error: unknown): string {

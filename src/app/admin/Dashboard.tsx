@@ -11,6 +11,8 @@ type Balance = {
   symbol: string;
   available: number;
   connectionsLeft: number;
+  /** Days of runway at the recent rate, or null when nothing is being spent. */
+  daysLeft: number | null;
   low: boolean;
   empty: boolean;
   advice: string;
@@ -224,11 +226,28 @@ export function Dashboard({
 
       {/* ---------------------------------------------------------- money */}
       <Section title="Money left">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Figure
             label="Connections funded"
             value={balance.ok ? balance.connectionsLeft.toLocaleString() : "unknown"}
             tone={balance.empty ? "bad" : balance.low ? "warn" : "good"}
+          />
+          <Figure
+            label="Days of runway"
+            /*
+             * "No usage yet" rather than a number, because dividing a balance
+             * by a burn rate of zero is not infinity, it is a question that
+             * has not been asked yet. Printing a huge number would be a claim
+             * nobody measured.
+             */
+            value={
+              !balance.ok
+                ? "unknown"
+                : balance.daysLeft === null
+                  ? "no usage yet"
+                  : Math.floor(balance.daysLeft).toLocaleString()
+            }
+            tone={balance.daysLeft === null ? undefined : balance.low ? "warn" : "good"}
           />
           <Figure
             label={`Balance${balance.symbol ? ` (${balance.symbol})` : ""}`}

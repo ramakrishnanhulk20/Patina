@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { adminConfigured, isAdmin } from "@/lib/admin";
 import { stats } from "@/lib/store";
-import { funnel } from "@/lib/metrics";
+import { dailyRate, funnel } from "@/lib/metrics";
 import { balanceAdvice, escrowContractAddress, readEscrowBalance } from "@/lib/escrow-balance";
 import { isPersistent, storeSelfTest } from "@/lib/store";
 import { altchaConfigured } from "@/lib/altcha";
@@ -36,10 +36,12 @@ export default async function AdminPage() {
 
   if (!(await isAdmin())) return <SignIn />;
 
+  const burnPerDay = await dailyRate("connect_finished");
+
   const [counts, report, balance, store] = await Promise.all([
     stats({ fresh: true }),
     funnel(14),
-    readEscrowBalance(),
+    readEscrowBalance({ burnPerDay }),
     storeSelfTest(),
   ]);
 
@@ -52,6 +54,7 @@ export default async function AdminPage() {
         symbol: balance.symbol,
         available: balance.available,
         connectionsLeft: balance.connectionsLeft,
+        daysLeft: balance.daysLeft,
         low: balance.low,
         empty: balance.empty,
         advice: balanceAdvice(balance),
