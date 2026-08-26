@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { ConnectFlow } from "./ConnectFlow";
 import { ecosystemApps } from "@/lib/ecosystem";
 import { CORE_ORDER, SOURCE_SPECS, STRENGTHEN_ORDER } from "@/lib/sources";
@@ -5,6 +6,9 @@ import { readSessionId } from "@/lib/session";
 import { evidenceOf, getProfile, resolveProfileId } from "@/lib/store";
 import { scorePatina, verdict } from "@/lib/score";
 import { buildExhibits } from "@/lib/story";
+import { isDesktopClass } from "@/lib/device";
+import { countAsync } from "@/lib/metrics";
+import { siteUrl } from "@/lib/site";
 
 export const metadata = { title: "Connect" };
 export const dynamic = "force-dynamic";
@@ -24,6 +28,28 @@ export default async function ConnectPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+
+  /**
+   * Decided on the SERVER, so a phone never sees the buttons at all.
+   *
+   * Doing this after hydration would mean rendering a row of source cards,
+   * then withdrawing them, which is worse than either answer on its own: the
+   * person has already reached for the thing being taken away. The check is a
+   * user-agent read, which is imperfect, so the screen it produces always
+   * carries a way past it rather than being a wall.
+   */
+  const desktopClass = isDesktopClass((await headers()).get("user-agent"));
+
+  /**
+   * The size of the problem this page was built to stop losing.
+   *
+   * Until the handoff existed, a phone visit was indistinguishable from a
+   * desktop one that simply never connected anything, so the largest leak in
+   * the funnel was invisible by construction. Counting it is what turns "we
+   * think most of them are on phones" into a number somebody can decide with.
+   */
+  if (!desktopClass) countAsync("handoff_shown");
+
   const sessionId = await readSessionId();
   const profileId = sessionId ? await resolveProfileId(sessionId) : null;
   const profile = profileId ? await getProfile(profileId) : null;
@@ -65,6 +91,8 @@ export default async function ConnectPage({
         initialUsername={profile?.username ?? null}
         promptForName={params.name === "1"}
         nextApps={nextApps}
+        desktopClass={desktopClass}
+        connectUrl={siteUrl("/connect")}
       />
     </main>
   );

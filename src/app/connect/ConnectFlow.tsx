@@ -1,11 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Exhibit } from "./Exhibit";
 import { OpenSlot } from "./OpenSlot";
 import { ConvergeLines, VerdictPlate } from "./Verdict";
 import { ClaimName } from "./ClaimName";
 import { NextApps } from "./NextApps";
+import { ContinueOnDesktop } from "./ContinueOnDesktop";
+import { RestoreProfile } from "./RestoreProfile";
+import { FirstRun } from "./FirstRun";
+import { VANA_DESKTOP_DOWNLOAD } from "@/lib/device";
 import { Components } from "./ScorePanel";
 import { useConnect } from "./useConnect";
 import type { ScoreView } from "./ScorePanel";
@@ -31,7 +36,7 @@ import type { EcosystemApp } from "@/lib/ecosystem";
 const REASONS: Record<string, string> = {
   github:
     "It proves how far back you go and how steadily you showed up, which is most of the score.",
-  steam: "Steam accounts are usually the oldest thing anybody still has.",
+  youtube: "The join date on a Google account is usually the oldest one anybody can still prove.",
   spotify:
     "Every saved track is dated, which is the cheapest way to prove you were here throughout.",
   linkedin: "The only source that shows when other people chose to connect to you.",
@@ -44,9 +49,9 @@ const FALLBACK_REASON = "Another independent account raises your breadth.";
  * question the board actually raises: what is this person MISSING.
  */
 const FEEDS: Record<string, string[]> = {
-  vouches: ["linkedin", "steam"],
-  age: ["steam", "github", "youtube"],
-  corroboration: ["steam", "github", "youtube", "instagram"],
+  vouches: ["linkedin"],
+  age: ["youtube", "github", "linkedin"],
+  corroboration: ["github", "youtube", "instagram", "linkedin"],
   continuity: ["spotify", "github", "instagram", "amazon"],
   depth: ["spotify", "github", "instagram"],
 };
@@ -55,7 +60,7 @@ const FEEDS: Record<string, string[]> = {
  * The source worth connecting next.
  *
  * Reads the score rather than following a fixed list. A fixed list recommended
- * Spotify to somebody with GitHub and Steam already on the board, whose
+ * Spotify to somebody with GitHub and YouTube already on the board, whose
  * Continuity was long since maxed and whose Vouches were zero: it was pointing
  * at the component they had already won instead of the one they had not
  * started. The right answer is whichever unconnected source feeds the emptiest
@@ -97,6 +102,8 @@ export function ConnectFlow({
   initialUsername,
   promptForName,
   nextApps,
+  desktopClass,
+  connectUrl,
 }: {
   core: SourceSpec[];
   strengthen: SourceSpec[];
@@ -106,6 +113,10 @@ export function ConnectFlow({
   initialUsername: string | null;
   promptForName: boolean;
   nextApps: EcosystemApp[];
+  /** Whether this device can run Vana Desktop, decided server-side. */
+  desktopClass: boolean;
+  /** The address to open on a computer, for the handoff panel. */
+  connectUrl: string;
 }) {
   const [score, setScore] = useState(initialScore);
   const [exhibits, setExhibits] = useState(initialExhibits);
@@ -176,7 +187,7 @@ export function ConnectFlow({
   /**
    * A connected source is ALWAYS an exhibit, whichever tier it came from.
    *
-   * Collapsing the extra six used to take a connected Steam down with them, so
+   * Collapsing the extra five used to take a connected YouTube down with them, so
    * a card somebody had just earned vanished when they tidied the board. Only
    * the UNCONNECTED extras are hideable, which is also what the toggle should
    * be counting.
@@ -204,15 +215,23 @@ export function ConnectFlow({
           </h1>
         </div>
 
-        {onBoard.length === 0 ? (
+        {onBoard.length === 0 && desktopClass ? (
           <div className="max-w-[24em] border-l-2 border-accent-line bg-panel py-3 pl-4 pr-4">
             <p className="text-sm leading-relaxed text-text-2">
-              You will need <strong className="font-semibold text-text">Vana Desktop</strong> on this
-              computer. It signs you in to each account on your own machine, which is what proves the
-              account is yours. Patina never sees a password.
+              You will need{" "}
+              <a
+                href={VANA_DESKTOP_DOWNLOAD}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-accent underline underline-offset-4"
+              >
+                Vana Desktop
+              </a>{" "}
+              on this computer. It signs you in to each account on your own machine, which is what
+              proves the account is yours. Patina never sees a password.
             </p>
           </div>
-        ) : score.provisional ? (
+        ) : onBoard.length === 0 ? null : score.provisional ? (
           <div className="flex items-center gap-2.5 rounded-full border border-warn/40 px-3.5 py-2">
             <span className="h-1.5 w-1.5 rounded-full bg-warn" aria-hidden="true" />
             <span className="text-[13px] text-warn">{score.provisionalReason}</span>
@@ -225,13 +244,15 @@ export function ConnectFlow({
         )}
       </header>
 
-      {onBoard.length === 0 && (
+      {onBoard.length === 0 && desktopClass && (
         <p className="max-w-[52ch] text-lg leading-relaxed text-text-2">
           Each account you connect becomes one exhibit, with its dates on the face of it. Together
           they make a case that a person has been here for years, which is the one thing nobody can
           fake in an afternoon.
         </p>
       )}
+
+      {onBoard.length === 0 && desktopClass && <FirstRun />}
 
       {/* the board */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -245,18 +266,19 @@ export function ConnectFlow({
           />
         ))}
 
-        {open.map((spec) => (
-          <OpenSlot
-            key={spec.id}
-            spec={spec}
-            phase={phase}
-            onStart={start}
-            onDismissError={dismissError}
-            onCancel={cancel}
-            recommended={recommended?.id === spec.id}
-            reason={REASONS[spec.id] ?? FALLBACK_REASON}
-          />
-        ))}
+        {desktopClass &&
+          open.map((spec) => (
+            <OpenSlot
+              key={spec.id}
+              spec={spec}
+              phase={phase}
+              onStart={start}
+              onDismissError={dismissError}
+              onCancel={cancel}
+              recommended={recommended?.id === spec.id}
+              reason={REASONS[spec.id] ?? FALLBACK_REASON}
+            />
+          ))}
       </div>
 
       {/*
@@ -268,7 +290,7 @@ export function ConnectFlow({
         new score. It opens when asked and closes the same way. Sources already
         on the board are never hidden by it, however they got there.
       */}
-      {hideableStrengthen.length > 0 && (
+      {desktopClass && hideableStrengthen.length > 0 && (
         <button
           type="button"
           onClick={() => setShowStrengthen((was) => !was)}
@@ -281,9 +303,17 @@ export function ConnectFlow({
         </button>
       )}
 
+      {!desktopClass && (
+        <ContinueOnDesktop connectUrl={connectUrl} hasSources={onBoard.length > 0} />
+      )}
+
+      {desktopClass && onBoard.length === 0 && (
+        <RestoreProfile sources={[...core, ...strengthen]} onRestored={refresh} />
+      )}
+
       {/* what it all adds up to */}
       <div className="flex flex-col">
-        <ConvergeLines solid={onBoard.length} dashed={Math.min(open.length, 4)} />
+        <ConvergeLines solid={onBoard.length} dashed={desktopClass ? Math.min(open.length, 4) : 0} />
         <VerdictPlate score={score} username={username} sourceCount={onBoard.length} />
       </div>
 
@@ -298,6 +328,17 @@ export function ConnectFlow({
             onNamed={refresh}
           />
         </div>
+      )}
+
+      {onBoard.length > 0 && (
+        <p className="text-center text-xs text-text-4">
+          <Link
+            href="/my-data"
+            className="tap underline-offset-4 hover:text-text-2 hover:underline"
+          >
+            See, download or remove anything Patina holds about you
+          </Link>
+        </p>
       )}
 
       {onBoard.length > 0 && nextApps.length > 0 && (

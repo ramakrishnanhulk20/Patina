@@ -1,5 +1,6 @@
 "use client";
 
+import { VANA_DESKTOP_DOWNLOAD } from "@/lib/device";
 import { useState } from "react";
 import { SourceGlyph } from "../components/SourceGlyph";
 import { maturityNote, type SourceSpec } from "@/lib/sources";
@@ -148,7 +149,53 @@ export function OpenSlot({
 
       {errored && phase.type === "error" && (
         <div className="sheet-up border-t border-line pt-4">
-          {phase.code === "SOURCE_EMPTY" ? (
+          {phase.code === "PAID_BUT_FAILED" ? (
+            <>
+              <p className="text-sm text-warn">{phase.message}</p>
+              <p className="mt-2 max-w-[70ch] text-xs leading-relaxed text-text-4">
+                This one is on us, not on you or your account. Vana took the fee and the data did
+                not come back, so nothing was saved. Patina pays that fee, never you. Trying again
+                usually works, and if it does not, it is worth telling us rather than retrying a
+                third time.
+              </p>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={onDismissError}
+                  className="btn btn-primary px-5 py-2.5 text-sm"
+                >
+                  Try again
+                </button>
+              </div>
+            </>
+          ) : phase.code === "PROOF_MISSING" ? (
+            <>
+              <p className="text-sm text-warn">{phase.message}</p>
+              <p className="mt-2 max-w-[70ch] text-xs leading-relaxed text-text-4">
+                Vana can collect either from your signed-in account or from a public page, and it
+                does not tell us which it did. This read came back without the private part, so
+                Patina cannot tell whether the account is yours and will not score it. Importing{" "}
+                {spec.label} in Vana Desktop and signing in there fixes it.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <a
+                  href={VANA_DESKTOP_DOWNLOAD}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary px-5 py-2.5 text-sm"
+                >
+                  Get Vana Desktop
+                </a>
+                <button
+                  type="button"
+                  onClick={onDismissError}
+                  className="tap t-label text-text-3 underline-offset-4 hover:text-text hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            </>
+          ) : phase.code === "SOURCE_EMPTY" ? (
             <>
               <p className="text-sm text-warn">{phase.message}</p>
               <p className="mt-2 max-w-[70ch] text-xs leading-relaxed text-text-4">
@@ -280,7 +327,17 @@ function ConnectProgress({
           )}
 
           <ol className="mt-4 flex max-w-[70ch] flex-col gap-1.5 text-xs leading-relaxed text-text-4">
-            <li>1. On the Vana tab, choose Open in Vana Desktop.</li>
+            <li>
+              1. On the Vana tab, choose Open in Vana Desktop.{" "}
+              <a
+                href={VANA_DESKTOP_DOWNLOAD}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent underline underline-offset-4"
+              >
+                Do not have it yet?
+              </a>
+            </li>
             <li>
               2. In the app, press Import. A browser window opens and asks you to sign in to {label}.
               That sign-in happens on your machine and Patina never sees it.
