@@ -37,7 +37,7 @@
 | **MCP** | [patinadata.xyz/api/mcp](https://patinadata.xyz/api/mcp) |
 | **Verifier** | [patinadata.xyz/verify](https://patinadata.xyz/verify) |
 | **Registry** | `io.github.ramakrishnanhulk20/patina` |
-| **Signing address** | `0x620dDbEceaD28Bbf1b979bfaB8e3a7B893aa54A1` |
+| **Signing address** | `0x3989bdFaf3BA242d27B4D0cEed98F446d0c52DAD` |
 
 ---
 
@@ -287,7 +287,7 @@ app: 0x...",
 import { verifyMessage } from "viem";
 
 const ok = await verifyMessage({
-  address: "0x620dDbEceaD28Bbf1b979bfaB8e3a7B893aa54A1",
+  address: "0x3989bdFaf3BA242d27B4D0cEed98F446d0c52DAD",
   message: attestation.message,
   signature: attestation.signature,
 });
