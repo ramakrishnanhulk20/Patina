@@ -13,7 +13,7 @@ import { ImageResponse } from "next/og";
  */
 
 export const alt =
-  "Patina — proof you're a real person, from the accounts you already have";
+  "Patina: proof you're a real person, from the accounts you already have";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

@@ -195,8 +195,8 @@ html {
   ONE MOTION LANGUAGE.
 
   Every interactive transition in the app pulls from these, so nothing moves on
-  a curve or a clock of its own. The curve is a gentle deceleration — fast to
-  start, soft to land — which is what makes a tap feel answered rather than
+  a curve or a clock of its own. The curve is a gentle deceleration, fast to
+  start and soft to land, which is what makes a tap feel answered rather than
   merely toggled.
 */
 :root {
@@ -277,7 +277,7 @@ body {
   text-rendering: optimizeLegibility;
   /* App-like touch. No 300ms delay and no double-tap zoom (pinch still works),
      and the page does not rubber-band into the browser chrome or trip a
-     pull-to-refresh — the things that most give a web page away on a phone. */
+     pull-to-refresh: the things that most give a web page away on a phone. */
   touch-action: manipulation;
   overscroll-behavior: none;
 }
@@ -293,18 +293,18 @@ body {
 
   A near-black UI with 1px borders is honest, but flat: every panel sits on the
   same plane, so nothing reads as an object you could pick up. On this ground a
-  drop shadow barely registers — what actually sells depth is a lit TOP EDGE
+  drop shadow barely registers. What actually sells depth is a lit TOP EDGE
   (a hairline of light, as if lit from above) over a surface a shade above the
   page, seated by a soft ambient shadow.
 
   Three composable primitives, used sparingly. Elevation everywhere is just
   noise; the point is that the few things that matter feel raised.
 
-  • .surface  — a card that owns its container: ground, border AND depth.
-  • .raise    — depth ONLY, to drop onto an already-styled bordered box without
+  • .surface  is a card that owns its container: ground, border AND depth.
+  • .raise    is depth ONLY, to drop onto an already-styled bordered box without
                 fighting its border/background (e.g. the source cards, whose
                 border recolours when connected).
-  • .lift     — a hover response for cards that are themselves reachable: rises
+  • .lift     is a hover response for cards that are themselves reachable: rises
                 a touch and warms its edge. Pointer devices only.
 */
 .surface {
@@ -642,7 +642,7 @@ select {
   will-change: opacity, transform;
 }
 
-/* Directional entrances for the landing page. Balanced travel — enough to read
+/* Directional entrances for the landing page. Balanced travel: enough to read
    as movement, not so much that it throws the layout around. */
 .reveal[data-dir="left"] {
   transform: translateX(-36px);
@@ -658,8 +658,8 @@ select {
 
 /*
   On phones and tablets the landing sections stack into a single column, so a
-  heading arriving from the left with its text from the right reads as arbitrary
-  — and, worse, a full-width block shifted 36px sideways pushes past the narrow
+  heading arriving from the left with its text from the right reads as arbitrary,
+  and, worse, a full-width block shifted 36px sideways pushes past the narrow
   page gutter and lets the body scroll horizontally as it animates in. Below the
   two-column breakpoint (lg, 1024px) collapse the sideways entrances to the same
   gentle rise as everything else.
@@ -746,7 +746,7 @@ select {
 
   The hallmark seal lands like a stamp the first time a signed score appears: a
   quick press-in from slightly oversized, a brief verdigris flash, then settle.
-  It is the payoff made physical — see VerifiedSeal. Reduced motion shows it
+  It is the payoff made physical (see VerifiedSeal). Reduced motion shows it
   already struck.
 */
 @keyframes seal-strike {
@@ -772,7 +772,7 @@ select {
 
 /*
   The moment a source connects, its card gives one quiet verdigris pulse and
-  settles — so a connection feels acknowledged, not silently toggled.
+  settles, so a connection feels acknowledged, not silently toggled.
 */
 @keyframes just-connected {
   0% {
@@ -874,7 +874,7 @@ select {
   animation: hero-rise 700ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
-/* The scroll cue drifts down and back — a slow invitation, not a blink. */
+/* The scroll cue drifts down and back: a slow invitation, not a blink. */
 @keyframes scroll-cue {
   0%,
   100% {
@@ -939,7 +939,7 @@ select {
   THE CLAIM SCENE (landing).
 
   Each fakeable signal rises into place, then a line strikes through it as it
-  settles — the internet's proofs of a person, crossed off one by one — until
+  settles, the internet's proofs of a person crossed off one by one, until
   the last row, time, stays whole and lit. An IntersectionObserver flips
   data-shown on each row (see ClaimScene); reduced motion (below) shows every
   row already resolved and struck.
@@ -957,7 +957,7 @@ select {
   transform: none;
 }
 
-/* A fakeable row settles muted — it was never worth much. */
+/* A fakeable row settles muted. It was never worth much. */
 .strike-row[data-fakeable][data-shown="true"] {
   opacity: 0.6;
 }
