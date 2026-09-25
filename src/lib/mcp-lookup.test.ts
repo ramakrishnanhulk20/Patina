@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  LOOKUP_SOURCES,
   PUBLISHED_APP_ADDRESS,
   RESOLVABLE_SOURCES,
   VERDICT_BANDS,
@@ -187,7 +188,9 @@ test("an unsupported source is refused with an explanation, not an error", async
  * a handle.
  */
 test("email addresses are refused as lookup keys on every source", async () => {
-  for (const source of RESOLVABLE_SOURCES) {
+  // Paused sources are refused even earlier, with their own reason, and are
+  // covered by the paused test below.
+  for (const source of LOOKUP_SOURCES) {
     const result = await resolveIdentity({ source, handle: "someone@gmail.com" });
 
     assert.equal(result.found, false, `${source} must not resolve an email`);
@@ -203,6 +206,52 @@ test("email addresses are refused as lookup keys on every source", async () => {
  * trusted from the code. If somebody later adds a username or a source list to
  * this response, this fails.
  */
+/**
+ * Instagram stores a typeable handle, but Patina cannot tell whether the person
+ * who connected it owns it. A score handed back through that handle could be a
+ * stranger's history pinned to somebody else's account, so while it is paused
+ * the lookup refuses before the store is read, even for a handle that really
+ * was recorded against a public profile.
+ */
+test("instagram handles are not resolved while paused", async () => {
+  const id = await publishProfile("insta_person", 10, "insta-person-gh");
+  await recordSource(
+    id,
+    "instagram",
+    [
+      {
+        scope: "instagram.posts",
+        fragment: readScope("instagram.posts", { posts: [{ taken_at: yearsAgo(10) }] })!,
+      },
+    ],
+    { externalId: "insta.handle" },
+  );
+  clearLookupCache();
+
+  for (const handle of ["insta.handle", "@insta.handle", "https://instagram.com/insta.handle/"]) {
+    const result = await resolveIdentity({ source: "instagram", handle });
+    assert.equal(result.found, false, handle);
+    assert.equal(result.supported, false);
+    assert.equal(result.score, null, "no score through an Instagram handle");
+    assert.equal(result.yearsOfHistory, null);
+    assert.match(result.note, /Instagram lookups are paused/);
+    assert.match(result.note, /cannot yet prove/);
+  }
+
+  assert.deepEqual([...LOOKUP_SOURCES], ["github", "linkedin"]);
+
+  // The same profile still resolves through a source that is not paused, and
+  // its score and source list carry no trace of Instagram.
+  assert.equal((await resolveIdentity({ source: "github", handle: "insta-person-gh" })).found, true);
+  const full = await lookupByUsername("insta_person");
+  assert.equal(full.found, true);
+  if (!full.found) return;
+  assert.ok(!full.sourcesConnected.includes("instagram"));
+  const threshold = await checkThreshold({ username: "insta_person", minScore: 0 });
+  assert.equal(threshold.score, full.score);
+  assert.match(threshold.reason, /across 3 independent platforms/);
+});
+
 test("resolve_identity returns score and tenure only, never identity", async () => {
   await publishProfile("resolvable_person", 9, "veteran-dev");
 

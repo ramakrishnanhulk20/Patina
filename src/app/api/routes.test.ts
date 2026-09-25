@@ -305,3 +305,84 @@ test("a retired source cannot be restored through", async () => {
   assert.equal(res.status, 400);
   assert.match((await res.json()).error, /Unknown source/i);
 });
+
+// ---------------------------------------------------------------------------
+// Paused sources. Refused before anything that could spend escrow.
+// ---------------------------------------------------------------------------
+
+/**
+ * The Vana modules are replaced with counters, so "nothing was spent" is an
+ * assertion rather than an inference from the status code. Both routes are
+ * imported for the first time below the mocks, so they pick the counters up;
+ * the store and the session they share with the rest of this file stay real.
+ */
+const vanaCalls: string[] = [];
+const libUrl = (file: string) => new URL(`../../lib/${file}`, import.meta.url).href;
+
+mock.module(libUrl("vana.ts"), {
+  namedExports: {
+    controllerFor: (source: string) => {
+      vanaCalls.push(`controllerFor:${source}`);
+      throw new Error("a paused source reached Vana");
+    },
+  },
+});
+
+mock.module(libUrl("vana-settle-read.ts"), {
+  namedExports: {
+    readSourceSettled: async (source: string) => {
+      vanaCalls.push(`readSourceSettled:${source}`);
+      throw new Error("a paused source reached the escrow");
+    },
+    emptySourceMessage: () => "",
+    PaidButFailedError: class extends Error {},
+    SourceEmptyError: class extends Error {},
+  },
+});
+
+const vanaRequestRoute = await import("./vana/request/route.ts");
+const vanaDataRoute = await import("./vana/data/route.ts");
+const { getProfile, rememberRequest } = await import("@/lib/store");
+
+const PAUSED_BODY = {
+  error: "source_paused",
+  source: "instagram",
+  message:
+    "Instagram is paused. Patina cannot yet prove an Instagram account belongs to the person connecting it.",
+};
+
+test("a paused source is refused before any spend", async () => {
+  vanaCalls.length = 0;
+  const { profileId } = await withProfile();
+
+  const started = await vanaRequestRoute.POST(post("http://x/api/vana/request?source=instagram"));
+  assert.equal(started.status, 409);
+  assert.deepEqual(await started.json(), PAUSED_BODY);
+
+  // A request opened before the pause, with a read already cached against it.
+  // Neither a fresh read nor the cached one may land.
+  const requestId = `paused-${Date.now()}`;
+  await rememberRequest(requestId, {
+    source: "instagram",
+    profileId,
+    createdAt: new Date().toISOString(),
+    reads: [
+      {
+        scope: "instagram.posts",
+        fragment: readScope("instagram.posts", { posts: [{ taken_at: iso(12) }] })!,
+      },
+    ],
+    scopesServed: ["instagram.posts"],
+  });
+
+  const finished = await vanaDataRoute.GET(
+    new Request(`http://x/api/vana/data?requestId=${requestId}`),
+  );
+  assert.equal(finished.status, 409);
+  assert.deepEqual(await finished.json(), PAUSED_BODY);
+
+  assert.deepEqual(vanaCalls, [], "nothing reached Vana or the escrow");
+  const profile = await getProfile(profileId);
+  assert.equal(profile!.sources.instagram, undefined, "nothing was recorded");
+  assert.equal(profile!.fragments["instagram.posts"], undefined);
+});

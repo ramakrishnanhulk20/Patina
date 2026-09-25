@@ -16,6 +16,7 @@
 
 import { evidenceOf, getProfile, profileForUsername, profileIdForAccount } from "./store.ts";
 import { scorePatina, verdict, type SourceId } from "./score.ts";
+import { isPaused, SOURCE_SPECS } from "./sources.ts";
 import { attestationSigner, buildAttestation } from "./attest.ts";
 import { PATINA_APP_ADDRESS } from "./patina-address.ts";
 import { siteUrl } from "./site.ts";
@@ -89,7 +90,7 @@ export const PROVISIONAL_MEANING =
  * by source:
  *
  *   github    -> the GitHub username            (resolvable)
- *   instagram -> the Instagram username         (resolvable)
+ *   instagram -> the Instagram username         (resolvable, but paused)
  *   linkedin  -> the vanity slug from the URL   (resolvable)
  *   youtube   -> prefers `channelId` (UC...), and can fall back to an EMAIL
  *   spotify   -> an opaque Spotify user id
@@ -112,6 +113,19 @@ export type ResolvableSource = (typeof RESOLVABLE_SOURCES)[number];
 export function isResolvableSource(source: string): source is ResolvableSource {
   return (RESOLVABLE_SOURCES as readonly string[]).includes(source);
 }
+
+/**
+ * The resolvable sources an agent may actually look people up by today.
+ *
+ * Narrower than RESOLVABLE_SOURCES while a source is paused. Instagram still
+ * stores a typeable handle, but Patina cannot tell whether the person who
+ * connected that handle owns it, so answering "this Instagram account has a
+ * score of 80" could be vouching for a stranger's account with somebody
+ * else's history. Tool descriptions list this set, not the wider one.
+ */
+export const LOOKUP_SOURCES: readonly ResolvableSource[] = RESOLVABLE_SOURCES.filter(
+  (source) => !isPaused(source),
+);
 
 export type ScoreComponent = {
   key: string;
@@ -529,11 +543,25 @@ export async function resolveIdentity(params: {
       yearsOfHistory: null,
       note:
         `Patina cannot look people up by their ${source || "(empty)"} handle. ` +
-        `Only ${RESOLVABLE_SOURCES.join(", ")} are supported, because those are the ` +
+        `Only ${LOOKUP_SOURCES.join(", ")} are supported, because those are the ` +
         "only platforms where Patina stores an account id that a person could type. " +
         "For the others it stores an internal platform id that nobody knows offhand. " +
         "This is a limitation of the lookup only. Those platforms still count " +
         "fully toward the score itself.",
+    };
+  }
+
+  // Before the store is touched, so a paused source never yields a score, not
+  // even for a handle whose profile was recorded before the pause.
+  if (isPaused(source)) {
+    return {
+      found: false,
+      supported: false,
+      score: null,
+      yearsOfHistory: null,
+      note:
+        `${SOURCE_SPECS[source].label} lookups are paused, because Patina cannot yet prove ` +
+        "that the person who connected one of these accounts is the person who owns it.",
     };
   }
 

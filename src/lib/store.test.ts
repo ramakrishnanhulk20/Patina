@@ -16,6 +16,7 @@ import {
   usernameProblem,
 } from "./store.ts";
 import { readScope } from "./normalize.ts";
+import { scorePatina } from "./score.ts";
 import type { Fragment } from "./normalize.ts";
 
 /**
@@ -416,5 +417,46 @@ test("stats counts sources recorded before the ownership check separately", asyn
     after.unproven - before.unproven,
     1,
     "only the one written without the check counts as unproven",
+  );
+});
+
+/**
+ * Instagram is paused because its proof scope is one Vana reads from the
+ * public page, so a stored Instagram read may be a stranger's account. The
+ * fragments are kept, so the person can see and remove them, but they must not
+ * move a single point, and they must not appear as a connected source either,
+ * or the "N platforms corroborate this" line would count one that proves
+ * nothing.
+ */
+test("stored instagram fragments do not change a score", async () => {
+  const instagram = [
+    {
+      scope: "instagram.posts",
+      fragment: readScope("instagram.posts", {
+        posts: [{ taken_at: iso(13) }, { taken_at: iso(6) }, { taken_at: iso(1) }],
+      })!,
+    },
+    {
+      scope: "instagram.profile",
+      fragment: readScope("instagram.profile", { follower_count: 900, media_count: 3 })!,
+    },
+  ];
+
+  const without = await ensureProfileId(unique("session"));
+  const plain = await recordSource(without, "github", githubReads());
+
+  const withIt = await ensureProfileId(unique("session"));
+  await recordSource(withIt, "github", githubReads());
+  const both = await recordSource(withIt, "instagram", instagram);
+
+  assert.ok(both.fragments["instagram.posts"], "the fragments are kept, not deleted");
+  assert.equal(both.score, plain.score, "the cached score ignores them");
+  assert.deepEqual(scorePatina(evidenceOf(both)), scorePatina(evidenceOf(plain)));
+  assert.ok(!scorePatina(evidenceOf(both)).sourcesConnected.includes("instagram"));
+
+  const removed = await removeSource(withIt, "instagram");
+  assert.ok(
+    !Object.keys(removed!.fragments).some((scope) => scope.startsWith("instagram.")),
+    "removing the paused source still clears what it left behind",
   );
 });

@@ -38,7 +38,8 @@
 
 import { createHmac } from "node:crypto";
 import { Redis } from "@upstash/redis";
-import { evidenceFrom, type Fragment } from "./normalize.ts";
+import { evidenceFrom, SCOPE_SOURCE, type Fragment } from "./normalize.ts";
+import { isPaused } from "./sources.ts";
 import { scorePatina, type Evidence, type SourceId } from "./score.ts";
 
 /**
@@ -115,7 +116,27 @@ export type Profile = {
 
 /** Reassemble the evidence a profile's stored fragments describe. */
 export function evidenceOf(profile: Profile): Evidence {
-  return evidenceFrom(profile.fragments ?? {});
+  return scorableEvidence(profile.fragments ?? {});
+}
+
+/**
+ * The one place stored fragments become evidence, so a paused source is
+ * skipped everywhere a score is computed rather than in some places.
+ *
+ * Skipped, not deleted. A paused source's fragments stay in the profile, where
+ * the person can see them and remove them, and they count again the moment the
+ * source is unpaused. Every scoring path in this file and every caller of
+ * `evidenceOf` goes through here; calling `evidenceFrom` directly on stored
+ * fragments would quietly score a source Patina has said it cannot vouch for.
+ */
+function scorableEvidence(fragments: Record<string, Fragment | undefined>): Evidence {
+  const kept = Object.fromEntries(
+    Object.entries(fragments).filter(([scope]) => {
+      const source = SCOPE_SOURCE[scope];
+      return source !== undefined && !isPaused(source);
+    }),
+  );
+  return evidenceFrom(kept);
 }
 
 // ---------------------------------------------------------------------------
@@ -429,7 +450,7 @@ async function absorb(fromId: string, intoId: string): Promise<void> {
     ...into,
     fragments,
     sources,
-    score: scorePatina(evidenceFrom(fragments)).total,
+    score: scorePatina(scorableEvidence(fragments)).total,
     username: into.username ?? from.username,
     updatedAt: new Date().toISOString(),
   });
@@ -492,7 +513,7 @@ export async function recordSource(
     ...profile,
     fragments,
     sources,
-    score: scorePatina(evidenceFrom(fragments)).total,
+    score: scorePatina(scorableEvidence(fragments)).total,
     updatedAt: new Date().toISOString(),
   };
 
@@ -558,7 +579,7 @@ export async function removeSource(profileId: string, source: SourceId): Promise
     ...profile,
     fragments,
     sources,
-    score: scorePatina(evidenceFrom(fragments)).total,
+    score: scorePatina(scorableEvidence(fragments)).total,
     updatedAt: new Date().toISOString(),
   };
 
@@ -694,7 +715,7 @@ export async function stats(options: { fresh?: boolean } = {}): Promise<Stats> {
     }
     if (profile.username) out.named += 1;
 
-    const score = scorePatina(evidenceFrom(profile.fragments ?? {}));
+    const score = scorePatina(scorableEvidence(profile.fragments ?? {}));
     scoreTotal += score.total;
     if (!score.provisional) out.signable += 1;
   }
@@ -804,7 +825,7 @@ export async function claimUsername(
     return { ok: false, error: "Connect a source before choosing a name." };
   }
 
-  const score = scorePatina(evidenceFrom(profile.fragments ?? {}));
+  const score = scorePatina(scorableEvidence(profile.fragments ?? {}));
   if (score.provisional) {
     return {
       ok: false,

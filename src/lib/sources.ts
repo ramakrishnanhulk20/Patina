@@ -363,8 +363,51 @@ export const SOURCE_SPECS: Record<SourceId, SourceSpec> = {
   },
 };
 
+/**
+ * INSTAGRAM IS PAUSED, not withdrawn, and it differs from Steam in one way that
+ * matters: it can be saved, just not yet.
+ *
+ * Its proof scope is `instagram.posts`, and Vana's own documentation lists
+ * that scope among the ones its server collects from the public page
+ * (https://docs.vana.org/applications/collection-and-apps). So a read that
+ * returns it proves the account exists and nothing about who is holding it.
+ * The proof check in api/vana/data passes, and passes for a stranger too.
+ *
+ * Unlike YouTube there is nothing private to require instead. Instagram has no
+ * scope Patina reads today that only a signed-in session can produce, so no
+ * request we could build would force somebody onto Desktop.
+ *
+ * Paused rather than removed because the fix is on its way: the phone app's
+ * signed-in proof (TLS Notary) gives exactly the guarantee missing here. The
+ * type, the spec above and the readers in normalize.ts all stay, so bringing
+ * it back is deleting it from this set. While it is here, the connect page does
+ * not offer it, the Vana routes refuse it before spending anything, the handle
+ * resolver will not look it up, and stored instagram.* fragments are skipped
+ * when evidence is built. They are not deleted: the person can still see them
+ * and remove them on /my-data.
+ *
+ * Unpausing must arrive together with a read that proves a signed-in session.
+ * Every Instagram fragment collected before the pause came through the public
+ * path and was deleted on 25 September 2026, so nothing unproven can come back
+ * to life when this set is emptied.
+ */
+export const PAUSED_SOURCES: ReadonlySet<SourceId> = new Set<SourceId>(["instagram"]);
+
+export function isPaused(source: SourceId): boolean {
+  return PAUSED_SOURCES.has(source);
+}
+
+/** Why a paused source was refused, in the words the person needs to hear. */
+export function pausedMessage(source: SourceId): string {
+  const { label } = SOURCE_SPECS[source];
+  const article = /^[aeiou]/i.test(label) ? "an" : "a";
+  return `${label} is paused. Patina cannot yet prove ${article} ${label} account belongs to the person connecting it.`;
+}
+
 /** Asked for first. One source, one score, one visible jump. */
-export const CORE_ORDER: SourceId[] = ["github", "linkedin", "spotify", "instagram"];
+export const CORE_ORDER: SourceId[] = (["github", "linkedin", "spotify", "instagram"] as SourceId[]).filter(
+  (id) => !isPaused(id),
+);
 
 /** Offered afterwards, under "strengthen this". */
 export const STRENGTHEN_ORDER: SourceId[] = [

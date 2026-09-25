@@ -12,7 +12,7 @@ import { RingField } from "./components/RingField";
   the nav and reveals are client too. Everything else is server-rendered.
 */
 
-const SOURCES = ["YouTube", "GitHub", "Instagram", "LinkedIn", "Spotify"];
+const SOURCES = ["YouTube", "GitHub", "LinkedIn", "Spotify"];
 
 function Photo({
   src,

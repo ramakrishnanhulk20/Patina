@@ -24,7 +24,7 @@ const TOOLS = [
   },
   {
     name: "resolve_identity",
-    line: "Goes from a GitHub, Instagram or LinkedIn handle to a score and a number of years. Never returns the person's Patina name or any other account they own.",
+    line: "Goes from a GitHub or LinkedIn handle to a score and a number of years. Never returns the person's Patina name or any other account they own.",
   },
 ];
 
@@ -139,9 +139,11 @@ export default function McpPage() {
             exactly that and nothing more, and the tools say so in the answer itself.
           </li>
           <li>
-            <span className="t-mono text-text-3">resolve_identity</span> covers GitHub, Instagram
-            and LinkedIn only. For other platforms Patina stores an internal id rather than a handle
-            anyone could type. Those platforms still count fully toward the score.
+            <span className="t-mono text-text-3">resolve_identity</span> covers GitHub and LinkedIn
+            only. For other platforms Patina stores an internal id rather than a handle anyone could
+            type. Those platforms still count fully toward the score. Instagram lookups are paused,
+            because Patina cannot yet prove an Instagram account belongs to the person who connected
+            it.
           </li>
         </ul>
       </section>

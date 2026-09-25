@@ -1,4 +1,10 @@
-import { isSourceId, proofMissingMessage, proofScopeFor } from "@/lib/sources";
+import {
+  isPaused,
+  isSourceId,
+  pausedMessage,
+  proofMissingMessage,
+  proofScopeFor,
+} from "@/lib/sources";
 import {
   emptySourceMessage,
   PaidButFailedError,
@@ -72,6 +78,18 @@ export async function GET(request: Request) {
   const sessionProfile = sessionId ? await resolveProfileId(sessionId) : null;
   if (!sessionId || sessionProfile !== pending.profileId) {
     return Response.json({ error: "Not your request" }, { status: 403 });
+  }
+
+  /**
+   * A request started before its source was paused can still come back here.
+   * Refused before `collect`, which is where escrow is spent, and before the
+   * cache is consulted, so a read cached earlier cannot be recorded either.
+   */
+  if (isPaused(pending.source)) {
+    return Response.json(
+      { error: "source_paused", source: pending.source, message: pausedMessage(pending.source) },
+      { status: 409 },
+    );
   }
 
   try {

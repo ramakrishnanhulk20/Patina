@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 
 import {
   CORE_ORDER,
+  PAUSED_SOURCES,
   SOURCE_ORDER,
   SOURCE_SPECS,
   STRENGTHEN_ORDER,
+  isPaused,
+  pausedMessage,
   proofMissingMessage,
   proofScopeFor,
   scopesFor,
@@ -112,9 +115,59 @@ test("steam is not a source", () => {
   assert.ok(!ALL_SCOPES.some((scope) => scope.startsWith("steam.")));
 });
 
-test("the two tiers together are every source, with nothing counted twice", () => {
-  assert.deepEqual([...CORE_ORDER, ...STRENGTHEN_ORDER].sort(), [...SOURCE_IDS].sort());
+test("the two tiers plus the paused sources are every source, with nothing counted twice", () => {
+  assert.deepEqual(
+    [...CORE_ORDER, ...STRENGTHEN_ORDER, ...PAUSED_SOURCES].sort(),
+    [...SOURCE_IDS].sort(),
+  );
   assert.equal(new Set(SOURCE_ORDER).size, SOURCE_ORDER.length);
+});
+
+/**
+ * Scopes Vana's server collects from the public page, copied from
+ * https://docs.vana.org/applications/collection-and-apps. A proof scope on this
+ * list is answerable about somebody else's account, so it proves nothing, and
+ * the `.profile` rule above cannot see it because `instagram.posts` does not
+ * end in `.profile`. That gap is how Instagram passed every test here while
+ * proving nothing.
+ */
+const VANA_SERVER_SIDE_SCOPES = [
+  "github.profile",
+  "instagram.profile",
+  "instagram.posts",
+  "spotify.profile",
+  "youtube.profile",
+];
+
+test("no offered source has a proof scope Vana collects from public pages", () => {
+  for (const id of SOURCE_ORDER) {
+    assert.ok(
+      !VANA_SERVER_SIDE_SCOPES.includes(proofScopeFor(id)),
+      `${id} is offered but proves ownership with ${proofScopeFor(id)}, which Vana reads from the public page`,
+    );
+  }
+});
+
+/**
+ * Paused, not removed. The type, the spec and the readers all stay, so taking
+ * it out of PAUSED_SOURCES is the whole revival and nothing else has to be
+ * rebuilt when the signed-in proof arrives.
+ */
+test("instagram is paused and not offered", () => {
+  assert.equal(isPaused("instagram"), true);
+  assert.ok(!SOURCE_ORDER.includes("instagram"), "the connect page must not offer it");
+  assert.ok(!CORE_ORDER.includes("instagram"));
+  assert.ok(!STRENGTHEN_ORDER.includes("instagram"));
+
+  assert.ok((SOURCE_IDS as readonly string[]).includes("instagram"), "the type stays");
+  assert.equal(SOURCE_SPECS.instagram.id, "instagram", "the spec stays");
+  assert.ok(ALL_SCOPES.includes("instagram.posts"), "the reader stays");
+
+  assert.equal(
+    pausedMessage("instagram"),
+    "Instagram is paused. Patina cannot yet prove an Instagram account belongs to the person connecting it.",
+  );
+  for (const id of SOURCE_ORDER) assert.equal(isPaused(id), false, `${id} is offered and paused`);
 });
 
 test("a refusal names the source and points at the desktop app", () => {

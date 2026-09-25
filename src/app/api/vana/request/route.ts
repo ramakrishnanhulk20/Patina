@@ -1,5 +1,5 @@
 import { controllerFor } from "@/lib/vana";
-import { isSourceId, scopesFor } from "@/lib/sources";
+import { isPaused, isSourceId, pausedMessage, scopesFor } from "@/lib/sources";
 import { ensureSessionId, readSessionId } from "@/lib/session";
 import { ensureProfileId, rememberRequest } from "@/lib/store";
 import { checkConnectRate } from "@/lib/ratelimit";
@@ -26,6 +26,15 @@ export async function POST(request: Request) {
 
   if (!isSourceId(source)) {
     return Response.json({ error: "Unknown source" }, { status: 400 });
+  }
+
+  // Refused before the rate limit, the bot check and the access request, so a
+  // paused source costs nothing: no session, no Vana call, no escrow.
+  if (isPaused(source)) {
+    return Response.json(
+      { error: "source_paused", source, message: pausedMessage(source) },
+      { status: 409 },
+    );
   }
 
   // Rate limit BEFORE minting a session, so hammering this route cannot spin up

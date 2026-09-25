@@ -76,9 +76,11 @@ Every source therefore requires one scope a public page cannot serve, and the re
 
 Steam was withdrawn for the same reason. Its connector never signs anybody in: it takes a Steam Web API key and a Steam ID, and a Steam ID is public. Anyone could have handed Patina a stranger's account age and friend dates as their own, and unlike YouTube there was no private scope to require instead.
 
-### Nine sources, nineteen scopes
+Instagram is **paused** for a related reason. Its proof scope, `instagram.posts`, is one Vana's server [collects from the public page](https://docs.vana.org/applications/collection-and-apps), so a read proves the account exists and nothing about who holds it, and Instagram has no private scope Patina could require instead. It is not offered, both Vana routes refuse it before any money is spent, the handle resolver will not look it up, and Instagram data already stored is left out of every score. It comes back when the phone app's signed-in proof lands.
 
-GitHub, LinkedIn, Spotify, Instagram, YouTube, Amazon, Uber, DoorDash and Shop. All of a source's scopes go in one approval, so the whole manifest is nine approval trips rather than nineteen.
+### Eight sources, seventeen scopes
+
+GitHub, LinkedIn, Spotify, YouTube, Amazon, Uber, DoorDash and Shop. All of a source's scopes go in one approval, so the whole manifest is eight approval trips rather than seventeen.
 
 ### Timestamps in, content out
 
@@ -145,7 +147,7 @@ Every scope below is requested for its timestamps. This table is the trust argum
 | Scope | Kept | Discarded on arrival |
 |---|---|---|
 | `linkedin.connections` | `dateConnected[]`, count | names, headlines, profile URLs |
-| `instagram.posts` | `taken_at[]`, count | captions, images, likes, the entire `who_liked[]` array |
+| `instagram.posts` | nothing new while Instagram is paused; data already held is not scored | captions, images, likes, the entire `who_liked[]` array |
 | `spotify.savedTracks` | `added_at[]`, total | track names, artists, albums |
 | `github.history` | `createdAt[]`, hashed repo, summed engagement | PR and issue titles and bodies |
 | `linkedin.experience` / `education` | parsed date ranges | companies, job titles, schools, grades |
@@ -310,7 +312,7 @@ const ok = await verifyMessage({
 |---|---|
 | `get_patina_score` | The full breakdown for a Patina username |
 | `check_threshold` | A yes/no trust gate on years, score or source count |
-| `resolve_identity` | A GitHub, Instagram or LinkedIn handle to a score, without revealing identity |
+| `resolve_identity` | A GitHub or LinkedIn handle to a score, without revealing identity. Instagram lookups are paused |
 | `verify_attestation` | Whether a signature is genuinely Patina's |
 
 ---

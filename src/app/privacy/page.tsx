@@ -31,6 +31,15 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
           <strong className="text-text">A small cookie</strong>, so you can come back and find your
           own result.
         </li>
+        <li>
+          <strong className="text-text">Instagram is paused.</strong> Patina cannot yet prove an
+          Instagram account belongs to the person connecting it, so it is not offered. Instagram data
+          already held is not used in any score, and you can remove it on{" "}
+          <Link href="/my-data" className="text-accent underline underline-offset-4">
+            your data page
+          </Link>
+          .
+        </li>
       </ul>
     ),
   },
@@ -85,8 +94,8 @@ const SECTIONS: { heading: string; body: React.ReactNode }[] = [
           it.
         </p>
         <p className="mt-3">
-          One of those tools works in the other direction, from a GitHub, Instagram or LinkedIn
-          handle to a score. It returns the score and the number of years, and nothing else. It never
+          One of those tools works in the other direction, from a GitHub or LinkedIn handle to a
+          score. It returns the score and the number of years, and nothing else. It never
           returns your Patina name, and it never reveals which other accounts you have connected,
           because that would let somebody start with one handle and uncover the rest of your
           accounts. Lookups by email address are refused outright.
@@ -128,7 +137,7 @@ export default function PrivacyPage() {
 
       <p className="mt-6 text-lg leading-relaxed text-text-2">
         Patina&apos;s whole point is that your data stays yours, so the privacy policy had better be
-        short and true. Here it is, in plain English. Last updated 14 August 2026.
+        short and true. Here it is, in plain English. Last updated 25 September 2026.
       </p>
 
       <div className="mt-10 divide-y divide-line border-y border-line">

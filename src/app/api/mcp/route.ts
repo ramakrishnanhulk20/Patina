@@ -4,7 +4,7 @@ import { expiryOf } from "@/lib/attest";
 import { z } from "zod";
 
 import {
-  RESOLVABLE_SOURCES,
+  LOOKUP_SOURCES,
   SCORE_MEANING,
   acceptedSigners,
   checkThreshold,
@@ -69,7 +69,7 @@ const handler = createMcpHandler(
         description:
           "Look up a person's full Patina score by their Patina username. Patina reads " +
           "the age and activity of accounts somebody already owns (YouTube, GitHub, " +
-          "Instagram, LinkedIn, Spotify and others) through the Vana data portability " +
+          "LinkedIn, Spotify and others) through the Vana data portability " +
           "protocol, and turns that into a 0-100 score plus a signed attestation. " +
           SCORE_MEANING +
           " " +
@@ -291,7 +291,7 @@ const handler = createMcpHandler(
         description:
           "Find out whether the person behind a platform handle has a Patina score, " +
           "WITHOUT learning who they are. Supported sources: " +
-          RESOLVABLE_SOURCES.join(", ") +
+          LOOKUP_SOURCES.join(", ") +
           ". Accepts a bare handle, an @handle, or a full profile URL. " +
           "Returns only three things: whether a public Patina profile is linked to that " +
           "account, its score, and its years of history. " +
@@ -302,15 +302,16 @@ const handler = createMcpHandler(
           "Other platforms (youtube, spotify, amazon, uber) are NOT supported " +
           "here, because for those Patina stores an internal platform id rather than a " +
           "handle a person could type. Those platforms still count fully toward the " +
-          "score itself; only this lookup is limited. Email addresses are refused " +
-          "outright. " +
+          "score itself; only this lookup is limited. Instagram lookups are paused, " +
+          "because Patina cannot yet prove an Instagram account belongs to the person " +
+          "who connected it. Email addresses are refused outright. " +
           SCORE_MEANING,
         inputSchema: z.object({
           /**
            * Deliberately a string rather than an enum.
            *
            * An enum makes the SDK reject "youtube" during schema validation, and
-           * the agent gets "expected one of github|instagram|linkedin" with no
+           * the agent gets "expected one of github|linkedin" with no
            * reason. A model reading that can reasonably conclude Patina does not
            * support YouTube AT ALL, which is false and damaging: YouTube is the
            * single heaviest contributor to most scores. Taking the string lets
@@ -320,7 +321,7 @@ const handler = createMcpHandler(
           source: z
             .string()
             .describe(
-              `Which platform the handle belongs to. Supported for lookup: ${RESOLVABLE_SOURCES.join(", ")}. ` +
+              `Which platform the handle belongs to. Supported for lookup: ${LOOKUP_SOURCES.join(", ")}. ` +
                 "Anything else returns an explanation rather than a result.",
             ),
           handle: z
@@ -362,7 +363,7 @@ const handler = createMcpHandler(
     instructions:
       "Patina reports how much provable history a person has behind the accounts they " +
       "already own. Use check_threshold for yes/no trust gates, get_patina_score for the " +
-      "full breakdown, and resolve_identity to go from a github, instagram or linkedin " +
+      "full breakdown, and resolve_identity to go from a github or linkedin " +
       "handle to a score without learning who the person is. Patina proves tenure, not " +
       "uniqueness: it is not a proof-of-personhood check. A missing profile means the " +
       "person has not used Patina, and is never evidence against them.",
